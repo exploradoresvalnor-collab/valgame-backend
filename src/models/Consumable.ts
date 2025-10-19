@@ -1,49 +1,39 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema } from 'mongoose';
+import { Item, IItem } from './Item'; // Importamos el modelo y la interfaz base
 
-// Interfaz para las mejoras de estadísticas y XP
-export interface IEffectBoost {
-  mejora_atk: { min: number; max: number };
-  mejora_vida: { min: number; max: number };
-  mejora_defensa: { min: number; max: number };
-  mejora_xp: number; // Es un multiplicador (ej. 2 para x2)
+// Interfaz para los efectos específicos de un consumible
+export interface IConsumableEffects {
+  mejora_atk?: number;
+  mejora_defensa?: number;
+  mejora_vida?: number;
+  mejora_xp_porcentaje?: number; // Bonus de XP en porcentaje
 }
 
-// Interfaz principal del Consumible
-export interface IConsumable extends Document {
-  nombre: string;
+// Interfaz del Consumible, extendiendo la de Item
+export interface IConsumable extends IItem {
   tipo: 'pocion' | 'alimento' | 'pergamino' | 'fruto_mitico';
-  rango: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS';
-  duracion_efecto_minutos: number; // Duración del buff en minutos
-  habilidad_especial: string; // Ej: "Poder -1%"
-  efectos: IEffectBoost;
+  usos_maximos?: number;
+  duracion_efecto_minutos?: number; // Opcional, no todos tienen duración
+  efectos: IConsumableEffects;
 }
 
-// Schema para los efectos
-const EffectBoostSchema = new Schema({
-  mejora_atk: { 
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 0 }
-  },
-  mejora_vida: { 
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 0 }
-  },
-  mejora_defensa: { 
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 0 }
-  },
-  mejora_xp: { type: Number, default: 1 }
-}, { _id: false });
-
-
+// Schema solo con los campos específicos del consumible
 const ConsumableSchema = new Schema<IConsumable>({
-  nombre: { type: String, required: true, unique: true },
-  tipo: { type: String, enum: ['pocion', 'alimento', 'pergamino', 'fruto_mitico'], required: true },
-  rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
-  duracion_efecto_minutos: { type: Number, required: true },
-  habilidad_especial: { type: String },
-  efectos: { type: EffectBoostSchema, required: true }
-}, { versionKey: false });
+  tipo: { 
+    type: String, 
+    enum: ['pocion', 'alimento', 'pergamino', 'fruto_mitico'], 
+    required: true 
+  },
+  usos_maximos: { type: Number, default: 1 }, // Campo para los usos del consumible
+  duracion_efecto_minutos: { type: Number },
+  efectos: {
+    mejora_atk: { type: Number, default: 0 },
+    mejora_defensa: { type: Number, default: 0 },
+    mejora_vida: { type: Number, default: 0 },
+    mejora_xp_porcentaje: { type: Number, default: 0 }
+  }
+});
 
-// Conexión con la colección 'consumables' en la base de datos
-export default model<IConsumable>('Consumable', ConsumableSchema, 'consumables');
+// Creamos el modelo 'Consumable' como un discriminador del modelo 'Item'
+// El primer argumento 'Consumable' será el valor del campo 'tipoItem'
+export const Consumable = Item.discriminator<IConsumable>('Consumable', ConsumableSchema);

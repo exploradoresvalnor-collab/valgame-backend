@@ -39,6 +39,8 @@ const PackageSchema = new mongoose_1.Schema({
     precio_usdt: { type: Number, required: true },
     personajes: { type: Number, required: true },
     categorias_garantizadas: [{ type: String }],
-    distribucion_aleatoria: { type: String, required: true }
+    distribucion_aleatoria: { type: String, required: true },
+    val_reward: { type: Number },
+    items_reward: [{ type: mongoose_1.Schema.Types.ObjectId, ref: 'Item' }]
 }, { versionKey: false });
 exports.default = mongoose_1.default.model('Package', PackageSchema, 'packages');

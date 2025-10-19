@@ -45,7 +45,7 @@ const EvolucionSchema = new mongoose_1.Schema({
     nombre: { type: String, required: true },
     etapa: { type: Number, required: true },
     requisitos: {
-        val: { type: String, required: true }, // Ojo: en otros modelos 'val' es Number.
+        val: { type: Number, required: true },
         evo: { type: Number, required: true },
         nivel: { type: Number, required: true }
     },

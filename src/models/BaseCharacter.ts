@@ -12,7 +12,7 @@ export interface IEvolucion {
   nombre: string;
   etapa: number;
   requisitos: {
-    val: string; // Considerar si debería ser Number para consistencia
+    val: number; // Usar Number para consistencia con costes y cálculos
     evo: number;
     nivel: number;
   };
@@ -48,7 +48,7 @@ const EvolucionSchema: Schema = new Schema({
   nombre: { type: String, required: true },
   etapa: { type: Number, required: true },
   requisitos: {
-    val: { type: String, required: true }, // Ojo: en otros modelos 'val' es Number.
+    val: { type: Number, required: true },
     evo: { type: Number, required: true },
     nivel: { type: Number, required: true }
   },

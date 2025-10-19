@@ -37,7 +37,6 @@ const mongoose_1 = __importStar(require("mongoose"));
 const PlayerStatsSchema = new mongoose_1.Schema({
     userId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // MEJORA
     personajeId: { type: String, required: true, index: true },
-    cantidadMinada: { type: Number, required: true },
     fecha: { type: Date, default: Date.now },
     valAcumulado: { type: Number, required: true },
     fuente: { type: String, required: true }

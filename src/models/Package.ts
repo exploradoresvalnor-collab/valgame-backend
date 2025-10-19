@@ -6,6 +6,9 @@ export interface IPackage extends Document {
   personajes: number;
   categorias_garantizadas: string[];
   distribucion_aleatoria: string;
+  // Recompensas opcionales cuando se abre el paquete
+  val_reward?: number;
+  items_reward?: any[]; // Array de ObjectId referencia a items
 }
 
 const PackageSchema: Schema = new Schema({
@@ -14,6 +17,9 @@ const PackageSchema: Schema = new Schema({
   personajes: { type: Number, required: true },
   categorias_garantizadas: [{ type: String }],
   distribucion_aleatoria: { type: String, required: true }
+  ,
+  val_reward: { type: Number },
+  items_reward: [{ type: Schema.Types.ObjectId, ref: 'Item' }]
 }, { versionKey: false });
 
 export default mongoose.model<IPackage>('Package', PackageSchema, 'packages');

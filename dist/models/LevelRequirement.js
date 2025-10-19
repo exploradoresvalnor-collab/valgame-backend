@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const LevelRequirementSchema = new mongoose_1.Schema({
-    nivel: { type: Number, required: true, unique: true },
+    nivel: { type: Number, required: true },
     experiencia_requerida: { type: Number, required: true },
     experiencia_acumulada: { type: Number, required: true }
 }, { versionKey: false });

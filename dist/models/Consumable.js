@@ -1,29 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Consumable = void 0;
 const mongoose_1 = require("mongoose");
-// Schema para los efectos
-const EffectBoostSchema = new mongoose_1.Schema({
-    mejora_atk: {
-        min: { type: Number, default: 0 },
-        max: { type: Number, default: 0 }
-    },
-    mejora_vida: {
-        min: { type: Number, default: 0 },
-        max: { type: Number, default: 0 }
-    },
-    mejora_defensa: {
-        min: { type: Number, default: 0 },
-        max: { type: Number, default: 0 }
-    },
-    mejora_xp: { type: Number, default: 1 }
-}, { _id: false });
+const Item_1 = require("./Item"); // Importamos el modelo y la interfaz base
+// Schema solo con los campos específicos del consumible
 const ConsumableSchema = new mongoose_1.Schema({
-    nombre: { type: String, required: true, unique: true },
-    tipo: { type: String, enum: ['pocion', 'alimento', 'pergamino', 'fruto_mitico'], required: true },
-    rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
-    duracion_efecto_minutos: { type: Number, required: true },
-    habilidad_especial: { type: String },
-    efectos: { type: EffectBoostSchema, required: true }
-}, { versionKey: false });
-// Conexión con la colección 'consumables' en la base de datos
-exports.default = (0, mongoose_1.model)('Consumable', ConsumableSchema, 'consumables');
+    tipo: {
+        type: String,
+        enum: ['pocion', 'alimento', 'pergamino', 'fruto_mitico'],
+        required: true
+    },
+    usos_maximos: { type: Number, default: 1 }, // Campo para los usos del consumible
+    duracion_efecto_minutos: { type: Number },
+    efectos: {
+        mejora_atk: { type: Number, default: 0 },
+        mejora_defensa: { type: Number, default: 0 },
+        mejora_vida: { type: Number, default: 0 },
+        mejora_xp_porcentaje: { type: Number, default: 0 }
+    }
+});
+// Creamos el modelo 'Consumable' como un discriminador del modelo 'Item'
+// El primer argumento 'Consumable' será el valor del campo 'tipoItem'
+exports.Consumable = Item_1.Item.discriminator('Consumable', ConsumableSchema);

@@ -1,15 +1,12 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const Item_1 = __importDefault(require("../models/Item"));
+const Item_1 = require("../models/Item");
 const router = (0, express_1.Router)();
 // GET /api/items
 router.get('/', async (req, res) => {
     try {
-        const items = await Item_1.default.find();
+        const items = await Item_1.Item.find();
         res.json(items);
     }
     catch (error) {

@@ -37,6 +37,7 @@ const mongoose_1 = __importStar(require("mongoose"));
 const UserPackageSchema = new mongoose_1.Schema({
     userId: { type: String, required: true, index: true },
     paqueteId: { type: String, required: true, index: true },
+    packageSnapshot: { type: mongoose_1.Schema.Types.Mixed },
     fecha: { type: Date, default: Date.now }
 }, { versionKey: false });
 exports.default = mongoose_1.default.model('UserPackage', UserPackageSchema, 'user_packages');

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -31,6 +64,7 @@ router.post('/register', async (req, res) => {
         const passwordHash = await bcryptjs_1.default.hash(password, 10);
         // Creamos una instancia del usuario para añadirle los tokens
         const user = new User_1.User({ email, username, passwordHash });
+        // Nota: la entrega del Paquete del Pionero se realizará al verificar el correo
         // Generamos el token de verificación
         const verificationToken = crypto_1.default.randomBytes(32).toString('hex');
         user.verificationToken = verificationToken;
@@ -62,9 +96,16 @@ router.get('/verify/:token', async (req, res) => {
         user.verificationToken = undefined;
         user.verificationTokenExpires = undefined;
         await user.save();
-        // Idealmente, redirigir al frontend
-        return res.send('<h1>¡Cuenta verificada con éxito! Ya puedes iniciar sesión.</h1>');
-        // En producción: res.redirect(`${process.env.FRONTEND_ORIGIN}/login?verified=true`);
+        // Entregar el Paquete del Pionero (idempotente)
+        try {
+            const { deliverPioneerPackage } = await Promise.resolve().then(() => __importStar(require('../services/onboarding.service')));
+            const result = await deliverPioneerPackage(user);
+            return res.json({ message: 'Cuenta verificada con éxito', package: result });
+        }
+        catch (err) {
+            console.error('[VERIFY] Error al entregar paquete:', err);
+            return res.status(500).json({ error: 'Cuenta verificada pero fallo al entregar paquete' });
+        }
     }
     catch (error) {
         return res.status(500).send('<h1>Error interno del servidor.</h1>');

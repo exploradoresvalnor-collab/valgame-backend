@@ -1,9 +1,9 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
 // Interfaz para la tabla de recompensas (loot table)
 export interface IDrop {
-  itemId: string; // ID del Equipment o Consumable
-  tipoItem: 'equipment' | 'consumable';
+  itemId: Types.ObjectId; // ID de un item en la colección 'items'
+  tipoItem: 'Equipment' | 'Consumable'; // El modelo del item
   probabilidad: number; // De 0 a 1
 }
 
@@ -27,8 +27,8 @@ export interface IDungeon extends Document {
 }
 
 const DropSchema = new Schema({
-  itemId: { type: String, required: true },
-  tipoItem: { type: String, enum: ['equipment', 'consumable'], required: true },
+  itemId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
+  tipoItem: { type: String, enum: ['Equipment', 'Consumable'], required: true },
   probabilidad: { type: Number, required: true, min: 0, max: 1 },
 }, { _id: false });
 

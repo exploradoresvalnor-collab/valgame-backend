@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
 const DropSchema = new mongoose_1.Schema({
-    itemId: { type: String, required: true },
-    tipoItem: { type: String, enum: ['equipment', 'consumable'], required: true },
+    itemId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Item', required: true },
+    tipoItem: { type: String, enum: ['Equipment', 'Consumable'], required: true },
     probabilidad: { type: Number, required: true, min: 0, max: 1 },
 }, { _id: false });
 const DungeonSchema = new mongoose_1.Schema({

@@ -1,29 +1,23 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Equipment = void 0;
 const mongoose_1 = require("mongoose");
-// Schema para las mejoras, para mantener la estructura limpia
-const StatBoostSchema = new mongoose_1.Schema({
-    mejora_atk: {
-        min: { type: Number, required: true },
-        max: { type: Number, required: true }
-    },
-    mejora_vida: {
-        min: { type: Number, required: true },
-        max: { type: Number, required: true }
-    },
-    mejora_defensa: {
-        min: { type: Number, required: true },
-        max: { type: Number, required: true }
-    },
-}, { _id: false });
+const Item_1 = require("./Item"); // Importamos el modelo y la interfaz base
+// Schema solo con los campos específicos del equipamiento
 const EquipmentSchema = new mongoose_1.Schema({
-    nombre: { type: String, required: true, unique: true },
-    tipo: { type: String, enum: ['arma', 'armadura', 'escudo', 'anillo'], required: true },
-    rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
-    tasa_aparicion: { type: Number, required: true },
-    nivel_minimo_requerido: { type: Number, required: true },
-    habilidades: [{ type: String }],
-    stats: { type: StatBoostSchema, required: true }
-}, { versionKey: false });
-// Conexión con la colección 'equipment' en la base de datos
-exports.default = (0, mongoose_1.model)('Equipment', EquipmentSchema, 'equipment');
+    tipo: {
+        type: String,
+        enum: ['arma', 'armadura', 'escudo', 'anillo'],
+        required: true
+    },
+    nivel_minimo_requerido: { type: Number, default: 1 },
+    stats: {
+        atk: { type: Number, default: 0 },
+        defensa: { type: Number, default: 0 },
+        vida: { type: Number, default: 0 }
+    },
+    habilidades: [{ type: String }]
+});
+// Creamos el modelo 'Equipment' como un discriminador del modelo 'Item'
+// El primer argumento 'Equipment' será el valor del campo 'tipoItem'
+exports.Equipment = Item_1.Item.discriminator('Equipment', EquipmentSchema);

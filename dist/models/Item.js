@@ -33,16 +33,28 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Item = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
+// Opciones para el schema base, clave para los discriminadores
+const baseOptions = {
+    discriminatorKey: 'tipoItem', // Campo que define el tipo de item
+    collection: 'items', // Todos los items vivirán en esta colección
+    versionKey: false,
+    timestamps: true
+};
+// --- SCHEMA BASE DEL ITEM ---
+// Define la estructura común
 const ItemSchema = new mongoose_1.Schema({
-    nombre: { type: String, required: true, unique: true },
+    nombre: { type: String, required: true, index: true },
     descripcion: { type: String, required: true },
+    rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
     tasa_cambio_usdt: { type: Number },
     costo_val: { type: Number },
-    fuentes_obtencion: [{ type: String, required: true }],
+    fuentes_obtencion: [{ type: String }],
     detalle_uso: { type: String },
     limites: { type: String },
-    requisito_evolucion: { type: String },
-    rareza: { type: String }
-}, { versionKey: false });
-exports.default = mongoose_1.default.model('Item', ItemSchema, 'items');
+    requisito_evolucion: { type: String }
+}, baseOptions);
+// --- EXPORTACIÓN DEL MODELO BASE ---
+// A partir de este modelo se crearán los demás tipos de items
+exports.Item = mongoose_1.default.model('Item', ItemSchema);

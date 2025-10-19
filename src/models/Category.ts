@@ -12,6 +12,9 @@ const CategorySchema: Schema = new Schema({
   descripcion: { type: String, required: true },
   multiplicador_minado: { type: Number, required: true },
   probabilidad: { type: Number, required: true }
-}, { versionKey: false });
+}, { 
+  versionKey: false,
+  collection: 'categories' // Nombre estándar en inglés
+});
 
-export default mongoose.model<ICategory>('Category', CategorySchema, 'categorias');
+export default mongoose.model<ICategory>('Category', CategorySchema);

@@ -4,11 +4,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectDB = connectDB;
+exports.disconnectDB = disconnectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
-async function connectDB(uri) {
+async function connectDB(uri = process.env.MONGODB_URI || '') {
     if (!uri)
         throw new Error('Falta MONGODB_URI en el entorno');
     mongoose_1.default.set('strictQuery', true);
     await mongoose_1.default.connect(uri);
     console.log('[DB] Conectado a MongoDB');
+}
+async function disconnectDB() {
+    await mongoose_1.default.connection.close();
+    console.log('[DB] Desconectado de MongoDB');
 }

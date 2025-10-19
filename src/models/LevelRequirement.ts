@@ -7,7 +7,7 @@ export interface ILevelRequirement extends Document {
 }
 
 const LevelRequirementSchema: Schema = new Schema({
-  nivel: { type: Number, required: true, unique: true },
+  nivel: { type: Number, required: true },
   experiencia_requerida: { type: Number, required: true },
   experiencia_acumulada: { type: Number, required: true }
 }, { versionKey: false });

@@ -7,9 +7,12 @@ require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const mongoose_1 = __importDefault(require("mongoose"));
 const db_1 = require("./config/db");
 const auth_1 = require("./middlewares/auth");
+const permadeath_service_1 = require("./services/permadeath.service");
+const marketplace_expiration_service_1 = require("./services/marketplace-expiration.service");
+const errorHandler_1 = __importDefault(require("./middlewares/errorHandler"));
 // Importa todas tus rutas
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const users_routes_1 = __importDefault(require("./routes/users.routes"));
@@ -23,13 +26,17 @@ const levelRequirements_routes_1 = __importDefault(require("./routes/levelRequir
 const events_routes_1 = __importDefault(require("./routes/events.routes"));
 const playerStats_routes_1 = __importDefault(require("./routes/playerStats.routes"));
 const offers_routes_1 = __importDefault(require("./routes/offers.routes"));
+const marketplace_routes_1 = __importDefault(require("./routes/marketplace.routes"));
 const equipment_routes_1 = __importDefault(require("./routes/equipment.routes"));
 const consumables_routes_1 = __importDefault(require("./routes/consumables.routes"));
 const dungeons_routes_1 = __importDefault(require("./routes/dungeons.routes"));
-// Valida variables de entorno críticas al inicio
-if (!process.env.MONGODB_URI || !process.env.JWT_SECRET) {
-    console.error('[FATAL] Faltan variables de entorno críticas (MONGODB_URI o JWT_SECRET).');
-    process.exit(1);
+const characters_routes_1 = __importDefault(require("./routes/characters.routes"));
+// Valida variables de entorno críticas al inicio (salta en tests)
+if (process.env.NODE_ENV !== 'test') {
+    if (!process.env.MONGODB_URI || !process.env.JWT_SECRET) {
+        console.error('[FATAL] Faltan variables de entorno críticas (MONGODB_URI o JWT_SECRET).');
+        process.exit(1);
+    }
 }
 const app = (0, express_1.default)();
 // --- Middlewares de Seguridad Esenciales ---
@@ -46,16 +53,22 @@ if (!process.env.FRONTEND_ORIGIN) {
 else {
     app.use((0, cors_1.default)(corsOptions));
 }
-const apiLimiter = (0, express_rate_limit_1.default)({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.'
-});
-// Aplica el rate limiter a las rutas más importantes
-app.use('/auth/', apiLimiter);
-app.use('/api/', apiLimiter);
+// Importar rate limiters
+const rateLimits_1 = require("./middlewares/rateLimits");
+// Aplica los rate limiters según el tipo de ruta
+app.use('/auth/', rateLimits_1.authLimiter);
+// Rate limits para acciones de juego rápidas
+app.use('/api/characters/action', rateLimits_1.gameplayLimiter);
+app.use('/api/characters/attack', rateLimits_1.gameplayLimiter);
+app.use('/api/characters/defend', rateLimits_1.gameplayLimiter);
+// Rate limits para acciones de juego lentas
+app.use('/api/dungeons', rateLimits_1.slowGameplayLimiter);
+app.use('/api/characters/evolve', rateLimits_1.slowGameplayLimiter);
+// Rate limits para el mercado
+app.use('/api/marketplace', rateLimits_1.marketplaceLimiter);
+app.use('/api/offers', rateLimits_1.marketplaceLimiter);
+// Rate limit general para otras rutas de la API
+app.use('/api/', rateLimits_1.apiLimiter);
 // --- Rutas Públicas (No requieren autenticación) ---
 app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear si el servidor está vivo
 app.use('/auth', auth_routes_1.default);
@@ -66,26 +79,70 @@ app.use('/api/game-settings', gameSettings_routes_1.default); // El juego necesi
 app.use('/api/equipment', equipment_routes_1.default);
 app.use('/api/consumables', consumables_routes_1.default);
 app.use('/api/dungeons', dungeons_routes_1.default);
+app.use('/api/marketplace', marketplace_routes_1.default);
 // --- Rutas Protegidas (Requieren autenticación con token) ---
 app.use(auth_1.auth); // A partir de aquí, todas las rutas usarán el "guardia de seguridad"
-app.use('/users', users_routes_1.default);
+app.use('/api/users', users_routes_1.default);
 app.use('/api/categories', categories_routes_1.default);
 app.use('/api/items', items_routes_1.default);
 app.use('/api/user-packages', userPackages_routes_1.default);
 app.use('/api/level-requirements', levelRequirements_routes_1.default);
 app.use('/api/events', events_routes_1.default);
 app.use('/api/player-stats', playerStats_routes_1.default);
+app.use('/api/characters', characters_routes_1.default);
 // --- Arranque del Servidor ---
 const PORT = Number(process.env.PORT || 8080);
 const MONGODB_URI = process.env.MONGODB_URI;
-(0, db_1.connectDB)(MONGODB_URI)
-    .then(() => {
-    app.listen(PORT, () => {
-        console.log(`[API] Servidor corriendo en http://localhost:${PORT}`);
+// En entorno de pruebas, no arrancamos la conexión automática ni el servidor.
+if (process.env.NODE_ENV !== 'test') {
+    if (!MONGODB_URI) {
+        console.error('[FATAL] MONGODB_URI no está definido.');
+        process.exit(1);
+    }
+    (0, db_1.connectDB)(MONGODB_URI)
+        .then(() => {
+        const server = app.listen(PORT, () => {
+            console.log(`[API] Servidor corriendo en http://localhost:${PORT}`);
+            (0, permadeath_service_1.startPermadeathCron)(); // Inicia la tarea programada de Permadeath
+            (0, marketplace_expiration_service_1.startMarketplaceExpirationCron)(); // Inicia la expiración automática del marketplace
+            // Inicializar el servicio de tiempo real
+            const RealtimeService = require('./services/realtime.service').RealtimeService;
+            RealtimeService.initialize(server);
+            console.log('[REALTIME] Servicio WebSocket inicializado');
+        });
+        // Graceful shutdown
+        const shutdown = async (signal) => {
+            console.log(`[SHUTDOWN] Recibida señal ${signal}. Cerrando servidor...`);
+            server.close(async () => {
+                try {
+                    await mongoose_1.default.disconnect();
+                    console.log('[SHUTDOWN] Conexión a MongoDB cerrada.');
+                    process.exit(0);
+                }
+                catch (err) {
+                    console.error('[SHUTDOWN] Error al desconectar:', err);
+                    process.exit(1);
+                }
+            });
+        };
+        process.on('SIGINT', () => shutdown('SIGINT'));
+        process.on('SIGTERM', () => shutdown('SIGTERM'));
+        process.on('unhandledRejection', (reason) => {
+            console.error('[UNHANDLED_REJECTION]', reason);
+        });
+        process.on('uncaughtException', (err) => {
+            console.error('[UNCAUGHT_EXCEPTION]', err);
+            shutdown('uncaughtException');
+        });
+    })
+        .catch((err) => {
+        console.error('[DB] Error de conexión:', err);
+        process.exit(1);
     });
-})
-    .catch((err) => {
-    console.error('[DB] Error de conexión:', err);
-    process.exit(1);
-});
+}
+else {
+    console.log('[API] Modo test: no se inicia conexión automática a MongoDB ni servidor HTTP.');
+}
+// Middleware global de manejo de errores (debe ir al final)
+app.use(errorHandler_1.default);
 exports.default = app;

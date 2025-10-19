@@ -5,6 +5,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'; // Módulo nativo para generar tokens seguros
 import { sendVerificationEmail } from '../config/mailer'; // Importamos nuestra nueva función
+import BaseCharacter from '../models/BaseCharacter';
+import { Consumable } from '../models/Consumable';
+import { Types } from 'mongoose';
 
 const router = Router();
 
@@ -32,6 +35,8 @@ router.post('/register', async (req, res) => {
 
     // Creamos una instancia del usuario para añadirle los tokens
     const user = new User({ email, username, passwordHash });
+
+  // Nota: la entrega del Paquete del Pionero se realizará al verificar el correo
 
     // Generamos el token de verificación
     const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -72,9 +77,15 @@ router.get('/verify/:token', async (req, res) => {
         user.verificationTokenExpires = undefined;
         await user.save();
 
-        // Idealmente, redirigir al frontend
-        return res.send('<h1>¡Cuenta verificada con éxito! Ya puedes iniciar sesión.</h1>');
-        // En producción: res.redirect(`${process.env.FRONTEND_ORIGIN}/login?verified=true`);
+        // Entregar el Paquete del Pionero (idempotente)
+        try {
+          const { deliverPioneerPackage } = await import('../services/onboarding.service');
+          const result = await deliverPioneerPackage(user as any);
+          return res.json({ message: 'Cuenta verificada con éxito', package: result });
+        } catch (err: any) {
+          console.error('[VERIFY] Error al entregar paquete:', err);
+          return res.status(500).json({ error: 'Cuenta verificada pero fallo al entregar paquete' });
+        }
 
     } catch (error) {
         return res.status(500).send('<h1>Error interno del servidor.</h1>');

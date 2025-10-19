@@ -1,49 +1,37 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model } from 'mongoose';
+import { Item, IItem } from './Item'; // Importamos el modelo y la interfaz base
 
-// Interfaz para las mejoras de estadísticas
-export interface IStatBoost {
-  mejora_atk: { min: number; max: number };
-  mejora_vida: { min: number; max: number };
-  mejora_defensa: { min: number; max: number };
+// Interfaz para las estadísticas específicas del equipamiento
+export interface IEquipmentStats {
+  atk: number;
+  defensa: number;
+  vida: number;
 }
 
-// Interfaz principal del Equipamiento
-export interface IEquipment extends Document {
-  nombre: string;
-  tipo: 'arma' | 'armadura' | 'escudo' | 'anillo'; // Para diferenciar el equipamiento
-  rango: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS';
-  tasa_aparicion: number; // Probabilidad de drop
+// Interfaz del Equipamiento, extendiendo la de Item
+export interface IEquipment extends IItem {
+  tipo: 'arma' | 'armadura' | 'escudo' | 'anillo';
   nivel_minimo_requerido: number;
-  habilidades: string[]; // Lista de posibles habilidades pasivas
-  stats: IStatBoost; // El rango de mejora que otorga
+  stats: IEquipmentStats;
+  habilidades?: string[];
 }
 
-// Schema para las mejoras, para mantener la estructura limpia
-const StatBoostSchema = new Schema({
-  mejora_atk: { 
-    min: { type: Number, required: true },
-    max: { type: Number, required: true }
-  },
-  mejora_vida: { 
-    min: { type: Number, required: true },
-    max: { type: Number, required: true }
-  },
-  mejora_defensa: { 
-    min: { type: Number, required: true },
-    max: { type: Number, required: true }
-  },
-}, { _id: false });
-
-
+// Schema solo con los campos específicos del equipamiento
 const EquipmentSchema = new Schema<IEquipment>({
-  nombre: { type: String, required: true, unique: true },
-  tipo: { type: String, enum: ['arma', 'armadura', 'escudo', 'anillo'], required: true },
-  rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
-  tasa_aparicion: { type: Number, required: true },
-  nivel_minimo_requerido: { type: Number, required: true },
-  habilidades: [{ type: String }],
-  stats: { type: StatBoostSchema, required: true }
-}, { versionKey: false });
+  tipo: { 
+    type: String, 
+    enum: ['arma', 'armadura', 'escudo', 'anillo'], 
+    required: true 
+  },
+  nivel_minimo_requerido: { type: Number, default: 1 },
+  stats: {
+    atk: { type: Number, default: 0 },
+    defensa: { type: Number, default: 0 },
+    vida: { type: Number, default: 0 }
+  },
+  habilidades: [{ type: String }]
+});
 
-// Conexión con la colección 'equipment' en la base de datos
-export default model<IEquipment>('Equipment', EquipmentSchema, 'equipment');
+// Creamos el modelo 'Equipment' como un discriminador del modelo 'Item'
+// El primer argumento 'Equipment' será el valor del campo 'tipoItem'
+export const Equipment = Item.discriminator<IEquipment>('Equipment', EquipmentSchema);
