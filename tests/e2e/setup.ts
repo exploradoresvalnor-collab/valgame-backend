@@ -1,16 +1,24 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import mongoose from 'mongoose';
+import mongoose from 'mongoose'; // IMPORTACIÓN AÑADIDA
+import { connectDB, disconnectDB } from '../../src/config/db'; // Usar funciones centralizadas
 import { ObjectId } from 'mongodb';
 
 export async function setupTestDB() {
     process.env.NODE_ENV = 'test';
     const mongod = await MongoMemoryServer.create();
     const uri = mongod.getUri();
-    await mongoose.connect(uri);
+    await connectDB(uri); // Usar la función corregida
     return mongod;
 }
 
 export async function seedTestData() {
+    // Limpiar la base de datos ANTES de sembrar
+    const collections = mongoose.connection.collections;
+    for (const key in collections) {
+        const collection = collections[key];
+        await collection.deleteMany({});
+    }
+
     const { Item } = await import('../../src/models/Item');
     const { Consumable } = await import('../../src/models/Consumable');
     const BaseCharacter = (await import('../../src/models/BaseCharacter')).default;
@@ -106,6 +114,6 @@ export async function seedTestData() {
 }
 
 export async function cleanupTestDB(mongod: MongoMemoryServer) {
-    await mongoose.disconnect();
+    await disconnectDB(); // Usar la función corregida
     await mongod.stop();
 }
