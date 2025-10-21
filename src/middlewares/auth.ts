@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { User } from '../models/User';
 
 type JwtPayload = { id: string; username: string; };
 
@@ -12,7 +13,7 @@ export const verifyToken = async (token: string): Promise<JwtPayload> => {
   }
 };
 
-export function auth(req: Request, res: Response, next: NextFunction) {
+export async function auth(req: Request, res: Response, next: NextFunction) {
   const header = req.header('Authorization') || '';
   const token = header.replace(/^Bearer\s+/i, '').trim();
 
@@ -20,9 +21,18 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JwtPayload;
-    req.userId = decoded.id;
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Compatibilidad: algunos controladores esperan `req.userId`, otros `req.user`
+    (req as any).user = user;
+    (req as any).userId = (user._id as any).toString();
     next();
-  } catch {
+  } catch (error) {
+    console.error('Error en el middleware de autenticación:', error);
     return res.status(401).json({ error: 'Token inválido' });
   }
 }

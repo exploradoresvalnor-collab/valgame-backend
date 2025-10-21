@@ -1,16 +1,33 @@
 import { Request, Response, NextFunction } from 'express';
 
-export function asyncHandler(fn: Function) {
-  return function (req: Request, res: Response, next: NextFunction) {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
-
-export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
-  const status = err?.status || 500;
+const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+  const status = err?.status || err?.statusCode || 500;
   const message = err?.message || 'Internal Server Error';
-  console.error('[ERROR]', err);
-  res.status(status).json({ ok: false, error: message });
-}
+
+  // Log detallado para depuración
+  console.error('\n==================== UNHANDLED ERROR ====================');
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.error('Error Message:', message);
+  console.error('Error Status:', status);
+  
+  // Imprimir el stack trace si está disponible
+  if (err.stack) {
+    console.error('Stack Trace:');
+    console.error(err.stack);
+  } else {
+    console.error('Full Error Object:', err);
+  }
+  
+  console.error('=========================================================\n');
+
+  // No enviar el stack trace en producción
+  const errorResponse = {
+    ok: false,
+    error: message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  };
+
+  res.status(status).json(errorResponse);
+};
 
 export default errorHandler;

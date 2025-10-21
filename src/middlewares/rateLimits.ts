@@ -71,11 +71,26 @@ const handleRateLimit = (req: Request, _res: Response, next: Function) => {
   next(new RateLimitError());
 };
 
+// En entorno de testing queremos bypass el rate-limiter por defecto para evitar 429 en tests E2E.
+// Para permitir activar el rate-limiter en un test concreto sin recargar módulos, creamos un handler
+// dinámico que consulta la variable de entorno en tiempo de ejecución.
+const noopHandler = (req: Request, _res: Response, next: Function) => next();
+
+const dynamicHandler = (req: Request, res: Response, next: Function) => {
+  // Si no estamos en test, siempre usar el handler real
+  if (process.env.NODE_ENV !== 'test') return handleRateLimit(req, res, next);
+
+  // En test, sólo activar si TEST_ENABLE_RATE_LIMIT === 'true'
+  if (process.env.TEST_ENABLE_RATE_LIMIT === 'true') return handleRateLimit(req, res, next);
+
+  return noopHandler(req, res, next);
+};
+
 // Configuración base para todos los limitadores
 const baseLimiterConfig = {
   standardHeaders: true,
   legacyHeaders: false,
-  handler: handleRateLimit
+  handler: dynamicHandler
 };
 
 // Limitador para rutas de autenticación

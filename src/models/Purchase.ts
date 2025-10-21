@@ -10,6 +10,11 @@ export interface IPurchase extends Document {
     personajeId: string;
     rango: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS';
   }>;
+  // Campos de reconciliación / integraciones de pago
+  externalPaymentId?: string; // id del pago en el proveedor (Bold/Stripe/otro)
+  paymentProvider?: string; // ejemplo: 'bold', 'stripe', 'onchain'
+  paymentStatus?: 'pending' | 'succeeded' | 'failed' | 'refunded';
+  onchainTxHash?: string; // si es pago on-chain
 }
 
 const PersonajeOtorgadoSchema = new Schema({
@@ -24,6 +29,11 @@ const PurchaseSchema = new Schema<IPurchase>({
   valRecibido: { type: Number, required: true, min: 0 },
   fechaCompra: { type: Date, default: Date.now, index: true },
   personajesOtorgados: { type: [PersonajeOtorgadoSchema], default: [] }
+  ,
+  externalPaymentId: { type: String, required: false, index: true },
+  paymentProvider: { type: String, required: false },
+  paymentStatus: { type: String, enum: ['pending','succeeded','failed','refunded'], default: 'pending' },
+  onchainTxHash: { type: String, required: false }
 },{ versionKey: false });
 
 export const Purchase = model<IPurchase>('Purchase', PurchaseSchema, 'purchases');

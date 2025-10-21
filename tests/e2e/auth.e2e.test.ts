@@ -1,8 +1,7 @@
 import request from 'supertest';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import { setupTestDB, seedTestData, cleanupTestDB } from './setup';
 
-let mongod: MongoMemoryServer;
+let mongod: any;
 let app: any;
 
 const testEmail = `e2e_test_${Date.now()}@example.com`;

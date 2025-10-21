@@ -65,7 +65,6 @@ app.use('/api/characters/defend', rateLimits_1.gameplayLimiter);
 app.use('/api/dungeons', rateLimits_1.slowGameplayLimiter);
 app.use('/api/characters/evolve', rateLimits_1.slowGameplayLimiter);
 // Rate limits para el mercado
-app.use('/api/marketplace', rateLimits_1.marketplaceLimiter);
 app.use('/api/offers', rateLimits_1.marketplaceLimiter);
 // Rate limit general para otras rutas de la API
 app.use('/api/', rateLimits_1.apiLimiter);
@@ -79,9 +78,11 @@ app.use('/api/game-settings', gameSettings_routes_1.default); // El juego necesi
 app.use('/api/equipment', equipment_routes_1.default);
 app.use('/api/consumables', consumables_routes_1.default);
 app.use('/api/dungeons', dungeons_routes_1.default);
-app.use('/api/marketplace', marketplace_routes_1.default);
 // --- Rutas Protegidas (Requieren autenticación con token) ---
 app.use(auth_1.auth); // A partir de aquí, todas las rutas usarán el "guardia de seguridad"
+// Aplicar rate limiter específico DESPUÉS de la autenticación
+app.use('/api/marketplace', rateLimits_1.marketplaceLimiter);
+app.use('/api/marketplace', marketplace_routes_1.default);
 app.use('/api/users', users_routes_1.default);
 app.use('/api/categories', categories_routes_1.default);
 app.use('/api/items', items_routes_1.default);

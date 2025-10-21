@@ -1,4 +1,3 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import app from '../../src/app';
@@ -7,7 +6,7 @@ import { LevelHistory } from '../../src/models/LevelHistory';
 import { User } from '../../src/models/User';
 import jwt from 'jsonwebtoken';
 
-let mongod: MongoMemoryServer;
+let mongod: any;
 let token: string;
 let userId: string;
 let characterId: string;

@@ -93,7 +93,7 @@ export const reviveCharacter = async (req: AuthRequest, res: Response) => {
 // --- FUNCIÓN CORREGIDA PARA USAR CONSUMIBLES ---
 export const useConsumable = async (req: AuthRequest, res: Response) => {
   const { characterId } = req.params;
-  const { itemId } = req.body; // ID del item consumible en el inventario
+  const { itemId } = req.body; // ID del item consumible
   const userId = req.userId;
 
   if (!userId) {
@@ -104,69 +104,63 @@ export const useConsumable = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    // Populamos el campo 'itemId' para acceder a los datos del consumible
-    const user = await User.findById(userId).populate('inventario.itemId');
+    // RUTA DE POPULATE CORREGIDA
+    const user = await User.findById(userId).populate('inventarioConsumibles.consumableId');
 
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
-    // Buscar el item en el inventario del usuario (casts para satisfacer TS)
-    const inventory = (user as any).inventario as any[];
-    const inventoryItem = inventory.find((i: any) => {
-      const id = (i.itemId as any)?._id ? (i.itemId as any)._id.toString() : (i.itemId as any).toString();
-      return id === itemId;
-    });
+    // RUTA DE ACCESO CORREGIDA
+    const inventoryItem = user.inventarioConsumibles.find((i: any) => i.consumableId._id.toString() === itemId);
 
     if (!inventoryItem) {
       return res.status(404).json({ error: 'El item no se encuentra en tu inventario.' });
     }
 
-    // Validar que es un consumible
-    if (inventoryItem.tipoItem !== 'Consumable') {
-      return res.status(400).json({ error: 'El item seleccionado no es un consumible.' });
-    }
+    const consumable = inventoryItem.consumableId as unknown as IConsumable;
 
-    // Encontrar el personaje objetivo
     const character = user.personajes.find(p => p.personajeId === characterId);
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
 
-    // CORRECCIÓN 1: Conversión de tipo segura
-    const consumable = inventoryItem.itemId as unknown as IConsumable;
+    // Lógica para aplicar efectos del consumible (ejemplo)
+    character.saludActual = Math.min(character.saludMaxima, character.saludActual + (consumable.efectos.mejora_vida || 0));
 
-    // Reducir la cantidad del consumible o eliminarlo del inventario
-    if (inventoryItem.cantidad > 1) {
-      inventoryItem.cantidad -= 1;
-    } else {
-      // CORRECCIÓN 2: Usar pull para eliminar el subdocumento (cast seguro)
-      (user as any).inventario.pull(inventoryItem);
+    // Reducir usos o eliminar
+    inventoryItem.usos_restantes -= 1;
+    if (inventoryItem.usos_restantes <= 0) {
+  // Intentar eliminar el subdocumento de forma segura
+  const docArrayAny: any = user.inventarioConsumibles as any;
+      // Determinar un id objetivo para eliminar: preferir _id del subdocumento, si existe
+      const targetId = (inventoryItem as any)._id ? (inventoryItem as any)._id : ((inventoryItem as any).consumableId && ((inventoryItem as any).consumableId._id || (inventoryItem as any).consumableId));
+
+      try {
+        const tid = String(targetId);
+        // Filtrar por coincidencia con el _id del subdocumento o con el _id del consumable
+        user.inventarioConsumibles = user.inventarioConsumibles.filter((c: any) => {
+          const subId = c && c._id ? String(c._id) : null;
+          const cid = c && c.consumableId ? (c.consumableId._id ? String(c.consumableId._id) : String(c.consumableId)) : null;
+          // Mantener el elemento si ninguno coincide con tid
+          return subId !== tid && cid !== tid;
+        }) as any;
+      } catch (err) {
+        // último recurso: filtrar por igualdad profunda
+        user.inventarioConsumibles = user.inventarioConsumibles.filter((c: any) => JSON.stringify(c) !== JSON.stringify(inventoryItem)) as any;
+      }
     }
 
-    // Crear y añadir el buff al personaje
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + (consumable.duracion_efecto_minutos || 0) * 60000);
-
-    // CORRECCIÓN 3: Asegurar el tipo correcto para el ID
-    const newBuff = {
-      consumableId: consumable._id as Types.ObjectId,
-      effects: {
-        mejora_atk: consumable.efectos.mejora_atk,
-        mejora_defensa: consumable.efectos.mejora_defensa,
-        mejora_vida: consumable.efectos.mejora_vida,
-        mejora_xp_porcentaje: consumable.efectos.mejora_xp_porcentaje
-      },
-      expiresAt: expiresAt,
-    };
-
-    character.activeBuffs.push(newBuff);
+    // Asegurarse de marcar el array como modificado para que mongoose persista los cambios
+    if (typeof (user as any).markModified === 'function') {
+      (user as any).markModified('inventarioConsumibles');
+    }
 
     await user.save();
 
     res.json({
       message: `Has usado ${consumable.nombre} en ${character.personajeId}.`,
-      buff: newBuff
+      saludActual: character.saludActual
     });
 
   } catch (error) {

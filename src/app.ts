@@ -12,6 +12,8 @@ import errorHandler from './middlewares/errorHandler';
 
 // Importa todas tus rutas
 import authRoutes from './routes/auth.routes';
+import paymentsRoutes from './routes/payments.routes';
+import paymentService from './services/payment.service';
 import usersRoutes from './routes/users.routes';
 import baseCharactersRoutes from './routes/baseCharacters.routes';
 import categoriesRoutes from './routes/categories.routes';
@@ -41,6 +43,10 @@ const app = express();
 
 // --- Middlewares de Seguridad Esenciales ---
 app.use(helmet()); // Añade cabeceras de seguridad
+// Nota: el endpoint de webhook necesita el raw body para validar la firma HMAC.
+// Montamos la ruta específica antes de `express.json()` con raw, y luego usamos json para el resto.
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), (req, res) => paymentService.handleWebhook(req as any, res as any));
+
 app.use(express.json()); // Permite al servidor entender JSON
 
 const corsOptions = {
@@ -77,7 +83,6 @@ app.use('/api/dungeons', slowGameplayLimiter);
 app.use('/api/characters/evolve', slowGameplayLimiter);
 
 // Rate limits para el mercado
-app.use('/api/marketplace', marketplaceLimiter);
 app.use('/api/offers', marketplaceLimiter);
 
 // Rate limit general para otras rutas de la API
@@ -87,6 +92,7 @@ app.use('/api/', apiLimiter);
 // --- Rutas Públicas (No requieren autenticación) ---
 app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear si el servidor está vivo
 app.use('/auth', authRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/packages', packagesRoutes); // Cualquiera puede ver los paquetes de la tienda
 app.use('/api/base-characters', baseCharactersRoutes); // Cualquiera puede ver los personajes que existen
 app.use('/api/offers', offerRoutes); // Cualquiera puede ver las ofertas activas
@@ -94,12 +100,15 @@ app.use('/api/game-settings', gameSettingsRoutes); // El juego necesita las regl
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/consumables', consumableRoutes);
 app.use('/api/dungeons', dungeonRoutes);
-app.use('/api/marketplace', marketplaceRoutes);
 
 
 // --- Rutas Protegidas (Requieren autenticación con token) ---
 app.use(checkAuth); // A partir de aquí, todas las rutas usarán el "guardia de seguridad"
 
+// Aplicar rate limiter específico DESPUÉS de la autenticación
+app.use('/api/marketplace', marketplaceLimiter);
+
+app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/items', itemsRoutes);

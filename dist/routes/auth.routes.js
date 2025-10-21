@@ -129,7 +129,7 @@ router.post('/login', async (req, res) => {
         const ok = await bcryptjs_1.default.compare(password, user.passwordHash);
         if (!ok)
             return res.status(401).json({ error: 'Credenciales inválidas' });
-        const token = jsonwebtoken_1.default.sign({ id: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        const token = jsonwebtoken_1.default.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
         return res.json({ token, user });
     }
     catch (e) {

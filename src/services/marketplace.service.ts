@@ -120,11 +120,23 @@ export const listItem = async (
           break;
         }
         case 'consumible': {
-          const sub = seller.inventarioConsumibles.find(c => c.consumableId.toString() === itemId) as any;
-          if (sub && typeof (sub as any).deleteOne === 'function') {
-            await (sub as any).deleteOne();
-          } else {
-            seller.inventarioConsumibles = seller.inventarioConsumibles.filter(c => c.consumableId.toString() !== itemId) as any;
+          // Eliminar consumible de forma determinista: filtrar por consumableId
+          // y marcar el campo como modificado para asegurar persistencia dentro de la sesión.
+          try {
+            seller.inventarioConsumibles = (seller.inventarioConsumibles as any).filter((c: any) => {
+              try { return String(c.consumableId) !== String(itemId); } catch (e) { return true; }
+            }) as any;
+            // Marcar el campo para que mongoose detecte el cambio en arrays de subdocumentos
+            if (typeof (seller as any).markModified === 'function') {
+              (seller as any).markModified('inventarioConsumibles');
+            }
+            // debug removed
+          } catch (err) {
+            // En caso de error, dejar el fallback que filtra por consumableId
+            seller.inventarioConsumibles = seller.inventarioConsumibles.filter((c: any) => String(c.consumableId) !== String(itemId)) as any;
+            if (typeof (seller as any).markModified === 'function') {
+              (seller as any).markModified('inventarioConsumibles');
+            }
           }
           break;
         }
@@ -137,7 +149,15 @@ export const listItem = async (
 
     // Notificar en tiempo real sobre el nuevo listado después del commit
     if (createdListing) {
-      RealtimeService.getInstance().notifyMarketplaceUpdate('new', createdListing);
+      try {
+        const realtime = RealtimeService.getInstance();
+        if (realtime && typeof realtime.notifyMarketplaceUpdate === 'function') {
+          realtime.notifyMarketplaceUpdate('new', createdListing);
+        }
+      } catch (err) {
+        // En entorno de tests el RealtimeService puede no estar inicializado; loguear y continuar
+        console.warn('RealtimeService no disponible, skip notify (listItem)', (err as any)?.message || err);
+      }
     }
 
     return createdListing;
@@ -230,7 +250,14 @@ export const cancelListing = async (seller: IUser, listingId: string) => {
     if (result?.success) {
       const listing = await Listing.findById(listingId);
       if (listing) {
-        RealtimeService.getInstance().notifyMarketplaceUpdate('cancelled', listing);
+        try {
+          const realtime = RealtimeService.getInstance();
+          if (realtime && typeof realtime.notifyMarketplaceUpdate === 'function') {
+            realtime.notifyMarketplaceUpdate('cancelled', listing);
+          }
+        } catch (err) {
+          console.warn('RealtimeService no disponible, skip notify (cancelListing)', (err as any)?.message || err);
+        }
       }
     }
 
@@ -340,17 +367,23 @@ export const buyItem = async (buyer: IUser, listingId: string) => {
 
     // Notificar en tiempo real sobre la venta y actualización de inventarios tras commit
     if (listing) {
-      const realtimeService = RealtimeService.getInstance();
-      realtimeService.notifyMarketplaceUpdate('sold', listing);
-      const buyerId = (listing.buyerId as unknown as Types.ObjectId)?.toString() || '';
-      const sellerId = (listing.sellerId as Types.ObjectId).toString();
-      // Cargar usuarios para notificar inventario
-      const [buyerFresh, sellerFresh] = await Promise.all([
-        buyerId ? User.findById(buyerId) : null,
-        User.findById(sellerId)
-      ]);
-      if (buyerFresh) realtimeService.notifyInventoryUpdate(buyerId, buyerFresh);
-      if (sellerFresh) realtimeService.notifyInventoryUpdate(sellerId, sellerFresh);
+      try {
+        const realtimeService = RealtimeService.getInstance();
+        if (realtimeService && typeof realtimeService.notifyMarketplaceUpdate === 'function') {
+          realtimeService.notifyMarketplaceUpdate('sold', listing);
+        }
+        const buyerId = (listing.buyerId as unknown as Types.ObjectId)?.toString() || '';
+        const sellerId = (listing.sellerId as Types.ObjectId).toString();
+        // Cargar usuarios para notificar inventario
+        const [buyerFresh, sellerFresh] = await Promise.all([
+          buyerId ? User.findById(buyerId) : null,
+          User.findById(sellerId)
+        ]);
+        if (buyerFresh && typeof realtimeService?.notifyInventoryUpdate === 'function') realtimeService.notifyInventoryUpdate(buyerId, buyerFresh);
+        if (sellerFresh && typeof realtimeService?.notifyInventoryUpdate === 'function') realtimeService.notifyInventoryUpdate(sellerId, sellerFresh);
+      } catch (err) {
+        console.warn('RealtimeService no disponible, skip notify (buyItem)', (err as any)?.message || err);
+      }
     }
 
     return { success: true, transaction: listing };

@@ -1,11 +1,31 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import mongoose from 'mongoose'; // IMPORTACIÓN AÑADIDA
 import { connectDB, disconnectDB } from '../../src/config/db'; // Usar funciones centralizadas
 import { ObjectId } from 'mongodb';
 
 export async function setupTestDB() {
     process.env.NODE_ENV = 'test';
-    const mongod = await MongoMemoryServer.create();
+    // Inyectar un mock de RealtimeService para evitar errores cuando no esté inicializado
+    try {
+        // Usamos require y assignamos al cache para que las importaciones en src obtengan el mock
+        const path = require('path');
+        const mockPath = path.resolve(__dirname, 'mocks', 'realtime.service.ts');
+        // Registrar en la cache de require
+        const resolved = require.resolve(mockPath);
+        delete require.cache[resolved];
+        require(resolved);
+        // También mapear la ruta relativa esperada por el código fuente
+        const prodPath = path.resolve(__dirname, '..', '..', 'src', 'services', 'realtime.service.ts');
+        const prodResolved = require.resolve(prodPath);
+        // Copiar el módulo mock en la entrada de cache del prodPath
+        require.cache[prodResolved] = require.cache[resolved];
+    } catch (err) {
+        // Silencioso si fallamos aquí; el código principal ya maneja la falta de realtime
+        console.warn('[TEST SETUP] No fue posible inyectar mock de RealtimeService:', (err as any)?.message || err);
+    }
+    // Crear un replSet in-memory para permitir transacciones en los tests
+    const replSet = await MongoMemoryReplSet.create({ replSet: { name: 'rs0', count: 1 } });
+    const mongod = replSet; // compatibilidad de nombre
     const uri = mongod.getUri();
     await connectDB(uri); // Usar la función corregida
     return mongod;
@@ -113,7 +133,9 @@ export async function seedTestData() {
     });
 }
 
-export async function cleanupTestDB(mongod: MongoMemoryServer) {
+export async function cleanupTestDB(mongod: any) {
     await disconnectDB(); // Usar la función corregida
-    await mongod.stop();
+    if (mongod && typeof mongod.stop === 'function') {
+        await mongod.stop();
+    }
 }

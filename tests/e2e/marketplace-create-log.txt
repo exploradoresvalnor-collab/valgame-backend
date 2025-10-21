@@ -1,0 +1,81 @@
+  console.log
+    [API] Modo test: no se inicia conexión automática a MongoDB ni servidor HTTP.
+
+      at Object.<anonymous> (src/app.ts:169:11)
+
+  console.log
+    [DB] Conectado a MongoDB
+
+      at connectDB (src/config/db.ts:12:11)
+
+  console.error
+    Error en el middleware de autenticación: JsonWebTokenError {
+      name: 'JsonWebTokenError',
+      message: 'jwt malformed'
+    }
+
+    [0m [90m 33 |[39m     next()[33m;[39m
+     [90m 34 |[39m   } [36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 35 |[39m     console[33m.[39merror([32m'Error en el middleware de autenticación:'[39m[33m,[39m error)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 36 |[39m     [36mreturn[39m res[33m.[39mstatus([35m401[39m)[33m.[39mjson({ error[33m:[39m [32m'Token inválido'[39m })[33m;[39m
+     [90m 37 |[39m   }
+     [90m 38 |[39m }[0m
+
+      at auth (src/middlewares/auth.ts:35:13)
+      at Layer.handleRequest (node_modules/router/lib/layer.js:152:17)
+      at trimPrefix (node_modules/router/index.js:342:13)
+      at node_modules/router/index.js:297:9
+      at processParams (node_modules/router/index.js:582:12)
+      at next (node_modules/router/index.js:291:5)
+      at node_modules/express-rate-limit/dist/index.cjs:807:7
+      at node_modules/express-rate-limit/dist/index.cjs:691:5
+
+  console.log
+    [DB] Desconectado de MongoDB
+
+      at disconnectDB (src/config/db.ts:21:11)
+
+FAIL tests/e2e/full-system.e2e.test.ts (8.1 s)
+  Sistema Completo E2E
+    1. Sistema de Onboarding y Autenticación
+      ○ skipped debería registrar un nuevo usuario
+      ○ skipped debería verificar la cuenta, recibir el paquete, iniciar sesión y obtener un token
+      ○ skipped debería obtener el inventario y personaje iniciales correctamente
+    2. Sistema de Marketplace
+      × debería crear un listing (109 ms)
+      ○ skipped debería buscar listings
+      ○ skipped debería fallar al intentar comprar su propio item
+      ○ skipped debería cancelar el listing para recuperar el item
+    3. Sistema de Items
+      ○ skipped debería usar un consumible
+    4. Mecánicas de Supervivencia
+      ○ skipped debería curar un personaje
+      ○ skipped debería revivir un personaje
+    5. Rate Limiting
+      ○ skipped debería bloquear después de muchos intentos de login fallidos
+    6. Sistema de Evolución
+      ○ skipped debería evolucionar un personaje
+
+  ● Sistema Completo E2E › 2. Sistema de Marketplace › debería crear un listing
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 201
+    Received: 401
+
+    [0m [90m 80 |[39m         [33m.[39msend({ itemId[33m:[39m itemId[33m,[39m precio[33m:[39m [35m100[39m[33m,[39m cantidad[33m:[39m [35m1[39m })[33m;[39m
+     [90m 81 |[39m
+    [31m[1m>[22m[39m[90m 82 |[39m       expect(res[33m.[39mstatus)[33m.[39mtoBe([35m201[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 83 |[39m       listingId [33m=[39m res[33m.[39mbody[33m.[39mlisting[33m.[39mid[33m;[39m
+     [90m 84 |[39m
+     [90m 85 |[39m       [90m// Validación: El item ya no debe estar en el inventario del usuario[39m[0m
+
+      at Object.<anonymous> (tests/e2e/full-system.e2e.test.ts:82:26)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 11 skipped, 12 total
+Snapshots:   0 total
+Time:        8.633 s, estimated 14 s
+Ran all test suites matching /tests\\e2e\\full-system.e2e.test.ts/i with tests matching "debería crear un listing".
