@@ -8,8 +8,8 @@ const nodemailer_1 = __importDefault(require("nodemailer"));
 // --- FUNCIÓN ASÍNCRONA PARA CREAR EL TRANSPORTER ---
 // Esto nos permite crear un transporter de prueba o uno real según el entorno
 const createTransporter = async () => {
-    // Si estamos en un entorno de producción, usa las credenciales SMTP reales
-    if (process.env.NODE_ENV === 'production') {
+    // Si estamos en producción Y tenemos credenciales SMTP, úsalas
+    if (process.env.NODE_ENV === 'production' && process.env.SMTP_HOST) {
         const transporter = nodemailer_1.default.createTransport({
             host: process.env.SMTP_HOST,
             port: Number(process.env.SMTP_PORT || 465),
@@ -21,7 +21,7 @@ const createTransporter = async () => {
         });
         return transporter;
     }
-    // Si no, crea una cuenta de prueba con Ethereal automáticamente
+    // Si no hay SMTP configurado (desarrollo o producción sin correo), usa Ethereal
     else {
         const testAccount = await nodemailer_1.default.createTestAccount();
         console.log('[MAILER] Usando cuenta de prueba de Ethereal (no necesitas credenciales).');
