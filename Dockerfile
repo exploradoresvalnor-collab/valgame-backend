@@ -1,23 +1,36 @@
-# Usar Node.js oficial
-FROM node:18-alpine
+# Etapa 1: Build
+FROM node:18-alpine AS builder
 
-# Establecer directorio de trabajo
 WORKDIR /app
 
 # Copiar archivos de dependencias
 COPY package*.json ./
 
-# Instalar TODAS las dependencias (necesarias para build)
+# Instalar todas las dependencias
 RUN npm ci
 
 # Copiar código fuente
 COPY . .
 
-# Compilar TypeScript usando npx (evita problemas de permisos)
-RUN npx tsc -p tsconfig.json
+# Compilar TypeScript directamente
+RUN ./node_modules/.bin/tsc -p tsconfig.json
 
-# Limpiar devDependencies después del build
-RUN npm prune --production
+# Etapa 2: Production
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY package*.json ./
+
+# Instalar solo dependencias de producción
+RUN npm ci --omit=dev
+
+# Copiar código compilado desde builder
+COPY --from=builder /app/dist ./dist
+
+# Copiar otros archivos necesarios (si los hay)
+COPY --from=builder /app/package.json ./
 
 # Exponer puerto
 EXPOSE 8080
