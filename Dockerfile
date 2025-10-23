@@ -13,8 +13,8 @@ RUN npm ci
 # Copiar código fuente
 COPY . .
 
-# Compilar TypeScript
-RUN npm run build
+# Compilar TypeScript usando npx (evita problemas de permisos)
+RUN npx tsc -p tsconfig.json
 
 # Limpiar devDependencies después del build
 RUN npm prune --production
