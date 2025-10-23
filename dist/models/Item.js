@@ -47,6 +47,7 @@ const baseOptions = {
 const ItemSchema = new mongoose_1.Schema({
     nombre: { type: String, required: true, index: true },
     descripcion: { type: String, required: true },
+    imagen: { type: String }, // URL de la imagen (opcional para compatibilidad)
     rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
     tasa_cambio_usdt: { type: Number },
     costo_val: { type: Number },

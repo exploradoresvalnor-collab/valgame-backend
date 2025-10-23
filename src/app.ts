@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db';
+import { validateSecurityConfig } from './config/security'; // Importar validación de seguridad
 import { auth as checkAuth } from './middlewares/auth';
 import { startPermadeathCron } from './services/permadeath.service';
 import { startMarketplaceExpirationCron } from './services/marketplace-expiration.service';
@@ -26,6 +27,7 @@ import eventsRoutes from './routes/events.routes';
 import playerStatsRoutes from './routes/playerStats.routes';
 import offerRoutes from './routes/offers.routes';
 import marketplaceRoutes from './routes/marketplace.routes';
+import marketplaceTransactionsRoutes from './routes/marketplaceTransactions.routes';
 import equipmentRoutes from './routes/equipment.routes';
 import consumableRoutes from './routes/consumables.routes';
 import dungeonRoutes from './routes/dungeons.routes';
@@ -33,8 +35,10 @@ import characterRoutes from './routes/characters.routes';
 
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
-  if (!process.env.MONGODB_URI || !process.env.JWT_SECRET) {
-    console.error('[FATAL] Faltan variables de entorno críticas (MONGODB_URI o JWT_SECRET).');
+  try {
+    validateSecurityConfig();
+  } catch (error: any) {
+    console.error(error.message);
     process.exit(1);
   }
 }
@@ -109,6 +113,7 @@ app.use(checkAuth); // A partir de aquí, todas las rutas usarán el "guardia de
 app.use('/api/marketplace', marketplaceLimiter);
 
 app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/marketplace-transactions', marketplaceTransactionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/items', itemsRoutes);

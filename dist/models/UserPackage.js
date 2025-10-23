@@ -38,6 +38,8 @@ const UserPackageSchema = new mongoose_1.Schema({
     userId: { type: String, required: true, index: true },
     paqueteId: { type: String, required: true, index: true },
     packageSnapshot: { type: mongoose_1.Schema.Types.Mixed },
-    fecha: { type: Date, default: Date.now }
+    fecha: { type: Date, default: Date.now },
+    locked: { type: Boolean, default: false, select: false }, // 🔒 No se devuelve por defecto
+    lockedAt: { type: Date }
 }, { versionKey: false });
 exports.default = mongoose_1.default.model('UserPackage', UserPackageSchema, 'user_packages');

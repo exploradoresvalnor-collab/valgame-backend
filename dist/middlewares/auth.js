@@ -7,9 +7,10 @@ exports.verifyToken = void 0;
 exports.auth = auth;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
+const security_1 = require("../config/security");
 const verifyToken = async (token) => {
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret');
+        const decoded = jsonwebtoken_1.default.verify(token, (0, security_1.getJWTSecret)());
         return decoded;
     }
     catch (error) {
@@ -23,7 +24,7 @@ async function auth(req, res, next) {
     if (!token)
         return res.status(401).json({ error: 'Falta token' });
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret');
+        const decoded = jsonwebtoken_1.default.verify(token, (0, security_1.getJWTSecret)());
         const user = await User_1.User.findById(decoded.id);
         if (!user) {
             return res.status(401).json({ error: 'Usuario no encontrado' });

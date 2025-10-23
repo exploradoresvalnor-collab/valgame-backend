@@ -63,11 +63,30 @@ export interface IUser extends Document {
   inventarioConsumibles: Types.DocumentArray<IConsumableItemSubdocument>;
   limiteInventarioEquipamiento: number;
   limiteInventarioConsumibles: number;
+  limiteInventarioPersonajes: number;
   personajeActivoId?: string;
   fechaRegistro: Date;
   ultimaActualizacion: Date;
   // Flag para indicar si el usuario ya recibió el Paquete del Pionero
   receivedPioneerPackage?: boolean;
+  
+  // Progreso de mazmorras por usuario
+  dungeon_progress?: Map<string, {
+    victorias: number;
+    derrotas: number;
+    nivel_actual: number;
+    puntos_acumulados: number;
+    puntos_requeridos_siguiente_nivel: number;
+    mejor_tiempo: number;
+    ultima_victoria?: Date;
+  }>;
+  dungeon_streak: number;
+  max_dungeon_streak: number;
+  dungeon_stats: {
+    total_victorias: number;
+    total_derrotas: number;
+    mejor_racha: number;
+  };
 }
 
 // --- SCHEMAS ---
@@ -137,10 +156,36 @@ const UserSchema = new Schema<IUser>({
     inventarioConsumibles: { type: [ConsumableItemSchema], default: [] },
     limiteInventarioEquipamiento: { type: Number, default: 20 },
     limiteInventarioConsumibles: { type: Number, default: 50 },
+    limiteInventarioPersonajes: { type: Number, default: 50 },
     personajeActivoId: { type: String }
     ,
     // Flag para indicar si el usuario ya recibió el Paquete del Pionero
-    receivedPioneerPackage: { type: Boolean, default: false }
+    receivedPioneerPackage: { type: Boolean, default: false },
+    
+    // Progreso de mazmorras por usuario (Map<dungeonId, progressData>)
+    dungeon_progress: { 
+      type: Map, 
+      of: new Schema({
+        victorias: { type: Number, default: 0, min: 0 },
+        derrotas: { type: Number, default: 0, min: 0 },
+        nivel_actual: { type: Number, default: 1, min: 1 },
+        puntos_acumulados: { type: Number, default: 0, min: 0 },
+        puntos_requeridos_siguiente_nivel: { type: Number, default: 100, min: 1 },
+        mejor_tiempo: { type: Number, default: 0, min: 0 }, // en segundos
+        ultima_victoria: { type: Date }
+      }, { _id: false }),
+      default: () => new Map()
+    },
+    dungeon_streak: { type: Number, default: 0, min: 0 },
+    max_dungeon_streak: { type: Number, default: 0, min: 0 },
+    dungeon_stats: {
+      type: new Schema({
+        total_victorias: { type: Number, default: 0, min: 0 },
+        total_derrotas: { type: Number, default: 0, min: 0 },
+        mejor_racha: { type: Number, default: 0, min: 0 }
+      }, { _id: false }),
+      default: () => ({ total_victorias: 0, total_derrotas: 0, mejor_racha: 0 })
+    }
   }, {
     timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },
     versionKey: false

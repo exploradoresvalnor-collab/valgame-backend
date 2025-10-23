@@ -47,7 +47,13 @@ export const handleWebhook = async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'invalid signature' });
   }
 
-  const payload = req.body || {};
+  let payload: any;
+  try {
+    payload = JSON.parse(req.body.toString());
+  } catch (e) {
+    return res.status(400).json({ error: 'invalid json' });
+  }
+
   const { externalPaymentId, status, userId, paqueteId, valorPagadoUSDT, valRecibido, onchainTxHash } = payload;
 
   if (!externalPaymentId || !userId) {

@@ -8,6 +8,14 @@ import { handleLevelUp } from '../services/character.service'; // Importar el nu
 import { IEquipment } from '../models/Equipment';
 import { Item } from '../models/Item';
 import { IConsumable } from '../models/Consumable';
+import { 
+  calcularPuntosVictoria, 
+  calcularTiempoEstimado, 
+  procesarVictoria,
+  calcularStatsEscaladas,
+  calcularRecompensasEscaladas,
+  calcularMultiplicadorDrop
+} from '../utils/dungeonProgression';
 
 // Interfaz para extender Request y que incluya el userId del middleware de auth
 interface AuthRequest extends Request {
@@ -43,6 +51,17 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     if (!levelRequirements || levelRequirements.length === 0) return res.status(500).json({ error: 'Requisitos de nivel no encontrados.' });
     if (team.length > gameSettings.MAX_PERSONAJES_POR_EQUIPO) {
         return res.status(400).json({ error: `El equipo no puede tener más de ${gameSettings.MAX_PERSONAJES_POR_EQUIPO} personajes.` });
+    }
+
+    // Validar que los personajes cumplan el nivel mínimo requerido
+    const nivelRequerido = dungeon.nivel_requerido_minimo || 1;
+    for (const charId of team) {
+      const character = user.personajes.find(p => p.personajeId === charId);
+      if (character && character.nivel < nivelRequerido) {
+        return res.status(400).json({ 
+          error: `El personaje ${character.personajeId} (nivel ${character.nivel}) no cumple el nivel mínimo requerido (${nivelRequerido}) para esta mazmorra.` 
+        });
+      }
     }
 
     // --- 3. Preparación del Equipo y Validación ---
@@ -107,10 +126,41 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
 
       combatTeam.push(character);
     }
-    let dungeonCurrentHP = dungeon.stats.vida;
+
+    // --- Obtener o inicializar progreso de mazmorra para este usuario ---
+    const dungeonIdStr = dungeonId.toString();
+    if (!user.dungeon_progress) {
+      user.dungeon_progress = new Map();
+    }
+    
+    let dungeonProgress = user.dungeon_progress.get(dungeonIdStr);
+    if (!dungeonProgress) {
+      dungeonProgress = {
+        victorias: 0,
+        derrotas: 0,
+        nivel_actual: 1,
+        puntos_acumulados: 0,
+        puntos_requeridos_siguiente_nivel: 100,
+        mejor_tiempo: 0
+      };
+      user.dungeon_progress.set(dungeonIdStr, dungeonProgress);
+    }
+
+    // --- Calcular stats escaladas según nivel de mazmorra del usuario ---
+    const statsEscaladas = calcularStatsEscaladas(
+      dungeon.stats,
+      dungeonProgress.nivel_actual,
+      { multiplicador_stats_por_nivel: dungeon.nivel_sistema?.multiplicador_stats_por_nivel || 0.15 }
+    );
+
+    let dungeonCurrentHP = statsEscaladas.vida;
     const combatLog: string[] = [];
+    combatLog.push(`🏰 Mazmorra Nivel ${dungeonProgress.nivel_actual}`);
+    combatLog.push(`💪 Stats: ${statsEscaladas.vida} HP | ${statsEscaladas.ataque} ATK | ${statsEscaladas.defensa} DEF\n`);
+    
     let playerTurn = true;
     let battleResult: 'victoria' | 'derrota' | 'en_curso' = 'en_curso';
+    const combatStartTime = Date.now(); // Medir tiempo de combate
 
     // --- 4. El Bucle de Combate ---
     while (battleResult === 'en_curso') {
@@ -120,7 +170,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         if (missed) {
           combatLog.push('¡El equipo ha fallado su ataque!');
         } else {
-          const damage = Math.max(1, teamATK - dungeon.stats.defensa);
+          const damage = Math.max(1, teamATK - statsEscaladas.defensa);
           dungeonCurrentHP -= damage;
           combatLog.push(`El equipo ataca y causa ${damage} de daño. Vida de la mazmorra: ${Math.max(0, dungeonCurrentHP)}`);
         }
@@ -131,7 +181,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         if (missed) {
           combatLog.push('¡La mazmorra ha fallado su ataque!');
         } else {
-          const damage = Math.max(1, dungeon.stats.ataque - teamDEF);
+          const damage = Math.max(1, statsEscaladas.ataque - teamDEF);
           const livingCharacters = combatTeam.filter(c => c.saludActual > 0);
           if (livingCharacters.length > 0) {
             const damagePerCharacter = Math.ceil(damage / livingCharacters.length);
@@ -150,13 +200,29 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     // --- 5. Resolución del Combate y Recompensas ---
     let earnedLoot: any[] = [];
     let totalExpGanada = 0;
+    let valGanado = 0;
+    const combatDuration = Math.floor((Date.now() - combatStartTime) / 1000); // Duración en segundos
+    let puntosGanados = 0;
+    let progresoMazmorraResult: any = null;
 
     if (battleResult === 'victoria') {
       combatLog.push('¡VICTORIA! Has superado la mazmorra.');
       
-      // --- Ganancia de Experiencia y Subida de Nivel ---
-      const baseExp = dungeon.recompensas.expBase * gameSettings.EXP_GLOBAL_MULTIPLIER;
+      // --- Calcular recompensas escaladas ---
+      const recompensasEscaladas = calcularRecompensasEscaladas(
+        { expBase: dungeon.recompensas.expBase, valBase: dungeon.recompensas.valBase || 0 },
+        dungeonProgress.nivel_actual,
+        {
+          multiplicador_xp_por_nivel: dungeon.nivel_sistema?.multiplicador_xp_por_nivel || 0.10,
+          multiplicador_val_por_nivel: dungeon.nivel_sistema?.multiplicador_val_por_nivel || 0.10
+        }
+      );
+
+      const baseExp = recompensasEscaladas.exp * gameSettings.EXP_GLOBAL_MULTIPLIER;
+      valGanado = recompensasEscaladas.val;
+      
       combatLog.push(`Experiencia base por victoria: ${baseExp}.`);
+      combatLog.push(`VAL ganado: ${valGanado}.`);
 
       for (const char of combatTeam) {
         let finalExp = baseExp;
@@ -188,12 +254,35 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       }
 
       // --- LÓGICA DE BOTÍN (LOOT) ACTUALIZADA ---
-      const possibleDropIds = dungeon.recompensas.dropTable.map(d => d.itemId);
-  const possibleItemsInfo = await Item.find({ '_id': { $in: possibleDropIds } });
-  const itemsInfoMap = new Map(possibleItemsInfo.map(item => [String((item as any)._id), item]));
+      const multiplicadorDrop = calcularMultiplicadorDrop(
+        dungeonProgress.nivel_actual,
+        dungeon.nivel_sistema?.multiplicador_drop_por_nivel || 0.05
+      );
 
-      for (const drop of dungeon.recompensas.dropTable) {
-        if (Math.random() < drop.probabilidad) {
+      // Agregar items exclusivos al dropTable si el nivel es suficiente
+      let dropTableCompleto = [...dungeon.recompensas.dropTable];
+      const nivelMinimoExclusivos = dungeon.nivel_minimo_para_exclusivos || 20;
+      
+      if (dungeonProgress.nivel_actual >= nivelMinimoExclusivos) {
+        if (dungeon.items_exclusivos && dungeon.items_exclusivos.length > 0) {
+          combatLog.push(`🏆 Items exclusivos desbloqueados en esta mazmorra!`);
+          dungeon.items_exclusivos.forEach(itemId => {
+            dropTableCompleto.push({
+              itemId,
+              tipoItem: 'Equipment', // Asumimos que son equipment, se validará después
+              probabilidad: 0.02 // 2% base para items exclusivos
+            });
+          });
+        }
+      }
+
+      const possibleDropIds = dropTableCompleto.map(d => d.itemId);
+      const possibleItemsInfo = await Item.find({ '_id': { $in: possibleDropIds } });
+      const itemsInfoMap = new Map(possibleItemsInfo.map(item => [String((item as any)._id), item]));
+
+      for (const drop of dropTableCompleto) {
+        const probabilidadFinal = Math.min(drop.probabilidad * multiplicadorDrop, drop.probabilidad * 2); // Cap 2x
+        if (Math.random() < probabilidadFinal) {
           const itemInfo = itemsInfoMap.get(String(drop.itemId));
           if (!itemInfo) {
             combatLog.push(`Advertencia: Se intentó dropear un item con ID ${drop.itemId} pero no se encontró.`);
@@ -225,17 +314,72 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         }
       }
 
+      // --- Otorgar VAL al usuario ---
+      user.val += valGanado;
+
+      // --- Sistema de Progresión de Mazmorra ---
+      const saludRestantePorcentaje = combatTeam.reduce((sum, c) => sum + (c.saludActual / c.stats.vida) * 100, 0) / combatTeam.length;
+      const tiempoEstimado = calcularTiempoEstimado(statsEscaladas.vida, statsEscaladas.ataque);
+      
+      puntosGanados = calcularPuntosVictoria(
+        combatDuration,
+        tiempoEstimado,
+        saludRestantePorcentaje,
+        user.dungeon_streak || 0
+      );
+
+      progresoMazmorraResult = procesarVictoria(dungeonProgress, puntosGanados, combatDuration);
+      user.dungeon_progress!.set(dungeonIdStr, progresoMazmorraResult.progreso);
+
+      combatLog.push(`\n🎯 Puntos de mazmorra ganados: ${puntosGanados}`);
+      combatLog.push(`📊 Progreso: ${progresoMazmorraResult.progreso.puntos_acumulados}/${progresoMazmorraResult.progreso.puntos_requeridos_siguiente_nivel} pts (Nivel ${progresoMazmorraResult.progreso.nivel_actual})`);
+      
+      if (progresoMazmorraResult.subiDeNivel) {
+        combatLog.push(`🎉 ¡Tu mazmorra subió ${progresoMazmorraResult.nivelesSubidos} nivel(es)! Ahora está en nivel ${progresoMazmorraResult.progreso.nivel_actual}`);
+      }
+
+      // --- Sistema de Racha ---
+      user.dungeon_streak = (user.dungeon_streak || 0) + 1;
+      if (user.dungeon_streak > (user.max_dungeon_streak || 0)) {
+        user.max_dungeon_streak = user.dungeon_streak;
+      }
+      combatLog.push(`🔥 Racha actual: ${user.dungeon_streak} victoria(s) consecutiva(s)`);
+
+      // --- Estadísticas de mazmorra ---
+      if (!user.dungeon_stats) {
+        user.dungeon_stats = { total_victorias: 0, total_derrotas: 0, mejor_racha: 0 };
+      }
+      user.dungeon_stats.total_victorias += 1;
+      if (user.dungeon_streak > user.dungeon_stats.mejor_racha) {
+        user.dungeon_stats.mejor_racha = user.dungeon_streak;
+      }
+
       // --- Registrar estadística de la victoria ---
       await PlayerStat.create({
         userId: user._id,
         personajeId: combatTeam.map(p => p.personajeId).join(', '),
         fecha: new Date(),
-        valAcumulado: baseExp, // Guardamos la exp base como referencia
+        valAcumulado: valGanado,
         fuente: `victoria_mazmorra_${dungeon.nombre}`
       });
 
     } else {
       combatLog.push('DERROTA... Tu equipo ha sido vencido.');
+      
+      // Resetear racha en derrota
+      user.dungeon_streak = 0;
+      
+      // Incrementar contador de derrotas
+      if (!user.dungeon_stats) {
+        user.dungeon_stats = { total_victorias: 0, total_derrotas: 0, mejor_racha: 0 };
+      }
+      user.dungeon_stats.total_derrotas += 1;
+      
+      // Incrementar derrotas en progreso de mazmorra
+      if (dungeonProgress) {
+        dungeonProgress.derrotas += 1;
+        user.dungeon_progress!.set(dungeonIdStr, dungeonProgress);
+      }
     }
 
     // --- 6. Actualizar Estado de Personajes ---
@@ -259,9 +403,20 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       resultado: battleResult,
       log: combatLog,
       recompensas: {
-        expGanada: totalExpGanada, // Se reporta la suma total de exp
+        expGanada: totalExpGanada,
+        valGanado: valGanado,
         botinObtenido: earnedLoot
       },
+      progresionMazmorra: progresoMazmorraResult ? {
+        puntosGanados: puntosGanados,
+        nivelActual: progresoMazmorraResult.progreso.nivel_actual,
+        puntosActuales: progresoMazmorraResult.progreso.puntos_acumulados,
+        puntosRequeridos: progresoMazmorraResult.progreso.puntos_requeridos_siguiente_nivel,
+        subiDeNivel: progresoMazmorraResult.subiDeNivel,
+        nivelesSubidos: progresoMazmorraResult.nivelesSubidos
+      } : null,
+      rachaActual: user.dungeon_streak,
+      tiempoCombate: combatDuration,
       estadoEquipo: combatTeam.map(c => ({
         personajeId: c.personajeId,
         saludFinal: Math.max(0, c.saludActual),

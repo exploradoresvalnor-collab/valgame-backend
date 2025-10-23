@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'; // Módulo nativo para generar tokens seguros
 import { sendVerificationEmail } from '../config/mailer'; // Importamos nuestra nueva función
+import { getJWTSecret, getSecurityInfo } from '../config/security'; // Importar configuración segura
 import BaseCharacter from '../models/BaseCharacter';
 import { Consumable } from '../models/Consumable';
 import { Types } from 'mongoose';
@@ -112,7 +113,11 @@ router.post('/login', async (req, res) => {
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user._id }, 
+      getJWTSecret(), 
+      { expiresIn: '7d' }
+    );
     return res.json({ token, user });
   } catch (e: any) {
     return res.status(400).json({ error: e?.message || 'Bad Request' });

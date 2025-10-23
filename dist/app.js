@@ -9,12 +9,15 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const db_1 = require("./config/db");
+const security_1 = require("./config/security"); // Importar validación de seguridad
 const auth_1 = require("./middlewares/auth");
 const permadeath_service_1 = require("./services/permadeath.service");
 const marketplace_expiration_service_1 = require("./services/marketplace-expiration.service");
 const errorHandler_1 = __importDefault(require("./middlewares/errorHandler"));
 // Importa todas tus rutas
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const payments_routes_1 = __importDefault(require("./routes/payments.routes"));
+const payment_service_1 = __importDefault(require("./services/payment.service"));
 const users_routes_1 = __importDefault(require("./routes/users.routes"));
 const baseCharacters_routes_1 = __importDefault(require("./routes/baseCharacters.routes"));
 const categories_routes_1 = __importDefault(require("./routes/categories.routes"));
@@ -27,20 +30,27 @@ const events_routes_1 = __importDefault(require("./routes/events.routes"));
 const playerStats_routes_1 = __importDefault(require("./routes/playerStats.routes"));
 const offers_routes_1 = __importDefault(require("./routes/offers.routes"));
 const marketplace_routes_1 = __importDefault(require("./routes/marketplace.routes"));
+const marketplaceTransactions_routes_1 = __importDefault(require("./routes/marketplaceTransactions.routes"));
 const equipment_routes_1 = __importDefault(require("./routes/equipment.routes"));
 const consumables_routes_1 = __importDefault(require("./routes/consumables.routes"));
 const dungeons_routes_1 = __importDefault(require("./routes/dungeons.routes"));
 const characters_routes_1 = __importDefault(require("./routes/characters.routes"));
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
-    if (!process.env.MONGODB_URI || !process.env.JWT_SECRET) {
-        console.error('[FATAL] Faltan variables de entorno críticas (MONGODB_URI o JWT_SECRET).');
+    try {
+        (0, security_1.validateSecurityConfig)();
+    }
+    catch (error) {
+        console.error(error.message);
         process.exit(1);
     }
 }
 const app = (0, express_1.default)();
 // --- Middlewares de Seguridad Esenciales ---
 app.use((0, helmet_1.default)()); // Añade cabeceras de seguridad
+// Nota: el endpoint de webhook necesita el raw body para validar la firma HMAC.
+// Montamos la ruta específica antes de `express.json()` con raw, y luego usamos json para el resto.
+app.post('/api/payments/webhook', express_1.default.raw({ type: 'application/json' }), (req, res) => payment_service_1.default.handleWebhook(req, res));
 app.use(express_1.default.json()); // Permite al servidor entender JSON
 const corsOptions = {
     origin: process.env.FRONTEND_ORIGIN,
@@ -71,6 +81,7 @@ app.use('/api/', rateLimits_1.apiLimiter);
 // --- Rutas Públicas (No requieren autenticación) ---
 app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear si el servidor está vivo
 app.use('/auth', auth_routes_1.default);
+app.use('/api/payments', payments_routes_1.default);
 app.use('/api/packages', packages_routes_1.default); // Cualquiera puede ver los paquetes de la tienda
 app.use('/api/base-characters', baseCharacters_routes_1.default); // Cualquiera puede ver los personajes que existen
 app.use('/api/offers', offers_routes_1.default); // Cualquiera puede ver las ofertas activas
@@ -83,6 +94,7 @@ app.use(auth_1.auth); // A partir de aquí, todas las rutas usarán el "guardia 
 // Aplicar rate limiter específico DESPUÉS de la autenticación
 app.use('/api/marketplace', rateLimits_1.marketplaceLimiter);
 app.use('/api/marketplace', marketplace_routes_1.default);
+app.use('/api/marketplace-transactions', marketplaceTransactions_routes_1.default);
 app.use('/api/users', users_routes_1.default);
 app.use('/api/categories', categories_routes_1.default);
 app.use('/api/items', items_routes_1.default);

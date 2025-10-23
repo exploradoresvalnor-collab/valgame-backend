@@ -7,8 +7,11 @@ import mongoose from 'mongoose';
 describe('payment.service.handleWebhook (unit/e2e-lite)', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
-    // conectar a memoria si es necesario (el entorno de tests del repo lo hace en setup)
-    await mongoose.connect('mongodb://127.0.0.1:27017/valgame-test', { useNewUrlParser: true, useUnifiedTopology: true } as any);
+    // Usar MongoMemoryServer para tests unitarios
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    const mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true } as any);
   });
 
   afterAll(async () => {

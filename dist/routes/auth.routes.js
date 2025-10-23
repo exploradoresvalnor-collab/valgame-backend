@@ -43,6 +43,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = __importDefault(require("crypto")); // Módulo nativo para generar tokens seguros
 const mailer_1 = require("../config/mailer"); // Importamos nuestra nueva función
+const security_1 = require("../config/security"); // Importar configuración segura
 const router = (0, express_1.Router)();
 const RegisterSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
@@ -129,7 +130,7 @@ router.post('/login', async (req, res) => {
         const ok = await bcryptjs_1.default.compare(password, user.passwordHash);
         if (!ok)
             return res.status(401).json({ error: 'Credenciales inválidas' });
-        const token = jsonwebtoken_1.default.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        const token = jsonwebtoken_1.default.sign({ id: user._id }, (0, security_1.getJWTSecret)(), { expiresIn: '7d' });
         return res.json({ token, user });
     }
     catch (e) {

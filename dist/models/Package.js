@@ -37,6 +37,7 @@ const mongoose_1 = __importStar(require("mongoose"));
 const PackageSchema = new mongoose_1.Schema({
     nombre: { type: String, required: true, unique: true },
     precio_usdt: { type: Number, required: true },
+    precio_val: { type: Number }, // Opcional
     personajes: { type: Number, required: true },
     categorias_garantizadas: [{ type: String }],
     distribucion_aleatoria: { type: String, required: true },

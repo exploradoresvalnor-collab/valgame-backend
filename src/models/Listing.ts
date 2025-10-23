@@ -14,7 +14,13 @@ export interface IListing extends Document {
   buyerId?: mongoose.Types.ObjectId;
   destacado: boolean;
   metadata: {
+    // Información de display (común a todos los tipos)
+    nombre?: string;
+    imagen?: string;
+    descripcion?: string;
+    // Información específica por tipo
     nivel?: number;
+    etapa?: number;  // Etapa de evolución (1, 2, 3)
     rango?: string;
     durabilidad?: number;
     usos?: number;
@@ -49,7 +55,13 @@ const ListingSchema = new Schema({
   buyerId: { type: Schema.Types.ObjectId, ref: 'User' },
   destacado: { type: Boolean, default: false },
   metadata: {
+    // Información de display
+    nombre: { type: String },
+    imagen: { type: String },
+    descripcion: { type: String },
+    // Información específica
     nivel: { type: Number },
+    etapa: { type: Number },  // Etapa de evolución
     rango: { type: String },
     durabilidad: { type: Number },
     usos: { type: Number },

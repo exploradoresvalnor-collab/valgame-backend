@@ -13,6 +13,7 @@ const baseOptions: SchemaOptions = {
 export interface IItem extends Document {
   nombre: string;
   descripcion: string;
+  imagen?: string; // URL de la imagen del item (para marketplace y UI)
   rango: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS';
   tipoItem?: string;
   // Campos opcionales que pueden o no estar
@@ -29,6 +30,7 @@ export interface IItem extends Document {
 const ItemSchema: Schema = new Schema({
   nombre: { type: String, required: true, index: true },
   descripcion: { type: String, required: true },
+  imagen: { type: String }, // URL de la imagen (opcional para compatibilidad)
   rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
   tasa_cambio_usdt: { type: Number },
   costo_val: { type: Number },

@@ -12,6 +12,10 @@ const PurchaseSchema = new mongoose_1.Schema({
     valorPagadoUSDT: { type: Number, required: true, min: 0 },
     valRecibido: { type: Number, required: true, min: 0 },
     fechaCompra: { type: Date, default: Date.now, index: true },
-    personajesOtorgados: { type: [PersonajeOtorgadoSchema], default: [] }
+    personajesOtorgados: { type: [PersonajeOtorgadoSchema], default: [] },
+    externalPaymentId: { type: String, required: false, index: true },
+    paymentProvider: { type: String, required: false },
+    paymentStatus: { type: String, enum: ['pending', 'succeeded', 'failed', 'refunded'], default: 'pending' },
+    onchainTxHash: { type: String, required: false }
 }, { versionKey: false });
 exports.Purchase = (0, mongoose_1.model)('Purchase', PurchaseSchema, 'purchases');

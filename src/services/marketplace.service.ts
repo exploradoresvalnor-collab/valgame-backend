@@ -2,18 +2,31 @@ import mongoose, { Types } from 'mongoose';
 import Listing from '../models/Listing';
 import { User, IUser } from '../models/User';
 import BaseCharacter from '../models/BaseCharacter';
+import { Item } from '../models/Item'; // Importar modelo Item para consultar detalles
+import MarketplaceTransaction from '../models/MarketplaceTransaction'; // Importar modelo de transacciones
 import { NotFoundError, ValidationError, InsufficientFundsError, NotAuthorizedError } from '../utils/errors';
 import { RealtimeService } from './realtime.service';
+import { validatePrecioByType, sanitizeMetadata } from '../validations/marketplace.validations';
+
+// Configuración de precios del marketplace
 const IMPUESTO_VENTA = 0.05; // 5% de impuesto por venta
 const DURACION_LISTING = 7 * 24 * 60 * 60 * 1000; // 7 días en milisegundos
 const COSTO_DESTACAR = 100; // VAL para destacar un listing
+const MAX_PRECIO_MARKETPLACE = 1_000_000; // Precio máximo permitido (1 millón VAL)
+
+// Precios mínimos por categoría
+const PRECIOS_MINIMOS: Record<string, number> = {
+  personaje: 100,    // Personajes valen más
+  equipamiento: 10,  // Equipamiento estándar
+  consumible: 5,     // Consumibles más baratos
+  especial: 50       // Items especiales
+};
 
 export const listItem = async (
   seller: IUser,
   itemId: string,
   precio: number,
-  destacar: boolean = false,
-  metadata: Record<string, any> = {}
+  destacar: boolean = false
 ) => {
   const session = await mongoose.startSession();
   let createdListing: any;
@@ -26,6 +39,7 @@ export const listItem = async (
       let type: 'personaje' | 'equipamiento' | 'consumible' | 'especial' = 'equipamiento';
       let item: any;
       let characterDetails: any;
+      let metadata: Record<string, any> = {};
 
       // Determinar el tipo de item y verificar propiedad
       if (seller.personajes?.some(p => p.personajeId === itemId)) {
@@ -43,16 +57,17 @@ export const listItem = async (
           throw new NotFoundError('Detalles del personaje no encontrados');
         }
 
-        // Agregar metadata específica del personaje
+        // ✅ SEGURIDAD: Metadata con stats REALES del personaje del usuario
+        // Los stats del usuario pueden haber sido mejorados, pero validamos que existan
         metadata = {
-          ...metadata,
-          nivel: item.nivel ?? 1,
-          etapa: item.etapa ?? 1,
-          rango: item.rango, // usar el rango del personaje del usuario, no la descripcion del base
-          stats: item.stats ?? characterDetails.stats,
-          progreso: item.progreso ?? 0,
           nombre: characterDetails.nombre,
           imagen: characterDetails.imagen,
+          // Stats actuales del personaje del usuario (pueden ser mejorados legítimamente)
+          nivel: item.nivel ?? 1,
+          etapa: item.etapa ?? 1,
+          rango: item.rango,
+          stats: item.stats ?? characterDetails.stats,  // Stats del usuario o base
+          progreso: item.progreso ?? 0,
           // Campos adicionales para poder restaurar en cancelListing si es necesario
           saludActual: item.saludActual,
           saludMaxima: item.saludMaxima,
@@ -63,17 +78,60 @@ export const listItem = async (
         };
       } else if (seller.inventarioEquipamiento?.some(id => id.toString() === itemId)) {
         type = 'equipamiento';
+        
+        // Consultar detalles del item para obtener nombre, imagen y stats REALES
+        const itemDetails = await Item.findById(itemId).session(session);
+        if (!itemDetails) {
+          throw new NotFoundError('Detalles del item de equipamiento no encontrados');
+        }
+
+        // ✅ SEGURIDAD: Forzar metadata con datos REALES del item (no del cliente)
+        // Ignorar cualquier metadata enviada por el usuario para prevenir fraude
+        const itemObj: any = itemDetails.toObject ? itemDetails.toObject() : itemDetails;
+        metadata = {
+          nombre: itemDetails.nombre,
+          imagen: itemDetails.imagen,
+          descripcion: itemDetails.descripcion,
+          rango: itemDetails.rango,
+          // Solo incluir campos adicionales si existen
+          ...(itemObj.stats && { stats: itemObj.stats }),
+          ...(itemObj.durabilidad && { durabilidad: itemObj.durabilidad })
+        };
       } else if (seller.inventarioConsumibles?.some(c => c.consumableId.toString() === itemId)) {
         type = 'consumible';
         item = seller.inventarioConsumibles.find(c => c.consumableId.toString() === itemId);
-        // Guardar usos restantes en metadata para poder reconstruir/cancelar correctamente
+        
+        // Consultar detalles REALES del consumible
+        const consumibleDetails = await Item.findById(itemId).session(session);
+        if (!consumibleDetails) {
+          throw new NotFoundError('Detalles del consumible no encontrados');
+        }
+
+        // ✅ SEGURIDAD: Forzar metadata con datos REALES (no del cliente)
         metadata = {
-          ...metadata,
-          usos: item?.usos_restantes ?? 1
+          nombre: consumibleDetails.nombre,
+          imagen: consumibleDetails.imagen,
+          descripcion: consumibleDetails.descripcion,
+          rango: consumibleDetails.rango,
+          usos: item?.usos_restantes ?? 1  // Solo usos viene del inventario
         };
       } else {
         throw new NotFoundError('Item no encontrado en tu inventario');
       }
+
+      // Validar precio máximo global
+      if (precio > MAX_PRECIO_MARKETPLACE) {
+        throw new ValidationError(`El precio máximo permitido es ${MAX_PRECIO_MARKETPLACE.toLocaleString()} VAL`);
+      }
+
+      // ✅ SEGURIDAD: Validar precio mínimo por categoría con función validadora
+      const precioValidation = validatePrecioByType(type, precio);
+      if (!precioValidation.valid) {
+        throw new ValidationError(precioValidation.error!);
+      }
+
+      // ✅ SEGURIDAD: Sanitizar metadata (eliminar campos peligrosos)
+      metadata = sanitizeMetadata(metadata);
 
       // Calcular impuesto
       const impuesto = Math.floor(precio * IMPUESTO_VENTA);
@@ -143,6 +201,35 @@ export const listItem = async (
       }
 
       await seller.save({ session });
+
+      // ✅ AUDITORÍA: Registrar transacción de listing
+      await MarketplaceTransaction.create([{
+        listingId: listing._id,
+        sellerId: seller._id,
+        itemId,
+        itemType: type,
+        precioOriginal: precio,
+        precioFinal: precio,
+        impuesto,
+        action: 'listed',
+        timestamp: new Date(),
+        itemMetadata: {
+          nombre: metadata.nombre,
+          imagen: metadata.imagen,
+          descripcion: metadata.descripcion,
+          rango: metadata.rango,
+          nivel: metadata.nivel,
+          stats: metadata.stats
+        },
+        balanceSnapshot: {
+          sellerBalanceBefore: seller.val + (destacar ? COSTO_DESTACAR : 0),
+          sellerBalanceAfter: seller.val
+        },
+        metadata: {
+          destacado: destacar,
+          fechaExpiracion: listing.fechaExpiracion
+        }
+      }], { session });
 
       createdListing = listing.toObject();
     });
@@ -227,21 +314,53 @@ export const cancelListing = async (seller: IUser, listingId: string) => {
         }
       }
 
-      // Si el listing estaba destacado, devolver parte del costo (prorrateado)
-      if (listing.destacado) {
-        const tiempoRestante = listing.fechaExpiracion.getTime() - Date.now();
-        const proporcionRestante = Math.max(0, Math.min(1, tiempoRestante / DURACION_LISTING));
-        const devolucion = Math.floor(COSTO_DESTACAR * proporcionRestante);
-        seller.val += devolucion;
-      }
-
       // Actualizar el listing y guardar cambios
       listing.estado = 'cancelado';
+
+      const sellerBalanceBefore = seller.val;
+      const devolucionDestacado = listing.destacado 
+        ? Math.floor(COSTO_DESTACAR * Math.max(0, Math.min(1, (listing.fechaExpiracion.getTime() - Date.now()) / DURACION_LISTING)))
+        : 0;
+      
+      if (devolucionDestacado > 0) {
+        seller.val += devolucionDestacado;
+      }
 
       await Promise.all([
         seller.save({ session }),
         listing.save({ session })
       ]);
+
+      // ✅ AUDITORÍA: Registrar transacción de cancelación
+      const listingDuration = Date.now() - listing.fechaCreacion.getTime();
+      await MarketplaceTransaction.create([{
+        listingId: listing._id,
+        sellerId: seller._id,
+        itemId: listing.itemId,
+        itemType: listing.type,
+        precioOriginal: listing.precioOriginal,
+        precioFinal: listing.precio,
+        impuesto: listing.impuesto,
+        action: 'cancelled',
+        timestamp: new Date(),
+        itemMetadata: {
+          nombre: (listing.metadata as any)?.nombre,
+          imagen: (listing.metadata as any)?.imagen,
+          descripcion: (listing.metadata as any)?.descripcion,
+          rango: (listing.metadata as any)?.rango,
+          nivel: (listing.metadata as any)?.nivel,
+          stats: (listing.metadata as any)?.stats
+        },
+        balanceSnapshot: {
+          sellerBalanceBefore,
+          sellerBalanceAfter: seller.val
+        },
+        listingDuration,
+        metadata: {
+          destacado: listing.destacado,
+          fechaExpiracion: listing.fechaExpiracion
+        }
+      }], { session });
 
       result = { success: true, message: 'Listado cancelado exitosamente' };
     });
@@ -356,11 +475,49 @@ export const buyItem = async (buyer: IUser, listingId: string) => {
         }
       }
 
+      // Guardar balances antes de las transacciones para snapshot
+      const buyerBalanceBefore = buyerDoc.val + reserved.precio;
+      const sellerBalanceBefore = seller.val - (reserved.precio - reserved.impuesto);
+
       // Guardar todos los cambios
       await Promise.all([
         buyerDoc.save({ session }),
         seller.save({ session })
       ]);
+
+      // ✅ AUDITORÍA: Registrar transacción de venta
+      const listingDuration = Date.now() - reserved.fechaCreacion.getTime();
+      await MarketplaceTransaction.create([{
+        listingId: reserved._id,
+        sellerId: reserved.sellerId,
+        buyerId: buyerDoc._id,
+        itemId: reserved.itemId,
+        itemType: reserved.type,
+        precioOriginal: reserved.precioOriginal,
+        precioFinal: reserved.precio,
+        impuesto: reserved.impuesto,
+        action: 'sold',
+        timestamp: new Date(),
+        itemMetadata: {
+          nombre: (reserved.metadata as any)?.nombre,
+          imagen: (reserved.metadata as any)?.imagen,
+          descripcion: (reserved.metadata as any)?.descripcion,
+          rango: (reserved.metadata as any)?.rango,
+          nivel: (reserved.metadata as any)?.nivel,
+          stats: (reserved.metadata as any)?.stats
+        },
+        balanceSnapshot: {
+          sellerBalanceBefore,
+          sellerBalanceAfter: seller.val,
+          buyerBalanceBefore,
+          buyerBalanceAfter: buyerDoc.val
+        },
+        listingDuration,
+        metadata: {
+          destacado: reserved.destacado,
+          fechaExpiracion: reserved.fechaExpiracion
+        }
+      }], { session });
 
       return reserved;
     });
@@ -396,49 +553,212 @@ export const buyItem = async (buyer: IUser, listingId: string) => {
 };
 
 export const getListings = async (filters: {
+  search?: string,
   type?: string,
   precioMin?: number,
   precioMax?: number,
   destacados?: boolean,
   rango?: string,
+  etapa?: number,
   nivelMin?: number,
   nivelMax?: number,
+  atkMin?: number,
+  atkMax?: number,
+  vidaMin?: number,
+  vidaMax?: number,
+  defensaMin?: number,
+  defensaMax?: number,
   limit?: number,
-  offset?: number
+  offset?: number,
+  sortBy?: string,
+  sortOrder?: string
 }) => {
   try {
-    const query: any = { estado: 'activo', fechaExpiracion: { $gt: new Date() } };
+    // ✅ Query base: solo listings activos y no expirados
+    const query: any = { 
+      estado: 'activo', 
+      fechaExpiracion: { $gt: new Date() } 
+    };
 
-    if (filters.type) query.type = filters.type;
-    if (filters.destacados) query.destacado = true;
-    if (filters.rango) query['metadata.rango'] = filters.rango;
+    // 🔍 NUEVO: Búsqueda por texto (nombre del item)
+    if (filters.search) {
+      query['metadata.nombre'] = { 
+        $regex: filters.search, 
+        $options: 'i' // Case insensitive
+      };
+    }
+
+    // ✅ Filtro por tipo con validación
+    if (filters.type) {
+      const tiposValidos = ['personaje', 'equipamiento', 'consumible', 'especial'];
+      if (!tiposValidos.includes(filters.type)) {
+        throw new ValidationError('Tipo de item no válido');
+      }
+      query.type = filters.type;
+    }
+
+    // ✅ Filtro por destacados
+    if (filters.destacados) {
+      query.destacado = true;
+    }
+
+    // ✅ Filtro por rango con validación
+    if (filters.rango) {
+      const rangosValidos = ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'];
+      if (!rangosValidos.includes(filters.rango)) {
+        throw new ValidationError('Rango no válido');
+      }
+      query['metadata.rango'] = filters.rango;
+    }
+
+    // 🎮 NUEVO: Filtro por etapa
+    if (filters.etapa) {
+      if (filters.etapa < 1 || filters.etapa > 3) {
+        throw new ValidationError('La etapa debe ser 1, 2 o 3');
+      }
+      query['metadata.etapa'] = filters.etapa;
+    }
+
+    // ✅ Filtro por precio con validación
     if (filters.precioMin || filters.precioMax) {
       query.precio = {};
-      if (filters.precioMin != null) query.precio.$gte = filters.precioMin;
-      if (filters.precioMax != null) query.precio.$lte = filters.precioMax;
-    }
-    if (filters.nivelMin || filters.nivelMax) {
-      query['metadata.nivel'] = {};
-      if (filters.nivelMin != null) query['metadata.nivel'].$gte = filters.nivelMin;
-      if (filters.nivelMax != null) query['metadata.nivel'].$lte = filters.nivelMax;
+      if (filters.precioMin != null) {
+        if (filters.precioMin < 0) {
+          throw new ValidationError('El precio mínimo no puede ser negativo');
+        }
+        query.precio.$gte = filters.precioMin;
+      }
+      if (filters.precioMax != null) {
+        if (filters.precioMax < 0) {
+          throw new ValidationError('El precio máximo no puede ser negativo');
+        }
+        if (filters.precioMin && filters.precioMax < filters.precioMin) {
+          throw new ValidationError('El precio máximo debe ser mayor al precio mínimo');
+        }
+        query.precio.$lte = filters.precioMax;
+      }
     }
 
-    const limit = filters.limit || 20;
-    const offset = filters.offset || 0;
+    // ✅ Filtro por nivel con validación
+    if (filters.nivelMin || filters.nivelMax) {
+      query['metadata.nivel'] = {};
+      if (filters.nivelMin != null) {
+        if (filters.nivelMin < 1 || filters.nivelMin > 100) {
+          throw new ValidationError('El nivel mínimo debe estar entre 1 y 100');
+        }
+        query['metadata.nivel'].$gte = filters.nivelMin;
+      }
+      if (filters.nivelMax != null) {
+        if (filters.nivelMax < 1 || filters.nivelMax > 100) {
+          throw new ValidationError('El nivel máximo debe estar entre 1 y 100');
+        }
+        if (filters.nivelMin && filters.nivelMax < filters.nivelMin) {
+          throw new ValidationError('El nivel máximo debe ser mayor al nivel mínimo');
+        }
+        query['metadata.nivel'].$lte = filters.nivelMax;
+      }
+    }
+
+    // ⚔️ NUEVO: Filtro por ATK
+    if (filters.atkMin || filters.atkMax) {
+      query['metadata.stats.atk'] = {};
+      if (filters.atkMin != null) {
+        if (filters.atkMin < 0) {
+          throw new ValidationError('El ATK mínimo no puede ser negativo');
+        }
+        query['metadata.stats.atk'].$gte = filters.atkMin;
+      }
+      if (filters.atkMax != null) {
+        if (filters.atkMax < 0) {
+          throw new ValidationError('El ATK máximo no puede ser negativo');
+        }
+        if (filters.atkMin && filters.atkMax < filters.atkMin) {
+          throw new ValidationError('El ATK máximo debe ser mayor al ATK mínimo');
+        }
+        query['metadata.stats.atk'].$lte = filters.atkMax;
+      }
+    }
+
+    // 🛡️ NUEVO: Filtro por Vida
+    if (filters.vidaMin || filters.vidaMax) {
+      query['metadata.stats.vida'] = {};
+      if (filters.vidaMin != null) {
+        if (filters.vidaMin < 0) {
+          throw new ValidationError('La Vida mínima no puede ser negativa');
+        }
+        query['metadata.stats.vida'].$gte = filters.vidaMin;
+      }
+      if (filters.vidaMax != null) {
+        if (filters.vidaMax < 0) {
+          throw new ValidationError('La Vida máxima no puede ser negativa');
+        }
+        if (filters.vidaMin && filters.vidaMax < filters.vidaMin) {
+          throw new ValidationError('La Vida máxima debe ser mayor a la Vida mínima');
+        }
+        query['metadata.stats.vida'].$lte = filters.vidaMax;
+      }
+    }
+
+    // 🛡️ NUEVO: Filtro por Defensa
+    if (filters.defensaMin || filters.defensaMax) {
+      query['metadata.stats.defensa'] = {};
+      if (filters.defensaMin != null) {
+        if (filters.defensaMin < 0) {
+          throw new ValidationError('La Defensa mínima no puede ser negativa');
+        }
+        query['metadata.stats.defensa'].$gte = filters.defensaMin;
+      }
+      if (filters.defensaMax != null) {
+        if (filters.defensaMax < 0) {
+          throw new ValidationError('La Defensa máxima no puede ser negativa');
+        }
+        if (filters.defensaMin && filters.defensaMax < filters.defensaMin) {
+          throw new ValidationError('La Defensa máxima debe ser mayor a la Defensa mínima');
+        }
+        query['metadata.stats.defensa'].$lte = filters.defensaMax;
+      }
+    }
+
+    // ✅ Paginación con límites seguros
+    const limit = Math.min(filters.limit || 20, 100); // Máximo 100 items por página
+    const offset = Math.max(filters.offset || 0, 0);
+
+    // ✅ Ordenamiento seguro (mejorado con nuevos campos)
+    const sortField = filters.sortBy || 'fechaCreacion';
+    const sortOrder = filters.sortOrder === 'asc' ? 1 : -1;
+    const sort: any = { destacado: -1 }; // Siempre destacados primero
+    
+    if (sortField === 'precio') {
+      sort.precio = sortOrder;
+    } else if (sortField === 'fechaCreacion') {
+      sort.fechaCreacion = sortOrder;
+    } else if (sortField === 'nivel') {
+      sort['metadata.nivel'] = sortOrder;
+    } else if (sortField === 'atk') {
+      sort['metadata.stats.atk'] = sortOrder;
+    }
 
     const [listings, total] = await Promise.all([
       Listing.find(query)
-        .sort({ destacado: -1, fechaCreacion: -1 })
+        .sort(sort)
         .skip(offset)
         .limit(limit)
-        .populate('sellerId', 'username'),
+        .populate('sellerId', 'username'), // ✅ Siempre mostrar nombre del vendedor
       Listing.countDocuments(query)
     ]);
 
     const response = {
       listings,
       total,
-      hasMore: total > offset + limit
+      hasMore: total > offset + limit,
+      // Metadata de paginación
+      pagination: {
+        limit,
+        offset,
+        total,
+        page: Math.floor(offset / limit) + 1,
+        totalPages: Math.ceil(total / limit)
+      }
     };
 
     // No emitir broadcast global en GET para evitar ruido

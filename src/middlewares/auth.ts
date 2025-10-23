@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
+import { getJWTSecret } from '../config/security';
 
 type JwtPayload = { id: string; username: string; };
 
 export const verifyToken = async (token: string): Promise<JwtPayload> => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JwtPayload;
+    const decoded = jwt.verify(token, getJWTSecret()) as JwtPayload;
     return decoded;
   } catch (error) {
     throw new Error('Token inválido');
@@ -20,7 +21,7 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
   if (!token) return res.status(401).json({ error: 'Falta token' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JwtPayload;
+    const decoded = jwt.verify(token, getJWTSecret()) as JwtPayload;
     const user = await User.findById(decoded.id);
 
     if (!user) {

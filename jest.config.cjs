@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   setupFilesAfterEnv: ['./tests/e2e/setup.ts'],
   testTimeout: 30000,
-  testMatch: ['**/tests/e2e/**/*.test.ts', '**/tests/unit/**/*.test.ts'],
+  testMatch: ['**/tests/e2e/**/*.test.ts', '**/tests/unit/**/*.test.ts', '**/tests/security/**/*.test.ts'],
   verbose: true,
   forceExit: true,
   clearMocks: true,
