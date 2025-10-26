@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { User } from '../models/User';
+import { TokenBlacklist } from '../models/TokenBlacklist';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto'; // Módulo nativo para generar tokens seguros
@@ -9,6 +10,7 @@ import { getJWTSecret, getSecurityInfo } from '../config/security'; // Importar 
 import BaseCharacter from '../models/BaseCharacter';
 import { Consumable } from '../models/Consumable';
 import { Types } from 'mongoose';
+import { auth } from '../middlewares/auth';
 
 const router = Router();
 
@@ -121,6 +123,33 @@ router.post('/login', async (req, res) => {
     return res.json({ token, user });
   } catch (e: any) {
     return res.status(400).json({ error: e?.message || 'Bad Request' });
+  }
+});
+
+// --- NUEVA RUTA DE LOGOUT ---
+router.post('/logout', auth, async (req, res) => {
+  try {
+    const header = req.header('Authorization') || '';
+    const token = header.replace(/^Bearer\s+/i, '').trim();
+
+    if (!token) {
+      return res.status(400).json({ error: 'No se proporcionó token' });
+    }
+
+    // Decodificar el token para obtener su fecha de expiración
+    const decoded = jwt.verify(token, getJWTSecret()) as any;
+    const expiresAt = new Date(decoded.exp * 1000); // Convertir timestamp a Date
+
+    // Agregar el token a la blacklist
+    await TokenBlacklist.create({
+      token,
+      expiresAt
+    });
+
+    return res.json({ message: 'Sesión cerrada correctamente' });
+  } catch (error: any) {
+    console.error('[LOGOUT] Error:', error);
+    return res.status(500).json({ error: 'Error al cerrar sesión' });
   }
 });
 

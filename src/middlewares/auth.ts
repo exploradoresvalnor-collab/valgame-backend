@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
+import { TokenBlacklist } from '../models/TokenBlacklist';
 import { getJWTSecret } from '../config/security';
 
 type JwtPayload = { id: string; username: string; };
@@ -21,6 +22,12 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
   if (!token) return res.status(401).json({ error: 'Falta token' });
 
   try {
+    // Verificar si el token está en la blacklist
+    const blacklisted = await TokenBlacklist.findOne({ token });
+    if (blacklisted) {
+      return res.status(401).json({ error: 'Token inválido o sesión cerrada' });
+    }
+
     const decoded = jwt.verify(token, getJWTSecret()) as JwtPayload;
     const user = await User.findById(decoded.id);
 

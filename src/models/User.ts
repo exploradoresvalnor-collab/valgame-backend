@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { IUserSettings, UserSettingsSchema } from './UserSettings';
 
 // --- INTERFACES ---
 
@@ -69,6 +70,9 @@ export interface IUser extends Document {
   ultimaActualizacion: Date;
   // Flag para indicar si el usuario ya recibió el Paquete del Pionero
   receivedPioneerPackage?: boolean;
+  
+  // Configuración del usuario (volumen, idioma, notificaciones)
+  settings: IUserSettings;
   
   // Progreso de mazmorras por usuario
   dungeon_progress?: Map<string, {
@@ -161,6 +165,9 @@ const UserSchema = new Schema<IUser>({
     ,
     // Flag para indicar si el usuario ya recibió el Paquete del Pionero
     receivedPioneerPackage: { type: Boolean, default: false },
+    
+    // Configuración del usuario (subdocumento embebido)
+    settings: { type: UserSettingsSchema, default: () => ({}) },
     
     // Progreso de mazmorras por usuario (Map<dungeonId, progressData>)
     dungeon_progress: { 

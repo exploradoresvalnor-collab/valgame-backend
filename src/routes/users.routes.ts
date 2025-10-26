@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { User } from '../models/User';
+import { Notification } from '../models/Notification';
 import { auth } from '../middlewares/auth';
 import BaseCharacter from '../models/BaseCharacter'; // Importamos el modelo de personajes base para validación
 
@@ -21,6 +22,73 @@ router.get('/me', auth, async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
   res.json(user);
+});
+
+
+// GET /api/users/resources - Obtener solo los recursos del usuario (más ligero que /me)
+router.get('/resources', auth, async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const user = await User.findById(req.userId).select('val boletos evo');
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    return res.json({
+      val: user.val,
+      boletos: user.boletos,
+      evo: user.evo
+    });
+  } catch (error) {
+    console.error('Error al obtener recursos:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+// GET /api/users/dashboard - Obtener datos consolidados para el dashboard
+router.get('/dashboard', auth, async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const user = await User.findById(req.userId).select('val boletos evo dungeon_stats personajes');
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Contar notificaciones no leídas
+    const unreadNotifications = await Notification.countDocuments({
+      userId: req.userId,
+      isRead: false
+    });
+
+    // Contar personajes heridos
+    const injuredCharacters = user.personajes.filter(p => p.estado === 'herido').length;
+
+    return res.json({
+      resources: {
+        val: user.val,
+        boletos: user.boletos,
+        evo: user.evo
+      },
+      dungeonStats: user.dungeon_stats,
+      notifications: {
+        unreadCount: unreadNotifications
+      },
+      characters: {
+        total: user.personajes.length,
+        injured: injuredCharacters
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener datos de dashboard:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 
