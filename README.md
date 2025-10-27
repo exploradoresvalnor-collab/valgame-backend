@@ -1,395 +1,209 @@
-# 🎮 Valgame Backend# Valgame Backend
+# 🎮 Valgame Backend
 
+Backend del juego RPG Valgame, construido con Node.js, Express, TypeScript y MongoDB.
 
+---
 
-Backend del juego RPG Valgame, construido con Node.js, Express, TypeScript y MongoDB.Backend del juego Valgame, implementado con Node.js, Express y TypeScript.
+## 📚 DOCUMENTACIÓN COMPLETA
 
+### 🎯 Documentos Esenciales (Leer en este orden)
 
+1. **[📦 DEPENDENCIAS_PRODUCCION.md](docs/DEPENDENCIAS_PRODUCCION.md)**
+   - Node 22.16.0, MongoDB 8.0, versiones exactas de npm packages
+   - Configuración de Render.com (producción en vivo)
+   - Variables de entorno requeridas (.env)
+   - Comandos de instalación y despliegue
 
----## Requisitos
+2. **[🗺️ MAPA_BACKEND.md](docs/MAPA_BACKEND.md)**
+   - Estructura de código completa (carpetas y archivos explicados)
+   - Flujo de usuario completo (12 funcionalidades principales)
+   - Endpoints críticos resumidos
+   - Seguridad explicada visualmente
 
-- Node 18+ y npm
+3. **[📖 DOCUMENTACION.md](docs/DOCUMENTACION.md)**
+   - Sistemas del juego (combate, progresión, marketplace)
+   - Economía del juego (VAL, EVO, items)
+   - Mecánicas detalladas (permadeath, evolución, gacha)
 
-## 🚀 Quick Start- MongoDB Atlas o local
+### 📂 Índice General
+👉 **[docs/00_INICIO/README.md](docs/00_INICIO/README.md)** - Índice maestro de toda la documentación
 
+---
 
+## 🚀 Quick Start
 
-### Requisitos Previos## Instalación
-
-- Node.js 18+ y npm```bash
-
-- MongoDB Atlas o MongoDB localnpm install
-
-```
+### Requisitos
+- Node.js 22.16.0
+- npm 10.x
+- MongoDB Atlas o local
 
 ### Instalación
 
-```bash## Variables de entorno (archivo `.env`)
+```bash
+# Clonar repositorio
+git clone https://github.com/exploradoresvalnor-collab/valgame-backend.git
+cd valgame-backend
 
-# Instalar dependencias- MONGODB_URI: URI de conexión a MongoDB
+# Instalar dependencias
+npm install
 
-npm install- JWT_SECRET: Clave secreta para tokens JWT
-
-- PORT: Puerto para el servidor (opcional)
-
-# Copiar archivo de ejemplo de variables de entorno- FRONTEND_ORIGIN: URL del frontend (opcional)
-
+# Configurar variables de entorno
 cp .env.example .env
-
-## Comandos útiles
-
-# Editar .env con tus credenciales```bash
-
-# MONGODB_URI, JWT_SECRET, etc.# Comprueba que las env necesarias están definidas
-
-npm run check-env
+# Editar .env con tus credenciales
 
 # Verificar configuración
+npm run check-env
 
-npm run check-env# Desarrollo (recarga automática)
-
+# Desarrollo (recarga automática)
 npm run dev
+```
 
-# Iniciar en modo desarrollo
+### Variables de Entorno Requeridas
 
-npm run dev# Compilar TypeScript
-
-```npm run build
-
-
-
----# Ejecutar build
-
-npm start
-
-## 📦 Variables de Entorno```
-
-
-
-Configurar en archivo `.env`:## Estructura del Proyecto
-
-
-
-```bash### 📁 src/
-
-# Base de datosDirectorio principal del código fuente.
-
+```bash
+# Base de datos
 MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/valgame
 
-#### 📁 src/@types
+# Seguridad
+JWT_SECRET=tu-secreto-super-seguro-aqui
 
-# Seguridad- Definiciones de tipos TypeScript personalizados
+# Servidor
+PORT=8080
+NODE_ENV=development
 
-JWT_SECRET=tu-secreto-super-seguro-aqui- Extensiones de tipos para Express
+# Frontend
+FRONTEND_ORIGIN=http://localhost:4200
 
-
-
-# Servidor#### 📁 src/config
-
-PORT=3000- `db.ts`: Configuración de conexión a MongoDB
-
-NODE_ENV=development- `mailer.ts`: Configuración del sistema de correos
-
-
-
-# Frontend#### 📁 src/controllers
-
-FRONTEND_ORIGIN=http://localhost:5173Controladores que manejan la lógica de negocio:
-
-- `characters.controller.ts`: Gestión de personajes
-
-# Email (opcional, para verificación)- `dungeons.controller.ts`: Lógica de mazmorras
-
-SMTP_HOST=smtp.ethereal.email
-
-SMTP_PORT=587#### 📁 src/middlewares
-
-SMTP_USER=your-email@ethereal.emailMiddlewares de Express:
-
-SMTP_PASS=your-password- `auth.ts`: Autenticación y autorización
-
-```- `errorHandler.ts`: Manejo centralizado de errores
-
-- `rateLimits.ts`: Limitación de peticiones
+# Email (opcional, para verificación)
+EMAIL_HOST=smtp.ethereal.email
+EMAIL_PORT=587
+EMAIL_USER=tu-usuario
+EMAIL_PASS=tu-password
+EMAIL_FROM=noreply@valgame.com
+```
 
 ---
 
-#### 📁 src/models
-
-## 🛠️ Comandos DisponiblesModelos de MongoDB/Mongoose:
-
-- `BaseCharacter.ts`: Modelo base para personajes
-
-### Desarrollo- `Category.ts`: Categorías del juego
-
-```bash- `Consumable.ts`: Items consumibles
-
-npm run dev              # Servidor con recarga automática- `Dungeon.ts`: Mazmorras y sus propiedades
-
-npm run check-env        # Validar variables de entorno- `Equipment.ts`: Equipamiento de personajes
-
-npm run seed             # Poblar base de datos con datos iniciales- `Event.ts`: Eventos del juego
-
-```- `GameSetting.ts`: Configuraciones globales
-
-- `Item.ts`: Items base
-
-### Testing- `LevelHistory.ts`: Historial de niveles
-
-```bash- `LevelRequirement.ts`: Requisitos de nivel
-
-npm test                 # Ejecutar test maestro E2E- `Offer.ts`: Ofertas del marketplace
-
-npm run test:master      # Test maestro (flujo completo)- `Package.ts`: Paquetes de items
-
-npm run test:e2e         # Todos los tests E2E- `PlayerStat.ts`: Estadísticas de jugadores
-
-npm run test:unit        # Tests unitarios- `Purchase.ts`: Registro de compras
-
-npm run test:coverage    # Cobertura de tests- `Ranking.ts`: Sistema de rankings
-
-```- `Transaction.ts`: Transacciones económicas
-
-- `User.ts`: Modelo de usuario
-
-### Producción- `UserPackage.ts`: Paquetes de usuario
+## 🛠️ Comandos Útiles
 
 ```bash
+# Desarrollo
+npm run dev                 # Modo watch con recarga automática
+npm run check-env          # Verificar variables de entorno
 
-npm run build            # Compilar TypeScript#### 📁 src/routes
+# Compilación y Producción
+npm run build              # Compilar TypeScript → JavaScript
+npm start                  # Ejecutar servidor (requiere build)
 
-npm start                # Ejecutar versión compiladaRutas de la API:
+# Testing
+npm test                   # Test maestro E2E
+npm run test:e2e           # Todos los tests E2E
+npm run test:unit          # Tests unitarios
+npm run test:coverage      # Cobertura de tests
 
-npm run validate         # Lint + Build + Test- Rutas para autenticación
+# Calidad de Código
+npm run lint               # ESLint check
+npm run lint:fix           # ESLint auto-fix
+npm run validate           # Lint + Build + Test
 
-npm run validate:full    # Validación completa pre-deployment- Rutas para gestión de personajes
+# Base de Datos
+npm run seed               # Poblar datos iniciales
+npm run init-db            # Inicializar colecciones
+npm run create-indexes     # Crear índices de performance
+```
 
-```- Rutas para marketplace
+---
 
-- Rutas para eventos y mazmorras
+## 📊 Estado del Proyecto
 
-### Utilidades
+### ✅ Implementado y Funcionando
 
-```bash#### 📁 src/services
+- **Autenticación:** Registro, login con JWT, verificación por email
+- **Seguridad:** httpOnly cookies, rate limiting, validación Zod
+- **Personajes:** Niveles, evolución, curación, revivir, permadeath (24h)
+- **Combate:** Mazmorras con combate automático, recompensas
+- **Inventario:** Equipamiento, consumibles, límites configurables
+- **Marketplace:** P2P compra/venta, filtros avanzados, transacciones atómicas
+- **Gacha:** Paquetes con probabilidades, sistema de duplicados
+- **WebSocket:** Tiempo real con Socket.IO (autenticado)
+- **Cron Jobs:** Permadeath automático, expiración de listings
+- **Onboarding:** Paquete del Pionero automático al verificar email
 
-npm run lint             # Ejecutar ESLintServicios de lógica de negocio:
+### 🔧 En Desarrollo
 
-npm run lint:fix         # Corregir errores de ESLint automáticamente- `character.service.ts`: Lógica de personajes
+- Sistema de eventos temporales
+- Daily rewards con streaks
+- Leaderboards de mazmorras
 
-npm run create-indexes   # Crear índices de base de datos- `marketplace.service.ts`: Sistema de marketplace
+---
 
-```- `onboarding.service.ts`: Proceso de registro
+## 🏗️ Estructura del Proyecto
 
-- `permadeath.service.ts`: Sistema de muerte permanente
-
----- `realtime.service.ts`: Servicios en tiempo real
-
-
-
-## 🏗️ Arquitectura del Proyecto#### 📁 src/utils
-
-Utilidades y helpers:
-
-```- `errors.ts`: Definiciones de errores
-
+```
 valgame-backend/
-
-├── 📁 src/                      # Código fuente#### 📁 src/validations
-
-│   ├── 📁 config/               # Configuración (DB, mailer)Esquemas de validación:
-
-│   ├── 📁 controllers/          # Controladores de rutas- `game.schemas.ts`: Validaciones específicas del juego
-
-│   ├── 📁 middlewares/          # Auth, error handling, rate limits- `schemas.ts`: Validaciones generales
-
-│   ├── 📁 models/               # Modelos de MongoDB (Mongoose)
-
-│   ├── 📁 routes/               # Definición de rutas API### 📁 tests/
-
-│   ├── 📁 services/             # Lógica de negocioTests del sistema:
-
-│   ├── 📁 utils/                # Utilidades y helpers- `e2e/`: Tests de integración end-to-end
-
-│   ├── 📁 validations/          # Esquemas de validación (Zod)  - `auth.e2e.test.ts`: Tests de autenticación
-
-│   └── app.ts                   # Aplicación Express principal  - `onboarding.e2e.test.ts`: Tests de registro
-
-│  - `setup.ts`: Configuración común de tests
-
-├── 📁 tests/                    # Tests
-
-│   ├── 📁 e2e/                  # Tests end-to-end### 📁 scripts/
-
-│   │   ├── master-complete-flow.e2e.test.ts ⭐ (Test maestro)Scripts de utilidad:
-
-│   │   ├── setup.ts             # Configuración de tests- `check-env.js`: Validación de variables de entorno
-
-│   │   └── ...                  # Tests específicos- `migrate-and-seed-items.ts`: Migración y población de items
-
-│   └── 📁 unit/                 # Tests unitarios
-
-│### Archivos de Configuración
-
-├── 📁 scripts/                  # Scripts de utilidad- `ARQUITECTURA.md`: Documentación de la arquitectura del sistema
-
-│   ├── check-env.js             # Validación de .env- `DOCUMENTACION.md`: Documentación general del proyecto
-
-│   ├── create-purchase-index.js # Índices de DB- `ROADMAP.md`: Plan de desarrollo futuro
-
-│   └── seed_game_settings.ts    # Seed de configuración- `jest.config.cjs`: Configuración de Jest para testing
-
-│- `package.json`: Dependencias y scripts npm
-
-├── 📁 docs/                     # Documentación- `tsconfig.json`: Configuración de TypeScript
-
-│   ├── 📁 arquitectura/         # Documentación técnica
-
-│   ├── 📁 guias/                # Guías de desarrollo## Documentación Adicional
-
-│   └── API_REFERENCE.md         # Referencia de API- Para detalles de la arquitectura, ver [ARQUITECTURA.md](./ARQUITECTURA.md)
-
-│- Para documentación general, ver [DOCUMENTACION.md](./DOCUMENTACION.md)
-
-├── 📁 FRONTEND_STARTER_KIT/     # Guía para frontend- Para el plan de desarrollo, ver [ROADMAP.md](./ROADMAP.md)
+├── src/
+│   ├── app.ts                    # Punto de entrada (Express server)
+│   ├── seed.ts                   # Datos iniciales
+│   ├── config/                   # Configuración (DB, mailer)
+│   ├── models/                   # Esquemas MongoDB
+│   ├── controllers/              # Lógica de negocio
+│   ├── services/                 # Servicios especializados
+│   ├── middlewares/              # Auth, rate limits, errors
+│   ├── routes/                   # Endpoints API
+│   ├── validations/              # Esquemas Zod
+│   └── utils/                    # Utilidades
 │
-├── .env.example                 # Template de variables de entorno
-├── Dockerfile                   # Configuración Docker
-├── jest.config.cjs              # Configuración de tests
-├── tsconfig.json                # Configuración TypeScript
-└── package.json                 # Dependencias y scripts
+├── tests/
+│   ├── e2e/                      # Tests de flujo completo
+│   └── security/                 # Tests de seguridad
+│
+├── scripts/                      # Scripts de utilidad
+├── docs/                         # Documentación completa
+├── FRONTEND_STARTER_KIT/         # Guías para frontend
+│
+├── .env                          # Variables (no subir a Git)
+├── .env.example                  # Ejemplo de variables
+├── package.json                  # Dependencias npm
+├── tsconfig.json                 # Config TypeScript
+└── README.md                     # Este archivo
 ```
 
 ---
 
-## 🎯 Características Principales
+## 🌐 Producción
 
-### Sistema de Autenticación
-- ✅ Registro de usuarios con email
-- ✅ Verificación de email
-- ✅ Login con JWT tokens
-- ✅ Paquete de bienvenida automático
+### URL Live
+**Backend:** https://valgame-backend.onrender.com
 
-### Sistema de Personajes
-- ✅ Catálogo de personajes base
-- ✅ Sistema de rangos (D, C, B, A, S, SS, SSS)
-- ✅ Progresión por niveles y etapas
-- ✅ Evolución de personajes
-- ✅ Estadísticas dinámicas (ATK, DEF, HP)
-
-### Sistema de Items
-- ✅ Equipamiento (armas, armaduras, accesorios)
-- ✅ Consumibles (pociones, buffs)
-- ✅ Inventario separado por tipo
-- ✅ Sistema de rareza
-
-### Sistema de Mazmorras
-- ✅ Combate por turnos
-- ✅ Recompensas de XP y VAL
-- ✅ Drop table de items
-- ✅ Dificultad escalable
-
-### Sistema de Economía
-- ✅ Moneda virtual (VAL)
-- ✅ Marketplace entre jugadores
-- ✅ Sistema de impuestos (5%)
-- ✅ Listings con expiración
-- ✅ Transacciones seguras
-
-### Sistema de Permadeath
-- ✅ Estados: saludable/herido/muerto
-- ✅ Recuperación con VAL
-- ✅ Sistema de curación
-
-### Sistema de Paquetes
-- ✅ Paquetes de items
-- ✅ Apertura aleatoria
-- ✅ Rareza por rango
-
----
-
-## 📚 Documentación
-
-### Para Desarrolladores Backend
-- [Arquitectura del Sistema](./docs/arquitectura/ARQUITECTURA.md)
-- [Guía de Seguridad](./docs/guias/SECURITY_ROTATION_GUIDE.md)
-- [Test Maestro](./TEST_MAESTRO_RESUMEN.md)
-
-### Para Desarrolladores Frontend
-- [Frontend Starter Kit](./FRONTEND_STARTER_KIT/)
-- [API Reference](./docs/API_REFERENCE.md)
-
----
-
-## 🧪 Testing
-
-El proyecto incluye un **Test Maestro E2E** que valida TODO el flujo del juego:
-
+### Health Check
 ```bash
-npm run test:master
+curl https://valgame-backend.onrender.com/health
+# → {"ok": true}
 ```
 
-**Cobertura del Test Maestro (18 tests):**
-- ✅ Registro y autenticación completa
-- ✅ Sistema de personajes y equipamiento
-- ✅ Mazmorras y combate
-- ✅ Progresión y evolución
-- ✅ Marketplace (compra/venta entre usuarios)
-- ✅ Sistema de permadeath
-
-Si este test pasa, **el sistema completo funciona correctamente** 🎉
-
----
-
-## 🐳 Docker
-
-```bash
-# Build de imagen
-docker build -t valgame-backend .
-
-# Ejecutar contenedor
-docker run -p 3000:3000 --env-file .env valgame-backend
-```
-
----
-
-## 🚀 Deployment
-
-### Pre-deployment Checklist
-```bash
-# 1. Validación completa
-npm run validate:full
-
-# 2. Verificar build
-npm run build
-
-# 3. Verificar variables de entorno
-npm run check-env
-```
-
-### Plataformas Recomendadas
-- **Render** (recomendado)
-- **Railway**
-- **Heroku**
-- **AWS Elastic Beanstalk**
-
----
-
-## 🤝 Contribución
-
-1. Fork el proyecto
-2. Crear feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a branch (`git push origin feature/AmazingFeature`)
-5. Abrir Pull Request
-
----
-
-## 📄 Licencia
-
-Este proyecto es privado y pertenece a Exploradores Valnor.
+### Tecnologías
+- **Runtime:** Node.js 22.16.0
+- **Framework:** Express 5.1.0
+- **Base de Datos:** MongoDB 8.0 (Atlas)
+- **WebSocket:** Socket.IO 4.8.1
+- **Validación:** Zod 4.1.11
+- **Testing:** Jest 29.6.1
 
 ---
 
 ## 📞 Soporte
 
-Para dudas o soporte, contactar al equipo de desarrollo.
+- **Repositorio:** https://github.com/exploradoresvalnor-collab/valgame-backend
+- **Issues:** https://github.com/exploradoresvalnor-collab/valgame-backend/issues
+- **Documentación Completa:** [docs/00_INICIO/README.md](docs/00_INICIO/README.md)
+
+---
+
+## 📝 Licencia
+
+ISC
+
+---
+
+**Última actualización:** 27 de octubre de 2025  
+**Versión:** 1.0.0
