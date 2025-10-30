@@ -57,16 +57,25 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), (re
 app.use(cookieParser()); // 🔐 Middleware para cookies httpOnly
 app.use(express.json()); // Permite al servidor entender JSON
 
-const corsOptions = {
-  origin: process.env.FRONTEND_ORIGIN,
-  credentials: true, // 🔐 Permite envío de cookies con CORS
+// Permitir múltiples orígenes desde la variable FRONTEND_ORIGIN (separados por coma)
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+import { CorsOptions } from 'cors';
+const corsOptions: CorsOptions = {
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    if (!origin) return callback(null, true); // Permite peticiones sin origin (ej: Postman)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('No permitido por CORS'));
+    }
+  },
+  credentials: true,
 };
-if (!process.env.FRONTEND_ORIGIN) {
-    console.warn('[CORS] La variable FRONTEND_ORIGIN no está definida. Se permitirán todas las peticiones.');
-    // En desarrollo, puedes permitir todo si no se define. En producción, siempre defínelo.
-    app.use(cors({ credentials: true }));
+if (allowedOrigins.length === 0) {
+  console.warn('[CORS] La variable FRONTEND_ORIGIN no está definida o vacía. Se permitirán todas las peticiones.');
+  app.use(cors({ credentials: true }));
 } else {
-    app.use(cors(corsOptions));
+  app.use(cors(corsOptions));
 }
 
 

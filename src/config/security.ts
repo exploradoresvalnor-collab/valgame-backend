@@ -67,6 +67,11 @@ export const validateSecurityConfig = (): void => {
       throw new Error('🔴 CRÍTICO: FRONTEND_ORIGIN no puede ser "*" en producción');
     }
 
+    // Validar que FRONTEND_ORIGIN permita múltiples dominios separados por coma
+    if (process.env.FRONTEND_ORIGIN?.includes(',')) {
+      console.log('✅ FRONTEND_ORIGIN permite múltiples dominios:', process.env.FRONTEND_ORIGIN);
+    }
+
     console.log('✅ Configuración de seguridad validada para producción');
   }
 };
