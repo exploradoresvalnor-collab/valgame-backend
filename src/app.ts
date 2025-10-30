@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser'; // 🔐 Para cookies httpOnly
 import mongoose from 'mongoose';
 import { connectDB } from './config/db';
 import { validateSecurityConfig } from './config/security'; // Importar validación de seguridad
@@ -53,15 +54,17 @@ app.use(helmet()); // Añade cabeceras de seguridad
 // Montamos la ruta específica antes de `express.json()` con raw, y luego usamos json para el resto.
 app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), (req, res) => paymentService.handleWebhook(req as any, res as any));
 
+app.use(cookieParser()); // 🔐 Middleware para cookies httpOnly
 app.use(express.json()); // Permite al servidor entender JSON
 
 const corsOptions = {
   origin: process.env.FRONTEND_ORIGIN,
+  credentials: true, // 🔐 Permite envío de cookies con CORS
 };
 if (!process.env.FRONTEND_ORIGIN) {
     console.warn('[CORS] La variable FRONTEND_ORIGIN no está definida. Se permitirán todas las peticiones.');
     // En desarrollo, puedes permitir todo si no se define. En producción, siempre defínelo.
-    app.use(cors());
+    app.use(cors({ credentials: true }));
 } else {
     app.use(cors(corsOptions));
 }
