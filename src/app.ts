@@ -57,26 +57,13 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), (re
 app.use(cookieParser()); // 🔐 Middleware para cookies httpOnly
 app.use(express.json()); // Permite al servidor entender JSON
 
-// Permitir múltiples orígenes desde la variable FRONTEND_ORIGIN (separados por coma)
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
-import { CorsOptions } from 'cors';
-const corsOptions: CorsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    if (!origin) return callback(null, true); // Permite peticiones sin origin (ej: Postman)
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('No permitido por CORS'));
-    }
-  },
-  credentials: true,
-};
-if (allowedOrigins.length === 0) {
-  console.warn('[CORS] La variable FRONTEND_ORIGIN no está definida o vacía. Se permitirán todas las peticiones.');
-  app.use(cors({ credentials: true }));
-} else {
-  app.use(cors(corsOptions));
-}
+// ⚠️ MODO DESARROLLO: Permitir solicitudes de TODOS los dominios
+// TODO: Restaurar validación por dominios antes de producción final
+console.warn('[CORS] ⚠️ MODO DESARROLLO: Aceptando solicitudes de todos los orígenes');
+app.use(cors({ 
+  origin: true,  // Permite cualquier origen
+  credentials: true 
+}));
 
 
 // Importar rate limiters
