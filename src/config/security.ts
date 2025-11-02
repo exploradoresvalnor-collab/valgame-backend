@@ -45,8 +45,8 @@ export const validateSecurityConfig = (): void => {
   if (process.env.NODE_ENV === 'production') {
     const criticalEnvVars = [
       'MONGODB_URI',
-      'JWT_SECRET',
-      'FRONTEND_ORIGIN'
+      'JWT_SECRET'
+      // FRONTEND_ORIGIN es opcional (modo desarrollo permite todos los orígenes)
     ];
 
     const missing = criticalEnvVars.filter(key => !process.env[key]);
@@ -55,6 +55,11 @@ export const validateSecurityConfig = (): void => {
       throw new Error(
         `🔴 CRÍTICO: Variables de entorno faltantes en producción: ${missing.join(', ')}`
       );
+    }
+
+    // Advertir si FRONTEND_ORIGIN no está definida (CORS abierto)
+    if (!process.env.FRONTEND_ORIGIN) {
+      console.warn('⚠️  FRONTEND_ORIGIN no definida: CORS abierto a todos los orígenes (solo para desarrollo)');
     }
 
     // Validar formato de MONGODB_URI
