@@ -21,7 +21,36 @@ router.get('/me', auth, async (req: Request, res: Response) => {
   const user = await User.findById(req.userId).select('-passwordHash');
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-  res.json(user);
+  // ✅ Devolver datos completos con fallback a 0 para recursos
+  res.json({
+    id: user._id,
+    email: user.email,
+    username: user.username,
+    isVerified: user.isVerified,
+    tutorialCompleted: user.tutorialCompleted,
+    // ✅ RECURSOS con fallback
+    val: user.val ?? 0,
+    boletos: user.boletos ?? 0,
+    evo: user.evo ?? 0,
+    invocaciones: user.invocaciones ?? 0,
+    evoluciones: user.evoluciones ?? 0,
+    boletosDiarios: user.boletosDiarios ?? 0,
+    // Arrays e inventario
+    personajes: user.personajes || [],
+    inventarioEquipamiento: user.inventarioEquipamiento || [],
+    inventarioConsumibles: user.inventarioConsumibles || [],
+    // Límites
+    limiteInventarioEquipamiento: user.limiteInventarioEquipamiento,
+    limiteInventarioConsumibles: user.limiteInventarioConsumibles,
+    limiteInventarioPersonajes: user.limiteInventarioPersonajes,
+    // Estado
+    personajeActivoId: user.personajeActivoId,
+    receivedPioneerPackage: user.receivedPioneerPackage,
+    walletAddress: user.walletAddress,
+    // Fechas
+    fechaRegistro: user.fechaRegistro,
+    ultimaActualizacion: user.ultimaActualizacion
+  });
 });
 
 
@@ -87,6 +116,34 @@ router.get('/dashboard', auth, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error al obtener datos de dashboard:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+// PUT /api/users/tutorial/complete - Marcar el tutorial como completado
+router.put('/tutorial/complete', auth, async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { tutorialCompleted: true },
+      { new: true }
+    ).select('tutorialCompleted');
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    return res.json({
+      message: 'Tutorial completado',
+      tutorialCompleted: user.tutorialCompleted
+    });
+  } catch (error) {
+    console.error('Error al completar tutorial:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

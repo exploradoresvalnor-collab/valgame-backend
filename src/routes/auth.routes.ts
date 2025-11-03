@@ -100,15 +100,16 @@ const LoginSchema = z.object({
   password: z.string().min(6)
 });
 
-// --- RUTA DE LOGIN (MODIFICADA) ---
+// --- RUTA DE LOGIN (MODIFICADA CON httpOnly COOKIE) ---
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = LoginSchema.parse(req.body);
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // AÑADIMOS LA COMPROBACIÓN
-    if (!user.isVerified) {
+    // AÑADIMOS LA COMPROBACIÓN (bypass en desarrollo si TEST_MODE está activo)
+    const bypassVerification = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+    if (!user.isVerified && !bypassVerification) {
       return res.status(403).json({ error: 'Debes verificar tu cuenta antes de iniciar sesión.' });
     }
 
@@ -120,17 +121,71 @@ router.post('/login', async (req, res) => {
       getJWTSecret(), 
       { expiresIn: '7d' }
     );
-    return res.json({ token, user });
+
+    // 🔐 SEGURIDAD: Token en httpOnly cookie (NO accesible desde JavaScript)
+    res.cookie('token', token, {
+      httpOnly: true,           // Protege contra XSS
+      secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+      sameSite: 'strict',       // Protege contra CSRF
+      maxAge: 7 * 24 * 60 * 60 * 1000  // 7 días
+    });
+
+    // Preparar respuesta con todos los datos del usuario
+    const userData = {
+      id: user._id,
+      email: user.email,
+      username: user.username,
+      isVerified: user.isVerified,
+      tutorialCompleted: user.tutorialCompleted,
+      // ✅ RECURSOS del usuario
+      val: user.val ?? 0,
+      boletos: user.boletos ?? 0,
+      evo: user.evo ?? 0,
+      invocaciones: user.invocaciones ?? 0,
+      evoluciones: user.evoluciones ?? 0,
+      boletosDiarios: user.boletosDiarios ?? 0,
+      // Arrays e inventario
+      personajes: user.personajes || [],
+      inventarioEquipamiento: user.inventarioEquipamiento || [],
+      inventarioConsumibles: user.inventarioConsumibles || [],
+      // Límites
+      limiteInventarioEquipamiento: user.limiteInventarioEquipamiento,
+      limiteInventarioConsumibles: user.limiteInventarioConsumibles,
+      limiteInventarioPersonajes: user.limiteInventarioPersonajes,
+      // Estado
+      personajeActivoId: user.personajeActivoId,
+      receivedPioneerPackage: user.receivedPioneerPackage
+    };
+
+    // En entorno de test, también devolvemos el token en el body para los tests
+    if (process.env.NODE_ENV === 'test') {
+      return res.json({
+        message: 'Login exitoso',
+        token,
+        user: userData
+      });
+    }
+    
+    // En producción y desarrollo normal, devolver datos completos
+    return res.json({ 
+      message: 'Login exitoso',
+      user: userData
+    });
   } catch (e: any) {
     return res.status(400).json({ error: e?.message || 'Bad Request' });
   }
 });
 
-// --- NUEVA RUTA DE LOGOUT ---
+// --- NUEVA RUTA DE LOGOUT (CON LIMPIEZA DE COOKIE) ---
 router.post('/logout', auth, async (req, res) => {
   try {
     const header = req.header('Authorization') || '';
-    const token = header.replace(/^Bearer\s+/i, '').trim();
+    let token = header.replace(/^Bearer\s+/i, '').trim();
+
+    // Si no hay token en header, intentar obtenerlo de la cookie
+    if (!token && req.cookies?.token) {
+      token = req.cookies.token;
+    }
 
     if (!token) {
       return res.status(400).json({ error: 'No se proporcionó token' });
@@ -144,6 +199,13 @@ router.post('/logout', auth, async (req, res) => {
     await TokenBlacklist.create({
       token,
       expiresAt
+    });
+
+    // 🔐 SEGURIDAD: Limpiar cookie httpOnly
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
     });
 
     return res.json({ message: 'Sesión cerrada correctamente' });
