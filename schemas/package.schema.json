@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Package",
+  "type": "object",
+  "required": ["_id", "nombre", "tipo", "precio", "available", "contenidoPosible"],
+  "properties": {
+    "_id": { "type": "string", "description": "MongoDB ObjectId as string" },
+    "sku": { "type": "string" },
+    "nombre": { "type": "string" },
+    "descripcion": { "type": "string" },
+    "tipo": { "type": "string", "description": "tipo de paquete (e.g. 'pioneer'|'starter'|'bundle'|'cosmetic'|'consumable'|'regalo')" },
+    "precio": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "integer", "minimum": 0 },
+        "moneda": { "type": "string", "enum": ["VAL","USD","tickets","coins","gems"] }
+      },
+      "required": ["amount","moneda"],
+      "additionalProperties": false
+    },
+    "available": { "type": "boolean", "description": "indica si está disponible para la venta" },
+    "rarity": { "type": "string" },
+    "imagen": { "type": "string", "format": "uri" },
+    "meta": { "type": "object", "additionalProperties": true },
+    "preview": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "id": { "type": "string" },
+          "nombre": { "type": "string" },
+          "probability": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "contenidoPosible": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type","id"],
+        "properties": {
+          "type": { "type": "string", "description": "character|item|consumable|equipment" },
+          "id": { "type": "string" },
+          "rarity": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

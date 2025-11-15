@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UserCharacter",
+  "type": "object",
+  "required": ["instanceId", "userId", "characterId", "nivel", "hpMax", "hpCurrent", "status"],
+  "properties": {
+    "instanceId": { "type": "string" },
+    "userId": { "type": "string" },
+    "characterId": { "type": "string" },
+    "nombre": { "type": "string" },
+    "nivel": { "type": "integer", "minimum": 1 },
+    "hpMax": { "type": "integer", "minimum": 0 },
+    "hpCurrent": { "type": "integer", "minimum": 0 },
+    "status": { "type": "string", "enum": ["alive","dead","permadeath"] },
+    "equipmentSlots": {
+      "type": "object",
+      "properties": {
+        "main": { "type": ["string","null"] },
+        "offhand": { "type": ["string","null"] },
+        "head": { "type": ["string","null"] },
+        "body": { "type": ["string","null"] },
+        "accessory": { "type": ["string","null"] }
+      },
+      "additionalProperties": false
+    },
+    "atributos": { "type": "object", "additionalProperties": true },
+    "meta": { "type": "object", "additionalProperties": true },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

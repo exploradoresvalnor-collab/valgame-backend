@@ -35,6 +35,8 @@ import equipmentRoutes from './routes/equipment.routes';
 import consumableRoutes from './routes/consumables.routes';
 import dungeonRoutes from './routes/dungeons.routes';
 import characterRoutes from './routes/characters.routes';
+import shopRoutes from './routes/shop.routes';
+import rankingsRoutes from './routes/rankings.routes';
 
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -125,6 +127,8 @@ app.use('/api/level-requirements', levelRequirementsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/player-stats', playerStatsRoutes);
 app.use('/api/characters', characterRoutes);
+app.use('/api/shop', shopRoutes);
+app.use('/api/rankings', rankingsRoutes);
 
 
 // --- Arranque del Servidor ---

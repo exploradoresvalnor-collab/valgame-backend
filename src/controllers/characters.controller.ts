@@ -404,6 +404,22 @@ export const evolveCharacter = async (req: AuthRequest, res: Response) => {
 
     await user.save();
 
+    // Emitir evento WebSocket
+    try {
+      const realtimeService = RealtimeService.getInstance();
+      realtimeService.notifyCharacterUpdate(userId, characterId, {
+        etapa: characterToEvolve.etapa,
+        stats: characterToEvolve.stats,
+        saludMaxima: characterToEvolve.saludMaxima,
+        saludActual: characterToEvolve.saludActual,
+        type: 'EVOLVE' as any
+      });
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[evolveCharacter] RealtimeService no disponible:', err);
+      }
+    }
+
     res.json({
       message: `¡Felicidades! ${baseChar.nombre} ha evolucionado a ${nextEvolution.nombre}! `,
       character: {

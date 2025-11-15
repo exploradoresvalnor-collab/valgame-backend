@@ -7,6 +7,7 @@ require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
+const cookie_parser_1 = __importDefault(require("cookie-parser")); // 🔐 Para cookies httpOnly
 const mongoose_1 = __importDefault(require("mongoose"));
 const db_1 = require("./config/db");
 const security_1 = require("./config/security"); // Importar validación de seguridad
@@ -19,6 +20,8 @@ const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const payments_routes_1 = __importDefault(require("./routes/payments.routes"));
 const payment_service_1 = __importDefault(require("./services/payment.service"));
 const users_routes_1 = __importDefault(require("./routes/users.routes"));
+const userSettings_routes_1 = __importDefault(require("./routes/userSettings.routes"));
+const notifications_routes_1 = __importDefault(require("./routes/notifications.routes"));
 const baseCharacters_routes_1 = __importDefault(require("./routes/baseCharacters.routes"));
 const categories_routes_1 = __importDefault(require("./routes/categories.routes"));
 const items_routes_1 = __importDefault(require("./routes/items.routes"));
@@ -35,6 +38,8 @@ const equipment_routes_1 = __importDefault(require("./routes/equipment.routes"))
 const consumables_routes_1 = __importDefault(require("./routes/consumables.routes"));
 const dungeons_routes_1 = __importDefault(require("./routes/dungeons.routes"));
 const characters_routes_1 = __importDefault(require("./routes/characters.routes"));
+const shop_routes_1 = __importDefault(require("./routes/shop.routes"));
+const rankings_routes_1 = __importDefault(require("./routes/rankings.routes"));
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
     try {
@@ -51,18 +56,15 @@ app.use((0, helmet_1.default)()); // Añade cabeceras de seguridad
 // Nota: el endpoint de webhook necesita el raw body para validar la firma HMAC.
 // Montamos la ruta específica antes de `express.json()` con raw, y luego usamos json para el resto.
 app.post('/api/payments/webhook', express_1.default.raw({ type: 'application/json' }), (req, res) => payment_service_1.default.handleWebhook(req, res));
+app.use((0, cookie_parser_1.default)()); // 🔐 Middleware para cookies httpOnly
 app.use(express_1.default.json()); // Permite al servidor entender JSON
-const corsOptions = {
-    origin: process.env.FRONTEND_ORIGIN,
-};
-if (!process.env.FRONTEND_ORIGIN) {
-    console.warn('[CORS] La variable FRONTEND_ORIGIN no está definida. Se permitirán todas las peticiones.');
-    // En desarrollo, puedes permitir todo si no se define. En producción, siempre defínelo.
-    app.use((0, cors_1.default)());
-}
-else {
-    app.use((0, cors_1.default)(corsOptions));
-}
+// ⚠️ MODO DESARROLLO: Permitir solicitudes de TODOS los dominios
+// TODO: Restaurar validación por dominios antes de producción final
+console.warn('[CORS] ⚠️ MODO DESARROLLO: Aceptando solicitudes de todos los orígenes');
+app.use((0, cors_1.default)({
+    origin: true, // Permite cualquier origen
+    credentials: true
+}));
 // Importar rate limiters
 const rateLimits_1 = require("./middlewares/rateLimits");
 // Aplica los rate limiters según el tipo de ruta
@@ -96,6 +98,8 @@ app.use('/api/marketplace', rateLimits_1.marketplaceLimiter);
 app.use('/api/marketplace', marketplace_routes_1.default);
 app.use('/api/marketplace-transactions', marketplaceTransactions_routes_1.default);
 app.use('/api/users', users_routes_1.default);
+app.use('/api/user/settings', userSettings_routes_1.default);
+app.use('/api/notifications', notifications_routes_1.default);
 app.use('/api/categories', categories_routes_1.default);
 app.use('/api/items', items_routes_1.default);
 app.use('/api/user-packages', userPackages_routes_1.default);
@@ -103,6 +107,8 @@ app.use('/api/level-requirements', levelRequirements_routes_1.default);
 app.use('/api/events', events_routes_1.default);
 app.use('/api/player-stats', playerStats_routes_1.default);
 app.use('/api/characters', characters_routes_1.default);
+app.use('/api/shop', shop_routes_1.default);
+app.use('/api/rankings', rankings_routes_1.default);
 // --- Arranque del Servidor ---
 const PORT = Number(process.env.PORT || 8080);
 const MONGODB_URI = process.env.MONGODB_URI;

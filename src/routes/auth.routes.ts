@@ -22,8 +22,10 @@ const RegisterSchema = z.object({
 
 // --- RUTA DE REGISTRO (MODIFICADA) ---
 router.post('/register', async (req, res) => {
+  console.log('[REGISTER] 🎯 Endpoint /register llamado');
   try {
     const { email, username, password } = RegisterSchema.parse(req.body);
+    console.log(`[REGISTER] 📝 Datos recibidos: ${email}, ${username}`);
 
     const exists = await User.findOne({ $or: [{ email }, { username }] });
     if (exists) {
@@ -47,15 +49,28 @@ router.post('/register', async (req, res) => {
     user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora de validez
 
     await user.save(); // Guardamos el usuario con el token
+    console.log(`[REGISTER] ✅ Usuario creado: ${username} (${email})`);
 
     // Enviamos el correo de verificación
-    await sendVerificationEmail(user.email, verificationToken);
+    console.log(`[REGISTER] 📧 Intentando enviar correo de verificación...`);
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+      console.log(`[REGISTER] ✅ Correo enviado exitosamente`);
+    } catch (emailError: any) {
+      console.error(`[REGISTER] ❌ ERROR al enviar correo:`, emailError.message);
+      // El usuario ya fue creado, pero informamos que hubo problema con el email
+      return res.status(201).json({ 
+        message: 'Registro exitoso pero hubo un problema al enviar el correo de verificación. Por favor, contacta al soporte.',
+        warning: 'Email no enviado'
+      });
+    }
 
     return res.status(201).json({ 
       message: 'Registro exitoso. Por favor, revisa tu correo para verificar tu cuenta.' 
     });
 
   } catch (e: any) {
+    console.error('[REGISTER] ❌ Error en registro:', e.message);
     return res.status(400).json({ error: e?.message || 'Bad Request' });
   }
 });
@@ -71,7 +86,31 @@ router.get('/verify/:token', async (req, res) => {
         });
 
         if (!user) {
-            return res.status(400).send('<h1>Token de verificación inválido o expirado.</h1>');
+            return res.status(400).send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Token Inválido - Valgame</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 500px; text-align: center; }
+    h1 { color: #e74c3c; font-size: 28px; margin-bottom: 20px; }
+    p { color: #666; line-height: 1.6; }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">❌</div>
+    <h1>Token Inválido o Expirado</h1>
+    <p>El enlace de verificación no es válido o ya ha expirado.</p>
+    <p>Por favor, solicita un nuevo correo de verificación.</p>
+  </div>
+</body>
+</html>
+            `);
         }
 
         // Verificamos al usuario y limpiamos los campos del token
@@ -80,18 +119,102 @@ router.get('/verify/:token', async (req, res) => {
         user.verificationTokenExpires = undefined;
         await user.save();
 
+        console.log(`[VERIFY] ✅ Usuario verificado: ${user.username} (${user.email})`);
+
         // Entregar el Paquete del Pionero (idempotente)
+        let packageResult = null;
         try {
+          console.log('[VERIFY] 🎁 Intentando entregar Paquete del Pionero...');
           const { deliverPioneerPackage } = await import('../services/onboarding.service');
-          const result = await deliverPioneerPackage(user as any);
-          return res.json({ message: 'Cuenta verificada con éxito', package: result });
+          packageResult = await deliverPioneerPackage(user as any);
+          console.log('[VERIFY] ✅ Paquete del Pionero entregado exitosamente');
         } catch (err: any) {
-          console.error('[VERIFY] Error al entregar paquete:', err);
-          return res.status(500).json({ error: 'Cuenta verificada pero fallo al entregar paquete' });
+          console.error('[VERIFY] ❌ Error al entregar paquete:', err.message);
+          // Continuar aunque falle el paquete
         }
 
-    } catch (error) {
-        return res.status(500).send('<h1>Error interno del servidor.</h1>');
+        // Página de éxito con HTML mejorado
+        return res.send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¡Cuenta Verificada! - Valgame</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 500px; text-align: center; animation: slideIn 0.5s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    h1 { color: #27ae60; font-size: 32px; margin-bottom: 20px; }
+    p { color: #666; line-height: 1.6; margin: 15px 0; }
+    .icon { font-size: 80px; margin-bottom: 20px; animation: bounce 1s ease infinite; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .rewards { background: #f0f4ff; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; }
+    .rewards h3 { color: #667eea; margin-top: 0; }
+    .rewards ul { list-style: none; padding: 0; }
+    .rewards li { padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
+    .rewards li:last-child { border-bottom: none; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 20px; transition: transform 0.2s; }
+    .btn:hover { transform: scale(1.05); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎉</div>
+    <h1>¡Cuenta Verificada con Éxito!</h1>
+    <p>¡Bienvenido a <strong>Valgame</strong>, aventurero <strong>${user.username}</strong>!</p>
+    
+    ${packageResult ? `
+    <div class="rewards">
+      <h3>🎁 Recompensas Recibidas:</h3>
+      <ul>
+        <li>✅ Paquete del Pionero desbloqueado</li>
+        <li>⚔️ Personaje inicial</li>
+        <li>💰 Recursos de inicio</li>
+        <li>🎮 Acceso completo al juego</li>
+      </ul>
+    </div>
+    ` : `
+    <div class="rewards">
+      <h3>✅ Tu cuenta está verificada</h3>
+      <p>Ya puedes iniciar sesión y comenzar tu aventura.</p>
+    </div>
+    `}
+    
+    <p style="margin-top: 30px;">Ya puedes cerrar esta ventana e iniciar sesión en el juego.</p>
+    <a href="#" class="btn">🎮 Ir al Juego</a>
+  </div>
+</body>
+</html>
+        `);
+
+    } catch (error: any) {
+        console.error('[VERIFY] ❌ Error en verificación:', error.message);
+        return res.status(500).send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error - Valgame</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 500px; text-align: center; }
+    h1 { color: #e74c3c; font-size: 28px; margin-bottom: 20px; }
+    p { color: #666; line-height: 1.6; }
+    .icon { font-size: 64px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h1>Error del Servidor</h1>
+    <p>Ocurrió un error al procesar tu verificación.</p>
+    <p>Por favor, contacta al soporte técnico.</p>
+  </div>
+</body>
+</html>
+        `);
     }
 });
 
@@ -212,6 +335,120 @@ router.post('/logout', auth, async (req, res) => {
   } catch (error: any) {
     console.error('[LOGOUT] Error:', error);
     return res.status(500).json({ error: 'Error al cerrar sesión' });
+  }
+});
+
+// --- NUEVA RUTA: REENVIAR EMAIL DE VERIFICACIÓN ---
+const ResendVerificationSchema = z.object({
+  email: z.string().email()
+});
+
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = ResendVerificationSchema.parse(req.body);
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Por seguridad, no revelar si el usuario existe o no
+      return res.json({ message: 'Si el correo existe y no está verificado, se enviará un nuevo email de verificación.' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: 'La cuenta ya está verificada' });
+    }
+
+    // Verificar si ya existe un token válido para evitar spam
+    if (user.verificationTokenExpires && user.verificationTokenExpires > new Date()) {
+      const minutesLeft = Math.ceil((user.verificationTokenExpires.getTime() - Date.now()) / 60000);
+      return res.status(429).json({ 
+        error: `Ya existe un email de verificación válido. Espera ${minutesLeft} minutos antes de solicitar otro.` 
+      });
+    }
+
+    // Generar nuevo token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+    await user.save();
+
+    // Enviar email
+    await sendVerificationEmail(user.email, verificationToken);
+
+    return res.json({ message: 'Email de verificación enviado. Revisa tu bandeja de entrada.' });
+  } catch (e: any) {
+    console.error('[RESEND-VERIFICATION] Error:', e);
+    return res.status(400).json({ error: e?.message || 'Error al reenviar verificación' });
+  }
+});
+
+// --- NUEVA RUTA: SOLICITAR RECUPERACIÓN DE CONTRASEÑA ---
+const ForgotPasswordSchema = z.object({
+  email: z.string().email()
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = ForgotPasswordSchema.parse(req.body);
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Por seguridad, no revelar si el usuario existe o no
+      return res.json({ message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.' });
+    }
+
+    // Generar token de recuperación
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+    await user.save();
+
+    // Construir URL del frontend (ajusta según tu configuración)
+    const frontendURL = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const resetURL = `${frontendURL}/reset-password/${resetToken}`;
+
+    // Enviar email (necesitarás crear esta función en config/mailer.ts)
+    const { sendPasswordResetEmail } = await import('../config/mailer');
+    await sendPasswordResetEmail(user.email, resetURL);
+
+    return res.json({ message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.' });
+  } catch (e: any) {
+    console.error('[FORGOT-PASSWORD] Error:', e);
+    return res.status(400).json({ error: e?.message || 'Error al procesar solicitud' });
+  }
+});
+
+// --- NUEVA RUTA: RESETEAR CONTRASEÑA CON TOKEN ---
+const ResetPasswordSchema = z.object({
+  password: z.string().min(6)
+});
+
+router.post('/reset-password/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = ResetPasswordSchema.parse(req.body);
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordTokenExpires: { $gt: new Date() } // Token válido y no expirado
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Token de recuperación inválido o expirado' });
+    }
+
+    // Hash de la nueva contraseña
+    const passwordHash = await bcrypt.hash(password, 10);
+    user.passwordHash = passwordHash;
+
+    // Limpiar tokens de recuperación
+    user.resetPasswordToken = undefined;
+    user.resetPasswordTokenExpires = undefined;
+    await user.save();
+
+    return res.json({ message: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.' });
+  } catch (e: any) {
+    console.error('[RESET-PASSWORD] Error:', e);
+    return res.status(400).json({ error: e?.message || 'Error al resetear contraseña' });
   }
 });
 

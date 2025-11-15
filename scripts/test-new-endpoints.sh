@@ -101,6 +101,18 @@ else
     ((failed++))
 fi
 
+# 7. Tutorial complete endpoint (sin autenticación, debe fallar con 401)
+echo -n "Testing PUT /api/users/tutorial/complete (sin auth)... "
+response=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:8080/api/users/tutorial/complete")
+status_code=$(echo "$response" | tail -n1)
+if [ "$status_code" -eq 401 ]; then
+    echo -e "${GREEN}✓ OK (401 - Auth required)${NC}"
+    ((passed++))
+else
+    echo -e "${RED}✗ FAILED (Expected 401, got ${status_code})${NC}"
+    ((failed++))
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Resumen de pruebas:"

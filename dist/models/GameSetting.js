@@ -14,7 +14,8 @@ const GameSettingSchema = new mongoose_1.Schema({
     MAX_PERSONAJES_POR_EQUIPO: { type: Number, required: true, default: 3 },
     EXP_GLOBAL_MULTIPLIER: { type: Number, required: true, default: 1 },
     costo_revivir_personaje: { type: Number, required: true, default: 50 },
-    PERMADEATH_TIMER_HOURS: { type: Number, required: true, default: 24 }, // <-- AÑADIDO // <-- NUEVO
+    costo_evo_por_val: { type: Number, default: 100 }, // 100 VAL = 1 EVO
+    PERMADEATH_TIMER_HOURS: { type: Number, required: true, default: 24 },
     aumento_stats_por_nivel: {
         type: Map,
         of: new mongoose_1.Schema({

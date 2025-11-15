@@ -1,0 +1,165 @@
+### ============================================
+### PRUEBA COMPLETA DEL SISTEMA DE RANKING
+### ============================================
+### Este archivo prueba todo el flujo:
+### 1. Login → 2. Ver mi ranking → 3. Jugar mazmorra → 4. Verificar puntos actualizados
+### ============================================
+
+@baseURL = http://localhost:8080
+@email = test@example.com
+@password = password123
+@token = 
+
+### ============================================
+### PASO 1: LOGIN
+### ============================================
+### Primero necesitas loguearte para obtener el token
+### Copia el valor del token de la cookie de respuesta
+POST {{baseURL}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### ============================================
+### PASO 2: VER MIS DATOS DE USUARIO
+### ============================================
+### Para ver qué personajes tienes y recursos
+### INSTRUCCIÓN: Pega tu token arriba en @token después de hacer login
+GET {{baseURL}}/api/users/me
+Cookie: token={{token}}
+
+### ============================================
+### PASO 3: VER MI RANKING ACTUAL (ANTES DE JUGAR)
+### ============================================
+### Ver tu posición y puntos antes de jugar
+### Si es tu primera vez, dará error 404 (normal)
+GET {{baseURL}}/api/rankings/me
+Cookie: token={{token}}
+
+### ============================================
+### PASO 4: VER RANKING GLOBAL
+### ============================================
+### Ver el top 10 de jugadores
+GET {{baseURL}}/api/rankings?limit=10
+
+### ============================================
+### PASO 5: LISTAR TUS PERSONAJES
+### ============================================
+### Para saber qué personaje usar en la mazmorra
+GET {{baseURL}}/api/characters
+Cookie: token={{token}}
+
+### ============================================
+### PASO 6: LISTAR MAZMORRAS DISPONIBLES
+### ============================================
+### Para saber el ID de la mazmorra a jugar
+GET {{baseURL}}/api/dungeons
+Cookie: token={{token}}
+
+### ============================================
+### PASO 7: JUGAR UNA MAZMORRA
+### ============================================
+### IMPORTANTE: Reemplaza estos valores:
+### - characterId: ID de uno de tus personajes (del paso 5)
+### - dungeonId: ID de una mazmorra (del paso 6)
+###
+### Esto iniciará un combate. Guarda el combatId de la respuesta.
+POST {{baseURL}}/api/dungeons/play
+Content-Type: application/json
+Cookie: token={{token}}
+
+{
+  "characterId": "TU_CHARACTER_ID_AQUI",
+  "dungeonId": "TU_DUNGEON_ID_AQUI"
+}
+
+### ============================================
+### PASO 8: REALIZAR ACCIÓN EN EL COMBATE
+### ============================================
+### IMPORTANTE: Reemplaza combatId con el ID que obtuviste en el paso 7
+###
+### Repite este endpoint hasta que el combate termine (victoria o derrota)
+### Tipos de acción: "attack", "defend", "special", "use_item"
+POST {{baseURL}}/api/dungeons/action
+Content-Type: application/json
+Cookie: token={{token}}
+
+{
+  "combatId": "TU_COMBAT_ID_AQUI",
+  "actionType": "attack"
+}
+
+### ============================================
+### PASO 9: VER MI RANKING ACTUALIZADO (DESPUÉS DE JUGAR)
+### ============================================
+### Si ganaste la mazmorra, deberías tener +10 puntos
+### Compara con el paso 3 para ver la diferencia
+GET {{baseURL}}/api/rankings/me
+Cookie: token={{token}}
+
+### ============================================
+### PASO 10: VER RANKING GLOBAL ACTUALIZADO
+### ============================================
+### Verificar que apareces en el ranking global
+GET {{baseURL}}/api/rankings?limit=20
+
+### ============================================
+### PASO 11: VER ESTADÍSTICAS GLOBALES
+### ============================================
+### Ver cuántos jugadores hay en total, victorias, etc.
+GET {{baseURL}}/api/rankings/stats
+
+### ============================================
+### PASO 12: VER RANKING SEMANAL
+### ============================================
+GET {{baseURL}}/api/rankings/period/semanal
+
+### ============================================
+### PASO 13: VER RANKING MENSUAL
+### ============================================
+GET {{baseURL}}/api/rankings/period/mensual
+
+### ============================================
+### RESUMEN DE LO QUE VERÁS:
+### ============================================
+###
+### ANTES de jugar (Paso 3):
+### - Posiblemente error 404 si es tu primera vez
+### - O verás tus puntos actuales
+###
+### DESPUÉS de GANAR (Paso 9):
+### - +10 puntos
+### - +1 victoria
+### - +1 boleto usado
+### - Tu posición puede haber cambiado
+###
+### DESPUÉS de PERDER (Paso 9):
+### - Puntos sin cambios
+### - +1 derrota
+### - +1 boleto usado
+###
+### ============================================
+
+### ============================================
+### ATAJOS RÁPIDOS (después de configurar):
+### ============================================
+
+### Ver mi ranking rápido
+GET {{baseURL}}/api/rankings/me
+Cookie: token={{token}}
+
+### Ver top 10 rápido
+GET {{baseURL}}/api/rankings
+
+### ============================================
+### NOTAS IMPORTANTES:
+### ============================================
+### 1. El servidor debe estar corriendo (npm run dev)
+### 2. Debes tener Thunder Client instalado en VS Code
+### 3. Debes copiar tu token de la respuesta del login
+### 4. El ranking se crea automáticamente la primera vez que juegas
+### 5. Los puntos SOLO se suman con victorias (no se restan con derrotas)
+### 6. Cada victoria = +10 puntos (configurado en game_settings)

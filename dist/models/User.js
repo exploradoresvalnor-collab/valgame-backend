@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.User = void 0;
 const mongoose_1 = require("mongoose");
+const UserSettings_1 = require("./UserSettings");
 // --- SCHEMAS ---
 // --- NUEVO: Schema para Buffs Activos ---
 const ActiveBuffSchema = new mongoose_1.Schema({
@@ -52,6 +53,8 @@ const UserSchema = new mongoose_1.Schema({
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
     verificationTokenExpires: { type: Date },
+    resetPasswordToken: { type: String },
+    resetPasswordTokenExpires: { type: Date },
     walletAddress: { type: String, unique: true, sparse: true },
     val: { type: Number, default: 0, min: 0 },
     boletos: { type: Number, default: 0, min: 0 },
@@ -69,6 +72,10 @@ const UserSchema = new mongoose_1.Schema({
     personajeActivoId: { type: String },
     // Flag para indicar si el usuario ya recibió el Paquete del Pionero
     receivedPioneerPackage: { type: Boolean, default: false },
+    // Flag para indicar si el usuario completó el tutorial (FTUE)
+    tutorialCompleted: { type: Boolean, default: false },
+    // Configuración del usuario (subdocumento embebido)
+    settings: { type: UserSettings_1.UserSettingsSchema, default: () => ({}) },
     // Progreso de mazmorras por usuario (Map<dungeonId, progressData>)
     dungeon_progress: {
         type: Map,

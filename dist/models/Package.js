@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const PackageSchema = new mongoose_1.Schema({
     nombre: { type: String, required: true, unique: true },
+    tipo: { type: String, required: true }, // Tipo de paquete
     precio_usdt: { type: Number, required: true },
     precio_val: { type: Number }, // Opcional
     personajes: { type: Number, required: true },

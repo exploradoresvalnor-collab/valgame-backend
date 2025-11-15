@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UserPackage",
+  "type": "object",
+  "required": ["_id", "userId", "packageId", "status", "createdAt", "packageSnapshot"],
+  "properties": {
+    "_id": { "type": "string", "description": "MongoDB ObjectId as string" },
+    "userId": { "type": "string" },
+    "packageId": { "type": "string" },
+    "status": { "type": "string", "enum": ["owned","opened","expired","pending","completed","consumed"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "openedAt": { "type": ["string","null"], "format": "date-time" },
+    "packageSnapshot": {
+      "type": "object",
+      "description": "Copia del Package en el momento de la compra",
+      "properties": {
+        "_id": { "type": "string" },
+        "sku": { "type": "string" },
+        "nombre": { "type": "string" },
+        "imagen": { "type": "string", "format": "uri" }
+      },
+      "required": ["_id","nombre"],
+      "additionalProperties": true
+    },
+    "payment": {
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "enum": ["wallet","stripe","paypal"] },
+        "amount": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "enum": ["VAL","USD","tickets","coins","gems"] },
+        "status": { "type": "string", "enum": ["completed","pending","failed"] }
+      },
+      "required": ["method","amount","currency"],
+      "additionalProperties": false
+    },
+    "rewardsSnapshot": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "id": { "type": "string" },
+          "instanceId": { "type": "string" },
+          "nombre": { "type": "string" }
+        },
+        "required": ["type","id"],
+        "additionalProperties": true
+      }
+    },
+    "source": { "type": "string", "description": "Origen del paquete (shop,promo,onboarding)" }
+  },
+  "additionalProperties": false
+}

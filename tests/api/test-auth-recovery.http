@@ -1,0 +1,118 @@
+### SISTEMA DE RECUPERACIÓN DE AUTENTICACIÓN
+### Archivo de prueba para Thunder Client / REST Client (VS Code)
+### Ejecutar línea por línea con "Send Request" o Ctrl+Alt+R
+
+@baseURL = http://localhost:8080
+@email = test@example.com
+@newPassword = nuevaPassword123
+
+###
+# 1. Solicitar recuperación de contraseña
+# Respuesta: Mensaje genérico (no revela si email existe)
+# Revisa logs del servidor para ver el enlace de Ethereal
+POST {{baseURL}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+# 2. Reenviar email de verificación
+# Caso 1: Email no verificado -> Se envía nuevo email
+# Caso 2: Email ya verificado -> Error 400
+# Caso 3: Token válido activo -> Error 429 (rate limit)
+POST {{baseURL}}/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+# 3. Resetear contraseña con token (REEMPLAZAR TOKEN)
+# ⚠️ ANTES DE EJECUTAR:
+# 1. Revisa logs del servidor para el enlace de Ethereal
+# 2. Abre el enlace en el navegador
+# 3. Copia el token del botón "Cambiar Mi Contraseña"
+# 4. Reemplaza "TOKEN_AQUI" con el token copiado
+POST {{baseURL}}/auth/reset-password/TOKEN_AQUI
+Content-Type: application/json
+
+{
+  "password": "{{newPassword}}"
+}
+
+###
+# 4. Login con nueva contraseña (para verificar que funcionó)
+POST {{baseURL}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{newPassword}}"
+}
+
+###
+# 5. Test: Token inválido (debe retornar error)
+POST {{baseURL}}/auth/reset-password/token-invalido-123abc
+Content-Type: application/json
+
+{
+  "password": "{{newPassword}}"
+}
+
+###
+# 6. Test: Password muy corta (debe retornar error de validación)
+POST {{baseURL}}/auth/reset-password/TOKEN_AQUI
+Content-Type: application/json
+
+{
+  "password": "123"
+}
+
+###
+# 7. Registro de nuevo usuario (para probar flujo completo)
+POST {{baseURL}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "nuevo@example.com",
+  "username": "nuevoUsuario",
+  "password": "password123"
+}
+
+###
+# 8. Reenviar verificación al usuario recién registrado
+POST {{baseURL}}/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "nuevo@example.com"
+}
+
+###
+# 9. Test: Reenviar verificación a usuario ya verificado (debe fallar)
+POST {{baseURL}}/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "usuario-ya-verificado@example.com"
+}
+
+###
+# 10. Test: Email inexistente (respuesta genérica por seguridad)
+POST {{baseURL}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "noexiste@example.com"
+}
+
+###
+# NOTAS:
+# - Todos los tokens expiran en 1 hora
+# - Los emails de prueba se pueden ver en Ethereal (links en consola del servidor)
+# - Rate limiting: No se puede reenviar verificación si hay token activo
+# - Respuestas genéricas: No revela si un email existe (seguridad)
+# - Validación Zod: Password mínimo 6 caracteres, email válido

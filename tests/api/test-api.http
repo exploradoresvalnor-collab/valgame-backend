@@ -1,0 +1,18 @@
+### Registro
+POST https://valgame-backend.onrender.com/auth/register
+Content-Type: application/json
+
+{
+  "email": "prueba1@ejemplo.com",
+  "username": "prueba1",
+  "password": "123456"
+}
+
+### Login
+POST https://valgame-backend.onrender.com/auth/login
+Content-Type: application/json
+
+{
+  "email": "prueba1@ejemplo.com",
+  "password": "123456"
+}

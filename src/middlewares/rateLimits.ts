@@ -94,41 +94,48 @@ const baseLimiterConfig = {
 };
 
 // Limitador para rutas de autenticación
+// NOTA: En producción, considera usar Redis para compartir estado entre instancias
 export const authLimiter = rateLimit({
   ...baseLimiterConfig,
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // máximo 5 intentos
-  message: 'Demasiados intentos de autenticación, por favor intente de nuevo en 15 minutos.'
+  max: 50, // 50 intentos por IP (más realista para usuarios legítimos)
+  message: 'Demasiados intentos de autenticación, por favor intente de nuevo en 15 minutos.',
+  // Permitir bypass para IPs específicas (desarrollo/testing)
+  skip: (req) => {
+    const ip = req.ip || '';
+    // IPs locales siempre permitidas
+    return ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.');
+  }
 });
 
-// Limitador para acciones de juego rápidas
+// Limitador para acciones de juego rápidas (atacar, usar items, etc)
 export const gameplayLimiter = rateLimit({
   ...baseLimiterConfig,
   windowMs: 1 * 60 * 1000, // 1 minuto
-  max: 30, // 30 peticiones por minuto
+  max: 60, // 60 peticiones por minuto (1 por segundo)
   message: 'Demasiadas acciones de juego, por favor espere un momento.'
 });
 
-// Limitador para acciones de juego lentas (mazmorras, evolución)
+// Limitador para acciones de juego lentas (mazmorras, evolución, curación)
 export const slowGameplayLimiter = rateLimit({
   ...baseLimiterConfig,
   windowMs: 5 * 60 * 1000, // 5 minutos
-  max: 10, // 10 peticiones por ventana
+  max: 30, // 30 peticiones por ventana (permite jugar varias mazmorras)
   message: 'Demasiadas acciones de juego complejas, por favor espere un momento.'
 });
 
-// Limitador para operaciones de mercado
+// Limitador para operaciones de mercado (crear/comprar listings)
 export const marketplaceLimiter = rateLimit({
   ...baseLimiterConfig,
   windowMs: 5 * 60 * 1000, // 5 minutos
-  max: 20, // 20 operaciones por ventana
+  max: 50, // 50 operaciones por ventana (navegación + transacciones)
   message: 'Demasiadas operaciones de mercado, por favor espere un momento.'
 });
 
-// Limitador general para la API
+// Limitador general para la API (capa de protección contra ataques)
 export const apiLimiter = rateLimit({
   ...baseLimiterConfig,
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 peticiones por ventana
+  max: 300, // 300 peticiones por ventana (uso normal de la app)
   message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo en 15 minutos.'
 });

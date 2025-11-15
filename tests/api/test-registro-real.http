@@ -1,0 +1,39 @@
+### ============================================
+### REGISTRO REAL - umbrarisegame@gmail.com
+### ============================================
+### Este test registrará el usuario real y enviará email
+### ============================================
+
+@baseURL = http://localhost:8080
+
+### ============================================
+### 1. REGISTRAR USUARIO REAL
+### ============================================
+### Email: umbrarisegame@gmail.com
+### User: haust23
+### Pass: 123456
+###
+### ⚡ EJECUTA ESTE ENDPOINT
+### Después revisa el email: umbrarisegame@gmail.com
+POST {{baseURL}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "umbrarisegame@gmail.com",
+  "username": "haust23",
+  "password": "123456"
+}
+
+### ============================================
+### QUÉ PASARÁ:
+### ============================================
+### 1. ✅ Se creará el usuario en la base de datos
+### 2. ✅ Se enviará un email REAL a umbrarisegame@gmail.com
+### 3. ✅ Verás el link de verificación en la consola del servidor
+### 4. ✅ El email llegará con el asunto "Verifica tu cuenta en Valgame"
+### 
+### REVISA:
+### - Bandeja de entrada: umbrarisegame@gmail.com
+### - Si no aparece, revisa SPAM
+### - Espera 1-2 minutos máximo
+### ============================================

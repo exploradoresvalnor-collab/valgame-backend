@@ -33,3 +33,7 @@ coverage/
 # Archivos temporales (excluir del repo)
 temp/
 logs_temp/
+cookies.txt
+server-output.log
+.cors-domains
+*.log.tmp

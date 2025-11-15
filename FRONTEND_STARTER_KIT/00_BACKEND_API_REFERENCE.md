@@ -2,7 +2,7 @@
 
 > **URL Base de Producción:** `https://valgame-backend.onrender.com`  
 > **Status:** ✅ LIVE y funcional  
-> **Última actualización:** 2025-01-15
+> **Última actualización:** 3 de noviembre de 2025
 
 ---
 
@@ -43,6 +43,15 @@
 
 ## 🔐 Autenticación y Seguridad
 
+### 📧 Configuración de Email (Gmail SMTP)
+
+**Sistema de envío de emails reales configurado:**
+- **Host:** smtp.gmail.com
+- **Puerto:** 587
+- **Email:** romerolivo1234@gmail.com
+- **Estado:** ✅ Funcional y probado
+- ⚠️ Los emails pueden llegar a SPAM inicialmente
+
 ### Flujo de Registro y Login
 
 #### 1. Registro de Usuario
@@ -67,8 +76,9 @@ Content-Type: application/json
 **Notas importantes:**
 - La contraseña debe tener mínimo 6 caracteres
 - El username debe tener mínimo 3 caracteres
-- Se envía un correo de verificación automáticamente
+- Se envía un correo de verificación automáticamente (Gmail real)
 - El usuario NO puede hacer login hasta verificar su cuenta
+- Email con diseño HTML moderno incluido
 
 #### 2. Verificación de Email
 ```http
@@ -82,17 +92,21 @@ GET /auth/verify/:token
   "package": {
     "packageName": "Paquete del Pionero",
     "personajes": [...],
-    "val": 1500,
-    "boletos": 10
+    "val": 100,
+    "boletos": 5,
+    "evo": 2
   }
 }
 ```
 
-**Recompensa al verificar:**
-- ✅ **Paquete del Pionero** (automático, solo una vez)
-- 3 personajes base aleatorios
-- 1500 VAL
-- 10 boletos
+**🎁 Paquete del Pionero (ACTUALIZADO - Noviembre 2025):**
+- ✅ **100 VAL** (moneda del juego)
+- ✅ **5 Boletos** de invocación
+- ✅ **2 Cristales EVO** para evolucionar
+- ✅ **1 Personaje base** (nivel 1, aleatorio)
+- ✅ **3 Pociones de Vida Menor** (consumibles)
+- ✅ **1 Espada de Madera** (equipamiento básico)
+- ✅ Usuario puede jugar inmediatamente después de verificar
 
 #### 3. Login
 ```http
@@ -125,16 +139,74 @@ Content-Type: application/json
 - `401`: Credenciales inválidas
 - `403`: Cuenta no verificada (revisar correo)
 
-### Uso del Token JWT
-
-Una vez obtenido el token, debe enviarse en todas las peticiones protegidas:
-
+#### 4. Logout
 ```http
-GET /api/users/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+POST /auth/logout
+Cookie: token=<JWT>  (automático, enviado por navegador)
 ```
 
-**Duración del token:** 7 días
+**No requiere body.** La cookie se envía automáticamente.
+
+**Respuesta exitosa (200):**
+```json
+{
+  "message": "Sesión cerrada correctamente"
+}
+```
+
+**¿Qué hace el logout?**
+1. ✅ Agrega el token a la **blacklist** (invalida el token permanentemente)
+2. ✅ Borra la cookie del navegador
+3. ✅ Previene reuso del token incluso si fue copiado
+4. ✅ Token blacklisteado se guarda con fecha de expiración automática
+
+**Frontend:**
+```typescript
+await fetch('http://localhost:3000/auth/logout', {
+  method: 'POST',
+  credentials: 'include'  // Envía cookie para identificar sesión
+});
+
+// Cookie borrada automáticamente
+// Redirigir a /login
+```
+
+### 🍪 Sistema de Cookies httpOnly (ACTUALIZADO)
+
+**⚠️ IMPORTANTE: El backend usa cookies httpOnly, NO tokens en headers**
+
+#### En el Login:
+El backend automáticamente establece una cookie:
+```http
+Set-Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; 
+            HttpOnly; 
+            Secure; 
+            SameSite=Strict; 
+            Max-Age=604800
+```
+
+**Características:**
+- **HttpOnly:** JavaScript NO puede acceder (protección XSS)
+- **Secure:** Solo HTTPS en producción
+- **SameSite=Strict:** Previene CSRF
+- **Max-Age=604800:** 7 días (604,800 segundos)
+
+#### En el Frontend:
+```typescript
+// ⚠️ TODAS las peticiones deben incluir credentials
+fetch('http://localhost:3000/api/users/me', {
+  credentials: 'include'  // Envía cookies automáticamente
+});
+
+// O con axios
+axios.get('http://localhost:3000/api/users/me', {
+  withCredentials: true  // Envía cookies automáticamente
+});
+```
+
+**Sin `credentials: 'include'` o `withCredentials: true`, la autenticación NO funcionará.**
+
+**Duración de sesión:** 7 días (cookie persiste al cerrar navegador)
 
 ---
 
@@ -295,7 +367,7 @@ Authorization: Bearer {token}
 #### Usar consumible en personaje
 ```http
 POST /api/characters/:characterId/use-consumable
-Authorization: Bearer {token}
+Cookie: token=<JWT>
 Content-Type: application/json
 
 {
@@ -304,26 +376,115 @@ Content-Type: application/json
 ```
 
 **Efectos de consumibles:**
+- Curación (restaura HP)
 - Buff de ATK temporal
 - Buff de Defensa temporal
-- Buff de Vida temporal
-- Mejora de XP porcentual
+- Revivir personaje herido
+
+**⚠️ IMPORTANTE - Auto-eliminación:**
+Los consumibles se **eliminan automáticamente** cuando `usos_restantes <= 0`.
+
+**Response cuando aún tiene usos (200):**
+```json
+{
+  "message": "Consumible usado exitosamente",
+  "character": {
+    "hp_actual": 100
+  },
+  "consumable": {
+    "nombre": "Poción de Vida Menor",
+    "usos_restantes": 2
+  }
+}
+```
+
+**Response cuando es el último uso (200):**
+```json
+{
+  "message": "Consumible usado exitosamente (último uso - item eliminado)",
+  "character": {
+    "hp_actual": 140
+  },
+  "consumable": null
+}
+```
+
+**Frontend debe:**
+1. Si `consumable === null` → Remover item de UI
+2. Si `consumable !== null` → Actualizar `usos_restantes` en UI
 
 #### Revivir personaje herido
 ```http
 POST /api/characters/:characterId/revive
-Authorization: Bearer {token}
+Cookie: token=<JWT>
+Content-Type: application/json
+
+{
+  "costVAL": 20
+}
 ```
 
-**Costo:** Determinado por stats del personaje
+**Costo:** Fijo (~20 VAL, puede variar según nivel/rareza)
+
+**¿Cuándo usar?**
+Personaje entra en estado `herido` cuando:
+- HP llega a 0 en combate
+- Pierde en una mazmorra
+
+**Response (200):**
+```json
+{
+  "message": "Personaje revivido exitosamente",
+  "character": {
+    "estado": "saludable",
+    "hp_actual": 140,
+    "hp_maximo": 140
+  },
+  "cost": 20,
+  "newBalance": 80
+}
+```
+
+**Diferencia Heal vs Revive:**
+- **Heal:** Estado = saludable, HP < HP_MAX → Restaura HP
+- **Revive:** Estado = herido → Cambia a saludable + Restaura HP completo
 
 #### Curar personaje
 ```http
 POST /api/characters/:characterId/heal
-Authorization: Bearer {token}
+Cookie: token=<JWT>
 ```
 
-**Restaura:** Salud al máximo
+**Restaura:** Salud al máximo (hp_actual = hp_maximo)
+
+**💰 Costo dinámico:**
+```typescript
+const hpFaltante = hp_maximo - hp_actual;
+const costoVAL = Math.ceil(hpFaltante / 10);
+```
+
+**Ejemplos:**
+- Faltan 10 HP → Cuesta 1 VAL
+- Faltan 50 HP → Cuesta 5 VAL
+- Faltan 100 HP → Cuesta 10 VAL
+
+**Response (200):**
+```json
+{
+  "message": "Personaje curado exitosamente",
+  "character": {
+    "hp_actual": 140,
+    "hp_maximo": 140
+  },
+  "cost": 10,
+  "newBalance": 90
+}
+```
+
+**Validaciones:**
+- Estado debe ser `saludable` (no herido)
+- HP debe estar por debajo del máximo
+- Usuario debe tener suficiente VAL
 
 #### Evolucionar personaje
 ```http
@@ -339,13 +500,102 @@ Authorization: Bearer {token}
 #### Añadir experiencia a personaje
 ```http
 POST /api/characters/:characterId/add-experience
-Authorization: Bearer {token}
+Cookie: token=<JWT>
 Content-Type: application/json
 
 {
   "amount": 100
 }
 ```
+
+#### Equipar item a personaje
+```http
+POST /api/characters/:characterId/equip
+Cookie: token=<JWT>
+Content-Type: application/json
+
+{
+  "equipmentId": "673789012345678901234567"
+}
+```
+
+**Validaciones automáticas:**
+- Item existe en inventario del usuario
+- Item no equipado en otro personaje
+- Tipo de item corresponde al slot correcto
+- Si slot ocupado, desequipa anterior automáticamente
+
+**Response (200):**
+```json
+{
+  "message": "Equipamiento equipado exitosamente",
+  "character": {
+    "equipamiento": {
+      "arma": "673789012345678901234567",
+      "armadura": null,
+      "accesorio": null
+    }
+  }
+}
+```
+
+#### Desequipar item de personaje
+```http
+POST /api/characters/:characterId/unequip
+Cookie: token=<JWT>
+Content-Type: application/json
+
+{
+  "slot": "arma"
+}
+```
+
+**Slots válidos:** `"arma"`, `"armadura"`, `"accesorio"`
+
+#### Obtener stats totales con equipamiento
+```http
+GET /api/characters/:characterId/stats
+Cookie: token=<JWT>
+```
+
+**Response (200):**
+```json
+{
+  "characterId": "673456def789012345678901",
+  "nivel": 5,
+  "stats_base": {
+    "hp": 140,
+    "ataque": 25,
+    "defensa": 15,
+    "velocidad": 20
+  },
+  "equipamiento": {
+    "arma": {
+      "nombre": "Espada de Hierro",
+      "ataque": 15
+    },
+    "armadura": {
+      "nombre": "Armadura de Cuero",
+      "defensa": 10,
+      "hp_bonus": 20
+    }
+  },
+  "stats_totales": {
+    "hp": 160,
+    "ataque": 40,
+    "defensa": 25,
+    "velocidad": 20
+  },
+  "bonos_equipamiento": {
+    "hp": 20,
+    "ataque": 15,
+    "defensa": 10,
+    "velocidad": 0
+  }
+}
+```
+
+**Fórmula:** `stats_totales = stats_base + bonos_equipamiento`
 
 ---
 
@@ -1038,7 +1288,7 @@ VITE_WS_URL=wss://valgame-backend.onrender.com
 
 ```typescript
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../environments/environment';
 
@@ -1050,15 +1300,22 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  // ⚠️ IMPORTANTE: El backend usa httpOnly cookies para JWT
-  // NO necesitas enviar token manualmente en headers
-  // Solo asegúrate de enviar withCredentials: true
+  // ⚠️ CRÍTICO: TODAS las peticiones deben incluir withCredentials: true
+  // Sin esto, las cookies NO se envían y la autenticación falla
 
-  // Ejemplo: Login (devuelve cookie automáticamente)
+  // Ejemplo: Login (recibe cookie automáticamente)
   login(email: string, password: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/login`, 
       { email, password },
-      { withCredentials: true }  // ← Crucial para cookies
+      { withCredentials: true }  // ← OBLIGATORIO
+    );
+  }
+
+  // Ejemplo: Logout (borra cookie)
+  logout(): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/logout`, 
+      {},
+      { withCredentials: true }
     );
   }
 
@@ -1069,16 +1326,26 @@ export class ApiService {
     });
   }
 
-  // Ejemplo: Abrir paquete
-  openPackage(packageId: string, quantity: number = 1): Observable<any> {
+  // Ejemplo: Equipar item
+  equipItem(characterId: string, equipmentId: string): Observable<any> {
     return this.http.post(
-      `${this.apiUrl}/api/user-packages/open`,
-      { packageId, quantity },
-      { headers: this.getHeaders() }
+      `${this.apiUrl}/api/characters/${characterId}/equip`,
+      { equipmentId },
+      { withCredentials: true }
+    );
+  }
+
+  // Ejemplo: Obtener stats con equipamiento
+  getCharacterStats(characterId: string): Observable<any> {
+    return this.http.get(
+      `${this.apiUrl}/api/characters/${characterId}/stats`,
+      { withCredentials: true }
     );
   }
 }
 ```
+
+**📚 Servicios completos listos para copiar:** Ver `04_SERVICIOS_BASE.md`
 
 ### Ejemplo de Servicio WebSocket (Angular)
 
@@ -1145,9 +1412,29 @@ export class WebSocketService {
 - **Recomendación:** Mostrar un loader/spinner en el frontend
 - Hacer una petición a `/health` al cargar la app para "despertar" el servidor
 
-### CORS
-- El backend acepta peticiones desde cualquier origen (`*`)
-- En producción considera restringir a tu dominio frontend
+### CORS y Cookies
+```typescript
+// Backend configurado para aceptar cookies cross-origin
+app.use(cors({
+  origin: true,  // Acepta todos los orígenes
+  credentials: true  // ⚠️ OBLIGATORIO para cookies
+}));
+```
+
+**Frontend DEBE configurar:**
+```typescript
+// Con fetch
+fetch(url, {
+  credentials: 'include'  // ⚠️ OBLIGATORIO
+});
+
+// Con axios
+axios.defaults.withCredentials = true;  // Global
+// O por petición
+axios.get(url, { withCredentials: true });
+```
+
+**Sin `credentials: true`, las cookies NO se envían y la autenticación falla.**
 
 ### Validación con Zod
 - Todos los endpoints validan datos con schemas Zod
@@ -1199,6 +1486,17 @@ login(email: string, password: string) {
     })
   );
 }
+
+logout() {
+  return this.http.post(`${API_URL}/auth/logout`, 
+    {},
+    { withCredentials: true }
+  ).pipe(
+    tap(() => {
+      this.currentUser = null;
+    })
+  );
+}
 ```
 
 4. **Proteger rutas con Guard:**
@@ -1221,18 +1519,22 @@ canActivate(): Observable<boolean> {
 ```typescript
 // En componente principal o servicio
 ngOnInit() {
-  // ⚠️ IMPORTANTE: Para WebSocket sí necesitas el token manualmente
-  // Obtenerlo desde el backend primero
-  this.http.get<{token: string}>(`${API_URL}/api/auth/socket-token`, 
-    { withCredentials: true }
-  ).subscribe(response => {
-    this.wsService.authenticate(token);
-    this.wsService.onUserUpdate().subscribe(data => {
-      // Actualizar estado global
-    });
-  }
+  // WebSocket se conecta automáticamente
+  this.wsService.connect();
+  
+  this.wsService.onUserUpdate().subscribe(data => {
+    // Actualizar estado global cuando hay cambios
+    console.log('Usuario actualizado:', data);
+  });
+  
+  this.wsService.onMarketplaceUpdate().subscribe(listing => {
+    // Nuevo item en marketplace
+    console.log('Nuevo listing:', listing);
+  });
 }
 ```
+
+**📚 Servicio WebSocket completo:** Ver `04_SERVICIOS_BASE.md`
 
 ---
 

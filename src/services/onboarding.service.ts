@@ -7,16 +7,18 @@ import { Types } from 'mongoose';
 export async function deliverPioneerPackage(user: IUser) {
   // Si ya lo recibió, no hacemos nada (idempotencia)
   if ((user as any).receivedPioneerPackage) {
+    console.log('[ONBOARDING] ⚠️ Paquete del Pionero ya entregado anteriormente');
     return { delivered: false, reason: 'already_received' };
   }
 
-  // Buscar BaseCharacter rango D
-  const baseChar = await BaseCharacter.findOne({ descripcion_rango: 'D' });
+  // Buscar cualquier BaseCharacter para el personaje inicial (usualmente el primero)
+  const baseChar = await BaseCharacter.findOne().sort({ _id: 1 }).limit(1);
   if (!baseChar) {
-    // No crear en tiempo de ejecución para evitar duplicados; el seed debe garantizar esto.
-    console.error('[ONBOARDING] BaseCharacter rango D no encontrado. Ejecuta el seed o agrega el personaje base manualmente.');
+    console.error('[ONBOARDING] ❌ No hay BaseCharacters en la base de datos. Ejecuta: node scripts/seed-base-characters.js --force');
     return { delivered: false, reason: 'base_character_missing' };
   }
+  
+  console.log(`[ONBOARDING] ✅ Personaje base seleccionado: ${baseChar.nombre}`);
 
   // Crear personaje para el usuario
   const pioneerCharacter = {
@@ -35,46 +37,78 @@ export async function deliverPioneerPackage(user: IUser) {
   } as any;
 
   user.personajes.push(pioneerCharacter as any);
+  console.log(`[ONBOARDING] ✅ Personaje agregado: ${baseChar.nombre} (Rango D, Nivel 1)`);
 
-  // Asignar VAL inicial (logica simple: 100)
-  // El paquete del pionero ahora otorga 50 VAL según solicitud
-  user.val = (user.val || 0) + 50;
+  // === RECURSOS INICIALES ===
+  
+  // 1. VAL (moneda principal)
+  const valInicial = 100;
+  user.val = (user.val || 0) + valInicial;
+  console.log(`[ONBOARDING] 💰 VAL otorgado: ${valInicial}`);
 
-  // Añadir consumibles (usando el seed ID si existe)
+  // 2. Boletos (para abrir paquetes y conseguir personajes)
+  const boletosIniciales = 5;
+  user.boletos = (user.boletos || 0) + boletosIniciales;
+  console.log(`[ONBOARDING] 🎫 Boletos otorgados: ${boletosIniciales}`);
+
+  // 3. EVO (para evolucionar personajes)
+  const evoInicial = 2;
+  user.evo = (user.evo || 0) + evoInicial;
+  console.log(`[ONBOARDING] ⚡ EVO otorgado: ${evoInicial}`);
+
+  // 5. Pociones (buscar cualquier consumible tipo poción)
   try {
-    const potionId = new Types.ObjectId('68dc525adb5c735854b5659d');
-    const potion = await Consumable.findById(potionId);
+    const potion = await Consumable.findOne({ tipo: 'pocion' }).sort({ _id: 1 }).limit(1);
     if (potion) {
-      // Añadir 3 pociones al inventario de consumibles
       for (let i = 0; i < 3; i++) {
-        (user as any).inventarioConsumibles.push({ consumableId: potionId, usos_restantes: potion.usos_maximos || 1 });
+        (user as any).inventarioConsumibles.push({ 
+          consumableId: potion._id, 
+          usos_restantes: potion.usos_maximos || 1 
+        });
       }
+      console.log(`[ONBOARDING] 🧪 Pociones otorgadas: 3x ${potion.nombre}`);
+    } else {
+      console.warn('[ONBOARDING] ⚠️ No hay pociones en la BD, omitiendo...');
     }
   } catch (err) {
-    // No bloquear si falla
-    console.warn('[ONBOARDING] No fue posible asignar consumibles iniciales:', err);
+    console.warn('[ONBOARDING] ⚠️ No fue posible asignar consumibles iniciales');
   }
 
-  // Añadir el equipamiento inicial (Espada Corta Oxidada) si existe
+  // 6. Equipamiento inicial (buscar el equipamiento más básico)
   try {
-    const swordId = new Types.ObjectId('68dc50e9db5c735854b56591');
-    const sword = await (await import('../models/Equipment')).Equipment.findById(swordId);
-    if (sword) {
-      // Añadir al inventarioEquipamiento si aún no está
-      if (!(user.inventarioEquipamiento || []).some((id: any) => String(id) === String(swordId))) {
-        (user as any).inventarioEquipamiento = user.inventarioEquipamiento || [];
-        (user as any).inventarioEquipamiento.push(swordId);
-      }
+    const { Equipment } = await import('../models/Equipment');
+    const basicWeapon = await Equipment.findOne({ 
+      tipo: 'arma' 
+    }).sort({ 'stats.ataque': 1 }).limit(1); // El arma más débil
+    
+    if (basicWeapon) {
+      (user as any).inventarioEquipamiento = user.inventarioEquipamiento || [];
+      (user as any).inventarioEquipamiento.push(basicWeapon._id);
+      console.log(`[ONBOARDING] ⚔️ Equipamiento otorgado: ${basicWeapon.nombre}`);
+    } else {
+      console.warn('[ONBOARDING] ⚠️ No hay equipamiento en la BD, omitiendo...');
     }
   } catch (err) {
-    console.warn('[ONBOARDING] No fue posible asignar equipamiento inicial:', err);
+    console.warn('[ONBOARDING] ⚠️ No fue posible asignar equipamiento inicial');
   }
 
   // Marcar como recibido y guardar
   (user as any).receivedPioneerPackage = true;
   await user.save();
 
-  return { delivered: true, characterId: pioneerCharacter.personajeId };
+  console.log('[ONBOARDING] 🎉 Paquete del Pionero entregado exitosamente');
+
+  return { 
+    delivered: true, 
+    rewards: {
+      personaje: baseChar.nombre,
+      val: valInicial,
+      boletos: boletosIniciales,
+      evo: evoInicial,
+      pociones: 3,
+      equipamiento: 1
+    }
+  };
 }
 
 export default { deliverPioneerPackage };

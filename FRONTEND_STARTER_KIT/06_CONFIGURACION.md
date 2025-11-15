@@ -25,9 +25,28 @@ export const environment = {
 
 export const environment = {
   production: true,
-  apiUrl: 'https://api.valnor.com',
-  wsUrl: 'wss://api.valnor.com'
+  apiUrl: 'https://valgame-backend.onrender.com',
+  wsUrl: 'wss://valgame-backend.onrender.com'
 };
+```
+
+**✅ BACKEND DESPLEGADO EN PRODUCCIÓN:**
+- 🌐 **URL:** https://valgame-backend.onrender.com
+- ✅ **Estado:** 🟢 LIVE y funcional
+- 📅 **Fecha despliegue:** 15 de enero de 2025
+- 🗄️ **MongoDB Atlas:** ✅ Conectado al cluster "Valnor"
+- ⚙️ **Runtime:** Node.js 22.16.0
+- 🔒 **Seguridad:** JWT + Zod validation + Rate limiting
+- ⚠️ **Free tier:** Cold start ~30-60s después de 15min inactividad
+- 📊 **Health check:** https://valgame-backend.onrender.com/health
+
+**Recomendación para Cold Start:**
+```typescript
+// En tu AppComponent (ngOnInit)
+this.http.get(`${environment.apiUrl}/health`).subscribe({
+  next: () => console.log('Backend despierto'),
+  error: () => console.log('Esperando backend...')
+});
 ```
 
 ---

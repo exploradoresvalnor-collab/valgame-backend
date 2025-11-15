@@ -1,0 +1,14 @@
+{
+  "/auth": {
+    "target": "https://valgame-backend.onrender.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/api": {
+    "target": "https://valgame-backend.onrender.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

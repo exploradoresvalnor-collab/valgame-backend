@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPackage extends Document {
   nombre: string;
+  tipo: string; // Tipo de paquete (ej: "starter", "premium", "evento", etc.)
   precio_usdt: number;
   precio_val?: number; // Precio alternativo en moneda VAL del juego
   personajes: number;
@@ -14,6 +15,7 @@ export interface IPackage extends Document {
 
 const PackageSchema: Schema = new Schema({
   nombre: { type: String, required: true, unique: true },
+  tipo: { type: String, required: true }, // Tipo de paquete
   precio_usdt: { type: Number, required: true },
   precio_val: { type: Number }, // Opcional
   personajes: { type: Number, required: true },

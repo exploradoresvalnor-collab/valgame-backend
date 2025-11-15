@@ -1,0 +1,48 @@
+### ============================================
+### PRUEBA DE GMAIL - VERIFICACIÓN DE CORREO
+### ============================================
+### Este test verifica que Gmail esté funcionando correctamente
+### ============================================
+
+@baseURL = http://localhost:8080
+
+### ============================================
+### 1. REGISTRAR USUARIO DE PRUEBA
+### ============================================
+### Esto enviará un email REAL a tu Gmail
+### Revisa tu bandeja de entrada: romerolivo1234@gmail.com
+POST {{baseURL}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "romerolivo1234@gmail.com",
+  "username": "TestGmail",
+  "password": "Password123!"
+}
+
+### ============================================
+### 2. SOLICITAR RECUPERACIÓN DE CONTRASEÑA
+### ============================================
+### También enviará un email real
+POST {{baseURL}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "romerolivo1234@gmail.com"
+}
+
+### ============================================
+### INSTRUCCIONES:
+### ============================================
+### 
+### 1. Ejecuta el endpoint "1. REGISTRAR USUARIO DE PRUEBA"
+### 2. Revisa tu email: romerolivo1234@gmail.com
+### 3. Deberías recibir un email de verificación
+### 4. También verás el link en la consola del servidor
+### 
+### Si el email NO llega:
+### - Revisa la carpeta de SPAM
+### - Espera 1-2 minutos
+### - Revisa que el servidor no tenga errores
+### 
+### ============================================

@@ -7,6 +7,7 @@ exports.verifyToken = void 0;
 exports.auth = auth;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
+const TokenBlacklist_1 = require("../models/TokenBlacklist");
 const security_1 = require("../config/security");
 const verifyToken = async (token) => {
     try {
@@ -20,10 +21,19 @@ const verifyToken = async (token) => {
 exports.verifyToken = verifyToken;
 async function auth(req, res, next) {
     const header = req.header('Authorization') || '';
-    const token = header.replace(/^Bearer\s+/i, '').trim();
+    let token = header.replace(/^Bearer\s+/i, '').trim();
+    // 🔐 SEGURIDAD: Intentar obtener token de httpOnly cookie si no está en header
+    if (!token && req.cookies?.token) {
+        token = req.cookies.token;
+    }
     if (!token)
         return res.status(401).json({ error: 'Falta token' });
     try {
+        // Verificar si el token está en la blacklist
+        const blacklisted = await TokenBlacklist_1.TokenBlacklist.findOne({ token });
+        if (blacklisted) {
+            return res.status(401).json({ error: 'Token inválido o sesión cerrada' });
+        }
         const decoded = jsonwebtoken_1.default.verify(token, (0, security_1.getJWTSecret)());
         const user = await User_1.User.findById(decoded.id);
         if (!user) {

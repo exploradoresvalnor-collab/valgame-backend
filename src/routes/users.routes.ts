@@ -3,6 +3,9 @@ import { User } from '../models/User';
 import { Notification } from '../models/Notification';
 import { auth } from '../middlewares/auth';
 import BaseCharacter from '../models/BaseCharacter'; // Importamos el modelo de personajes base para validación
+import { Item } from '../models/Item';
+import UserPackage from '../models/UserPackage'; // Importación correcta
+import PackageModel from '../models/Package'; // Importación correcta
 
 const router = Router();
 
@@ -28,26 +31,97 @@ router.get('/me', auth, async (req: Request, res: Response) => {
     username: user.username,
     isVerified: user.isVerified,
     tutorialCompleted: user.tutorialCompleted,
-    // ✅ RECURSOS con fallback
     val: user.val ?? 0,
     boletos: user.boletos ?? 0,
     evo: user.evo ?? 0,
     invocaciones: user.invocaciones ?? 0,
     evoluciones: user.evoluciones ?? 0,
     boletosDiarios: user.boletosDiarios ?? 0,
-    // Arrays e inventario
-    personajes: user.personajes || [],
-    inventarioEquipamiento: user.inventarioEquipamiento || [],
-    inventarioConsumibles: user.inventarioConsumibles || [],
-    // Límites
+    personajes: await Promise.all(
+      (user.personajes || []).map(async (p) => {
+        const base = await BaseCharacter.findOne({ id: p.personajeId });
+        return {
+          personajeId: p.personajeId,
+          nombre: base?.nombre || p.personajeId,
+          imagen: base?.imagen || null,
+          rango: p.rango,
+          nivel: p.nivel,
+          etapa: p.etapa,
+          progreso: p.progreso,
+          experiencia: p.experiencia,
+          saludActual: p.saludActual,
+          saludMaxima: p.saludMaxima,
+          estado: p.estado,
+          equipamiento: await Promise.all(
+            (p.equipamiento || []).map(async (eid) => {
+              const eq = await Item.findById(eid);
+              return eq ? {
+                id: eq._id,
+                nombre: eq.nombre,
+                tipoItem: eq.tipoItem,
+                imagen: eq.imagen,
+                ...(eq.tipoItem ? { slot: eq.tipoItem } : {}),
+              } : { id: eid };
+            })
+          ),
+          activeBuffs: p.activeBuffs,
+        };
+      })
+    ),
+    inventarioEquipamiento: await Promise.all(
+      (user.inventarioEquipamiento || []).map(async (id) => {
+        const item = await Item.findById(id);
+        return item ? {
+          id: item._id,
+          nombre: item.nombre,
+          tipoItem: item.tipoItem,
+          ...(item.tipoItem ? { slot: item.tipoItem } : {}),
+        } : { id };
+      })
+    ),
+    inventarioConsumibles: await Promise.all(
+      (user.inventarioConsumibles || []).map(async (consumible) => {
+        const item = await Item.findById(consumible.consumableId);
+        return item ? {
+          id: item._id,
+          nombre: item.nombre,
+          tipoItem: item.tipoItem,
+          usos_restantes: consumible.usos_restantes,
+        } : { id: consumible.consumableId, usos_restantes: consumible.usos_restantes };
+      })
+    ),
+    // --- NUEVO: paquetes del usuario expandidos ---
+    paquetes: await Promise.all(
+      (await UserPackage.find({ userId: user._id })).map(async (userPackage) => {
+        const paquete = await PackageModel.findById(userPackage.paqueteId);
+        if (paquete) {
+          return {
+            id: paquete._id,
+            nombre: paquete.nombre,
+            tipo: paquete.tipo,
+            precio_usdt: paquete.precio_usdt,
+            precio_val: paquete.precio_val,
+            personajes: paquete.personajes,
+            categorias_garantizadas: paquete.categorias_garantizadas,
+            distribucion_aleatoria: paquete.distribucion_aleatoria,
+            val_reward: paquete.val_reward,
+            items_reward: paquete.items_reward,
+            fecha: userPackage.fecha
+          };
+        } else if (userPackage.packageSnapshot) {
+          // Si el paquete fue borrado, usar snapshot
+          return { ...userPackage.packageSnapshot, fecha: userPackage.fecha };
+        } else {
+          return { id: userPackage.paqueteId, fecha: userPackage.fecha };
+        }
+      })
+    ),
     limiteInventarioEquipamiento: user.limiteInventarioEquipamiento,
     limiteInventarioConsumibles: user.limiteInventarioConsumibles,
     limiteInventarioPersonajes: user.limiteInventarioPersonajes,
-    // Estado
     personajeActivoId: user.personajeActivoId,
     receivedPioneerPackage: user.receivedPioneerPackage,
     walletAddress: user.walletAddress,
-    // Fechas
     fechaRegistro: user.fechaRegistro,
     ultimaActualizacion: user.ultimaActualizacion
   });

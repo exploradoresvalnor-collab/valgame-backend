@@ -6,22 +6,41 @@ Esta carpeta contiene **TODO** lo que necesitas para comenzar el desarrollo del 
 
 ```
 FRONTEND_STARTER_KIT/
+├── 00_BACKEND_API_REFERENCE.md      ← REFERENCIA COMPLETA API
 ├── 00_LEEME_PRIMERO.md              ← ESTE ARCHIVO
 ├── 01_GUIA_INICIO_RAPIDO.md         ← Comenzar aquí
-├── 02_API_REFERENCE.md              ← Todos los endpoints
+├── 02_API_REFERENCE.md              ← Endpoints básicos
 ├── 03_MODELOS_TYPESCRIPT.md         ← Copiar y pegar
 ├── 04_SERVICIOS_BASE.md             ← Copiar y pegar
 ├── 05_COMPONENTES_EJEMPLO.md        ← Copiar y pegar
 ├── 06_CONFIGURACION.md              ← Configs necesarias
 ├── 07_CHECKLIST_DESARROLLO.md       ← Plan semana por semana
-└── 08_COMANDOS_UTILES.md            ← Comandos frecuentes
+├── 08_COMANDOS_UTILES.md            ← Comandos frecuentes
+├── 09_ESTRUCTURA_VISUAL_UI.md       ← Estructura visual (deprecated)
+├── 10_ESTRUCTURA_VISUAL_FRONTEND.md ← DISEÑO UI COMPLETO
+├── 11_DISEÑO_MAZMORRAS_COMBATE.md   ← Diseño de mazmorras
+├── 12_PANTALLAS_VICTORIA_Y_DERROTA.md ← Pantallas de resultado
+├── 13_DOCUMENTO_MAESTRO_DISENO_UI.md ← Documento maestro UI
+├── 14_PWA_APLICACION_WEB_NATIVA.md  ← PWA configuración
+├── 15_GUIA_COMPLETA_AUTENTICACION_SESIONES.md ← ⭐ Cookies httpOnly
+├── 16_GUIA_EQUIPAMIENTO_PERSONAJES.md ← ⭐ Equipar/Consumibles/XP
+├── 17_RESUMEN_CAMBIOS_NOVIEMBRE_2025.md ← ⭐ Todos los cambios
+└── 18_GUIA_ULTRA_RAPIDA_EJEMPLOS_BASICOS.md ← ⭐⭐ EMPIEZA AQUÍ
 ```
 
 ---
 
 ## 🎯 ORDEN DE LECTURA
 
-### 1️⃣ PRIMERO (HOY)
+### 1️⃣ PRIMERO (HOY) - SI TIENES PRISA
+```
+1. Lee este archivo (00_LEEME_PRIMERO.md)
+2. ⭐⭐ Lee GUÍA ULTRA-RÁPIDA (18_GUIA_ULTRA_RAPIDA_EJEMPLOS_BASICOS.md)
+3. Copia los ejemplos y empieza a desarrollar
+4. Consulta las guías completas cuando necesites más detalles
+```
+
+### 1️⃣ PRIMERO (HOY) - SI QUIERES ENTENDER TODO
 ```
 1. Lee este archivo (00_LEEME_PRIMERO.md)
 2. Lee 01_GUIA_INICIO_RAPIDO.md
@@ -31,9 +50,14 @@ FRONTEND_STARTER_KIT/
 
 ### 2️⃣ SEGUNDO (HOY/MAÑANA)
 ```
-1. Copia los modelos TypeScript (03_MODELOS_TYPESCRIPT.md)
-2. Copia los servicios base (04_SERVICIOS_BASE.md)
-3. Implementa login/registro
+1. ⭐⭐ Lee ÍNDICE MAESTRO (00_INDICE_MAESTRO.md) - Visión completa
+2. ⭐ Lee RESUMEN DE CAMBIOS (17_RESUMEN_CAMBIOS_NOVIEMBRE_2025.md)
+3. ⭐ Lee AUTENTICACIÓN COMPLETA (15_GUIA_COMPLETA_AUTENTICACION_SESIONES.md)
+4. ⭐ Lee EQUIPAMIENTO COMPLETO (16_GUIA_EQUIPAMIENTO_PERSONAJES.md)
+5. Lee la referencia completa de API (00_BACKEND_API_REFERENCE.md)
+6. Copia los modelos TypeScript (03_MODELOS_TYPESCRIPT.md)
+7. Copia los servicios base (04_SERVICIOS_BASE.md)
+8. Implementa login/registro con cookies httpOnly
 ```
 
 ### 3️⃣ TERCERO (ESTA SEMANA)
@@ -71,18 +95,33 @@ ng serve
 
 ## 📊 ESTADO DEL BACKEND
 
-### ✅ COMPLETAMENTE FUNCIONAL
+### ✅ DESPLEGADO Y FUNCIONAL EN PRODUCCIÓN
 
-El backend tiene un MVP 100% completo:
-- ✅ 40+ endpoints disponibles
-- ✅ Autenticación con JWT
-- ✅ Sistema de personajes completo
-- ✅ Inventario y marketplace
-- ✅ Mazmorras y combate
-- ✅ WebSocket para tiempo real
-- ✅ Tests E2E pasando
+El backend está **LIVE** en Render:
+- 🌐 **URL Producción:** https://valgame-backend.onrender.com
+- ✅ **Estado:** 🟢 LIVE y funcionando
+- 📅 **Fecha despliegue:** 15 de enero de 2025
+- 🗄️ **MongoDB Atlas:** Conectado al cluster "Valnor"
+- ⚙️ **Runtime:** Node.js 22.16.0
+- 🔒 **Seguridad:** JWT + Zod validation + Rate limiting
+- 📊 **Health check:** https://valgame-backend.onrender.com/health
 
-**Base URL:** `http://localhost:8080`
+**Características completas:**
+- ✅ 50+ endpoints disponibles (ver `00_BACKEND_API_REFERENCE.md`)
+- ✅ Autenticación con JWT (tokens válidos 7 días)
+- ✅ Sistema de personajes completo (crear, evolucionar, curar)
+- ✅ Inventario y marketplace funcional
+- ✅ Mazmorras y combate por turnos
+- ✅ WebSocket para actualizaciones en tiempo real
+- ✅ Sistema de gacha (paquetes)
+- ✅ Tests E2E completos y pasando
+
+**URLs de desarrollo:**
+- **Local:** http://localhost:8080 (si corres backend localmente)
+- **Producción:** https://valgame-backend.onrender.com (recomendado)
+
+⚠️ **Nota sobre cold start (Free tier):**
+Si el backend no recibe tráfico por 15 minutos, entra en "sleep mode". La primera petición puede tardar 30-60 segundos. Recomendación: hacer petición a `/health` al iniciar la app.
 
 ---
 
@@ -154,6 +193,12 @@ Antes de comenzar, asegúrate de tener:
 
 ---
 
-**Última actualización:** Enero 2024  
-**Versión:** 1.0.0  
-**Estado:** ✅ Listo para usar
+**Última actualización:** 15 de enero de 2025  
+**Versión:** 2.0.0  
+**Estado Backend:** ✅ LIVE en producción (Render)  
+**Estado Frontend:** 📝 Listo para desarrollo
+
+**🎉 NUEVO: Backend desplegado en producción!**
+- URL: https://valgame-backend.onrender.com
+- Documentación completa: `00_BACKEND_API_REFERENCE.md`
+- Estructura visual: `10_ESTRUCTURA_VISUAL_FRONTEND.md`

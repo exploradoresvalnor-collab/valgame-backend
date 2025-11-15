@@ -86,33 +86,33 @@ export class AuthService {
   login(data: LoginRequest): Observable<LoginResponse> {
     return this.api.post<LoginResponse>('/auth/login', data).pipe(
       tap(response => {
-        this.setToken(response.token);
+        // ⚠️ IMPORTANTE: El token viene en httpOnly cookie, NO en response
+        // Solo guarda el usuario si lo necesitas en memoria
         this.currentUserSubject.next(response.user);
       })
     );
   }
 
-  logout(): void {
-    localStorage.removeItem(this.tokenKey);
-    this.currentUserSubject.next(null);
+  logout(): Observable<void> {
+    // Llama al backend para limpiar la cookie
+    return this.api.post<void>('/auth/logout', {}).pipe(
+      tap(() => {
+        this.currentUserSubject.next(null);
+      })
+    );
   }
 
-  getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
-  }
-
-  setToken(token: string): void {
-    localStorage.setItem(this.tokenKey, token);
-  }
-
-  isAuthenticated(): boolean {
-    return !!this.getToken();
+  isAuthenticated(): Observable<boolean> {
+    // Verifica con el backend (la cookie se envía automáticamente)
+    return this.api.get<User>('/api/users/me').pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   private loadUserFromToken(): void {
-    const token = this.getToken();
-    if (token) {
-      this.api.get<User>('/api/users/me').subscribe({
+    // Carga el usuario desde el backend (la cookie se envía automáticamente)
+    this.api.get<User>('/api/users/me').subscribe({
         next: user => this.currentUserSubject.next(user),
         error: () => this.logout()
       });

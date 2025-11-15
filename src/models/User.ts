@@ -49,6 +49,8 @@ export interface IUser extends Document {
   username: string;
   passwordHash: string;
   isVerified: boolean;
+  resetPasswordToken?: string;
+  resetPasswordTokenExpires?: Date;
   verificationToken?: string;
   verificationTokenExpires?: Date;
   walletAddress?: string;
@@ -70,6 +72,9 @@ export interface IUser extends Document {
   ultimaActualizacion: Date;
   // Flag para indicar si el usuario ya recibió el Paquete del Pionero
   receivedPioneerPackage?: boolean;
+  
+  // Flag para indicar si el usuario completó el tutorial (FTUE)
+  tutorialCompleted?: boolean;
   
   // Configuración del usuario (volumen, idioma, notificaciones)
   settings: IUserSettings;
@@ -147,6 +152,8 @@ const UserSchema = new Schema<IUser>({
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String },
     verificationTokenExpires: { type: Date },
+    resetPasswordToken: { type: String },
+    resetPasswordTokenExpires: { type: Date },
     walletAddress: { type: String, unique: true, sparse: true },
     val: { type: Number, default: 0, min: 0 },
     boletos: { type: Number, default: 0, min: 0 },
@@ -165,6 +172,9 @@ const UserSchema = new Schema<IUser>({
     ,
     // Flag para indicar si el usuario ya recibió el Paquete del Pionero
     receivedPioneerPackage: { type: Boolean, default: false },
+    
+    // Flag para indicar si el usuario completó el tutorial (FTUE)
+    tutorialCompleted: { type: Boolean, default: false },
     
     // Configuración del usuario (subdocumento embebido)
     settings: { type: UserSettingsSchema, default: () => ({}) },

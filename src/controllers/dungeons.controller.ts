@@ -3,6 +3,7 @@ import { User, IPersonajeSubdocument } from '../models/User';
 import Dungeon from '../models/Dungeon';
 import GameSettings from '../models/GameSetting';
 import PlayerStat from '../models/PlayerStat'; // Importa el modelo PlayerStat
+import { Ranking } from '../models/Ranking'; // Importa el modelo Ranking
 import LevelRequirement from '../models/LevelRequirement'; // Importar requisitos de nivel
 import { handleLevelUp } from '../services/character.service'; // Importar el nuevo servicio
 import { IEquipment } from '../models/Equipment';
@@ -363,6 +364,23 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         fuente: `victoria_mazmorra_${dungeon.nombre}`
       });
 
+      // --- Actualizar Ranking ---
+      const puntosRanking = gameSettings.puntos_ranking_por_victoria || 10;
+      await Ranking.findOneAndUpdate(
+        { userId: user._id, periodo: 'global' },
+        { 
+          $inc: { 
+            puntos: puntosRanking,
+            victorias: 1,
+            boletosUsados: 1
+          },
+          $set: { 
+            ultimaPartida: new Date()
+          }
+        },
+        { upsert: true, new: true }
+      );
+
     } else {
       combatLog.push('DERROTA... Tu equipo ha sido vencido.');
       
@@ -380,6 +398,21 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         dungeonProgress.derrotas += 1;
         user.dungeon_progress!.set(dungeonIdStr, dungeonProgress);
       }
+
+      // --- Actualizar Ranking (derrota) ---
+      await Ranking.findOneAndUpdate(
+        { userId: user._id, periodo: 'global' },
+        { 
+          $inc: { 
+            derrotas: 1,
+            boletosUsados: 1
+          },
+          $set: { 
+            ultimaPartida: new Date()
+          }
+        },
+        { upsert: true, new: true }
+      );
     }
 
     // --- 6. Actualizar Estado de Personajes ---

@@ -17,7 +17,12 @@ export const verifyToken = async (token: string): Promise<JwtPayload> => {
 
 export async function auth(req: Request, res: Response, next: NextFunction) {
   const header = req.header('Authorization') || '';
-  const token = header.replace(/^Bearer\s+/i, '').trim();
+  let token = header.replace(/^Bearer\s+/i, '').trim();
+
+  // 🔐 SEGURIDAD: Intentar obtener token de httpOnly cookie si no está en header
+  if (!token && req.cookies?.token) {
+    token = req.cookies.token;
+  }
 
   if (!token) return res.status(401).json({ error: 'Falta token' });
 

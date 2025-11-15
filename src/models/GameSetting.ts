@@ -16,6 +16,9 @@ export interface IGameSetting extends Document {
   EXP_GLOBAL_MULTIPLIER: number;
   aumento_stats_por_nivel: { [key: string]: IStatIncrease };
   costo_revivir_personaje: number;
+  costo_evo_por_val?: number; // Costo de 1 EVO en VAL (100 VAL = 1 EVO por defecto)
+  costo_evo_etapa_2?: { [key: string]: number }; // Costos de evolución Común → Raro por rango
+  costo_evo_etapa_3?: { [key: string]: number }; // Costos de evolución Raro → Épico por rango
   nivel_maximo_personaje: number;
   PERMADEATH_TIMER_HOURS: number;
   // ...y el resto de campos de tu interfaz...
@@ -34,7 +37,8 @@ const GameSettingSchema: Schema = new Schema({
   MAX_PERSONAJES_POR_EQUIPO: { type: Number, required: true, default: 3 },
   EXP_GLOBAL_MULTIPLIER: { type: Number, required: true, default: 1 },
   costo_revivir_personaje: { type: Number, required: true, default: 50 },
-  PERMADEATH_TIMER_HOURS: { type: Number, required: true, default: 24 }, // <-- AÑADIDO // <-- NUEVO
+  costo_evo_por_val: { type: Number, default: 100 }, // 100 VAL = 1 EVO
+  PERMADEATH_TIMER_HOURS: { type: Number, required: true, default: 24 },
   aumento_stats_por_nivel: {
     type: Map,
     of: new Schema({

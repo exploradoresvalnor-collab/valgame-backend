@@ -134,7 +134,24 @@ router.post('/quitar', async (req, res) => {
 router.get('/:userId', async (req, res) => {
     try {
         const paquetes = await UserPackage_1.default.find({ userId: req.params.userId });
-        res.json(paquetes);
+        // Expandir cada paquete con nombre y detalles
+        const paquetesExpandidos = await Promise.all(paquetes.map(async (pkg) => {
+            let paqueteInfo = null;
+            try {
+                paqueteInfo = await Package_1.default.findById(pkg.paqueteId);
+            }
+            catch { }
+            return {
+                _id: pkg._id,
+                paqueteId: pkg.paqueteId,
+                fecha: pkg.fecha,
+                nombre: paqueteInfo?.nombre || pkg.packageSnapshot?.nombre || 'Desconocido',
+                tipo: paqueteInfo?.tipo || pkg.packageSnapshot?.tipo || 'Desconocido',
+                packageSnapshot: pkg.packageSnapshot,
+                detalles: paqueteInfo || {},
+            };
+        }));
+        res.json(paquetesExpandidos);
     }
     catch (error) {
         res.status(500).json({ error: 'Error al consultar paquetes del usuario.' });
@@ -150,8 +167,25 @@ router.post('/por-correo', async (req, res) => {
         const usuario = await User_1.User.findOne({ email });
         if (!usuario)
             return res.status(404).json({ error: 'Usuario no encontrado.' });
+        // Buscar los paquetes y expandir el nombre y detalles
         const paquetes = await UserPackage_1.default.find({ userId: usuario._id });
-        res.json(paquetes);
+        const paquetesExpandidos = await Promise.all(paquetes.map(async (pkg) => {
+            let paqueteInfo = null;
+            try {
+                paqueteInfo = await Package_1.default.findById(pkg.paqueteId);
+            }
+            catch { }
+            return {
+                _id: pkg._id,
+                paqueteId: pkg.paqueteId,
+                fecha: pkg.fecha,
+                nombre: paqueteInfo?.nombre || pkg.packageSnapshot?.nombre || 'Desconocido',
+                tipo: paqueteInfo?.tipo || pkg.packageSnapshot?.tipo || 'Desconocido',
+                packageSnapshot: pkg.packageSnapshot,
+                detalles: paqueteInfo || {},
+            };
+        }));
+        res.json(paquetesExpandidos);
     }
     catch (error) {
         res.status(500).json({ error: 'Error al consultar paquetes por correo.' });

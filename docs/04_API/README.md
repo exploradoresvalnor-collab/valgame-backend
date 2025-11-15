@@ -6,17 +6,22 @@ Esta carpeta contiene la **documentación completa de la API REST** y sistemas d
 
 ## 📄 Documentos en Esta Carpeta
 
-### 1. API_REFERENCE.md ⭐ **REFERENCIA COMPLETA**
-**Lectura:** 30-40 minutos (referencia - no leer todo de una vez)  
+### 1. 📚 Referencia Completa de API
+**Archivo:** `../API_REFERENCE_COMPLETA.md` (en carpeta raíz docs/)  
+**Lectura:** 40-50 minutos (referencia - no leer todo de una vez)  
 **Contenido:**
-- 🔐 Endpoints de autenticación (`/auth`)
+- ⚙️ Configuración del sistema (Cookies httpOnly, Gmail SMTP)
+- 🔐 Endpoints de autenticación (`/auth`) - **Actualizado nov 2025**
 - 👤 Endpoints de usuarios (`/users`)
-- 🎭 Endpoints de personajes (`/characters`)
+- 🎭 Endpoints de personajes (`/characters`) - **Con fórmulas dinámicas**
 - 🎒 Endpoints de inventario (`/inventory`)
 - 🏪 Endpoints de marketplace (`/marketplace`)
 - 🏰 Endpoints de mazmorras (`/dungeons`)
-- 📦 Endpoints de paquetes (`/packages`)
+- 📦 Endpoints de paquetes (`/packages`) - **Paquete Pionero actualizado**
+- 🏆 Endpoints de ranking (`/rankings`) - **NUEVO**
 - ⚡ WebSocket events
+
+**✅ Estado:** Actualizado al 3 de noviembre de 2025 (incluye todos los cambios recientes)
 
 **Cuándo usar:**
 - Para conocer todos los endpoints disponibles
@@ -54,7 +59,7 @@ GET    /auth/me            - Info del usuario actual
 POST   /auth/refresh       - Refrescar token
 ```
 
-**Ver detalles:** `API_REFERENCE.md` → Sección "Autenticación"
+**Ver detalles:** `../API_REFERENCE_COMPLETA.md` → Sección "Autenticación"
 
 ---
 
@@ -66,9 +71,12 @@ GET    /characters/:id          - Ver un personaje
 PUT    /characters/:id          - Actualizar personaje
 DELETE /characters/:id          - Eliminar personaje
 POST   /characters/:id/equip    - Equipar items
+POST   /characters/:id/unequip  - Desequipar items
+GET    /characters/:id/stats    - Ver stats detallados
+POST   /characters/:id/heal     - Curar personaje (costo dinámico)
 ```
 
-**Ver detalles:** `API_REFERENCE.md` → Sección "Personajes"
+**Ver detalles:** `../API_REFERENCE_COMPLETA.md` → Sección "Personajes"
 
 ---
 
@@ -82,7 +90,7 @@ GET    /dungeons/:id/progress       - Ver progreso
 GET    /dungeons/leaderboard        - Top jugadores
 ```
 
-**Ver detalles:** `API_REFERENCE.md` → Sección "Mazmorras"
+**Ver detalles:** `../API_REFERENCE_COMPLETA.md` → Sección "Mazmorras"
 
 ---
 
@@ -95,7 +103,7 @@ DELETE /marketplace/:id             - Cancelar venta
 POST   /marketplace/:id/purchase    - Comprar item
 ```
 
-**Ver detalles:** `API_REFERENCE.md` → Sección "Marketplace"
+**Ver detalles:** `../API_REFERENCE_COMPLETA.md` → Sección "Marketplace"
 
 ---
 
@@ -126,25 +134,26 @@ LISTEN:
 - system:notification  - Notificación del sistema
 ```
 
-**Ver detalles:** `API_REFERENCE.md` → Sección "WebSocket"
+**Ver detalles:** `../API_REFERENCE_COMPLETA.md` → Sección "WebSocket"
 
 ---
 
 ## 🎯 Rutas Rápidas
 
 ### "Necesito el endpoint para [ACCIÓN]"
-→ `API_REFERENCE.md` → Buscar por categoría o nombre
+→ `../API_REFERENCE_COMPLETA.md` → Buscar por categoría o nombre
 
 ### "¿Cómo integro PAGOS?"
 → `INTEGRACION_PAGOS.md` (guía completa)
 
 ### "¿Qué formato tienen las RESPONSES?"
-→ `API_REFERENCE.md` → Cada endpoint tiene ejemplos
+→ `../API_REFERENCE_COMPLETA.md` → Cada endpoint tiene ejemplos
 
-### "¿Cómo autenticar las requests?"
-→ `API_REFERENCE.md` → Sección "Autenticación"
+### "¿Cómo funciona la autenticación con cookies?"
+→ `../API_REFERENCE_COMPLETA.md` → Sección "0. Configuración y Sistema"
 ```
-Authorization: Bearer <tu_token_jwt>
+// Frontend debe incluir:
+withCredentials: true  // o credentials: 'include'
 ```
 
 ---

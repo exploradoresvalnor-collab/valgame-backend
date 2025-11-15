@@ -1,94 +1,88 @@
-# 📖 API REFERENCE - VALGAME BACKEND
+# 📖 API REFERENCE - VALGAME BACKEND (VERSIÓN RÁPIDA)
+
+> **📚 Documentación completa:** Ver `00_BACKEND_API_REFERENCE.md`
 
 ## 🌐 Base URL
 ```
-Development: http://localhost:8080
-Production: https://api.valnor.com
+Development: http://localhost:3000
+Production:  https://valgame-backend.onrender.com
 ```
+
+**✅ Estado:** 🟢 LIVE (Actualizado: 3 de noviembre de 2025)
+
+**Características:**
+- ✅ MongoDB Atlas conectado al cluster "Valnor"
+- ✅ **Cookies httpOnly** para autenticación (7 días)
+- ✅ Gmail SMTP para emails reales
+- ✅ Sistema de equipamiento completo
+- ✅ Auto-eliminación de consumibles
+- ✅ CORS con credentials habilitado
+- ✅ WebSocket con Socket.IO
+- ⚙️ Node.js 22.16.0
+
+---
+
+## ⚠️ CONFIGURACIÓN CRÍTICA
+
+**TODAS las peticiones deben incluir:**
+```typescript
+fetch(url, {
+  credentials: 'include'  // ⚠️ OBLIGATORIO para cookies
+});
+
+// O con axios
+axios.defaults.withCredentials = true;
+```
+
+**Sin esto, la autenticación NO funcionará.**
 
 ---
 
 ## 🔐 AUTENTICACIÓN
 
-### Registro de Usuario
+### 1. Registro
 ```http
 POST /auth/register
 Content-Type: application/json
 
-{
-  "email": "user@example.com",
-  "username": "username",
-  "password": "password123"
-}
+{ "email": "user@example.com", "username": "user123", "password": "pass123" }
 ```
+✅ **Response:** Email enviado (Gmail real) para verificación
 
-**Response 201:**
-```json
-{
-  "message": "Registro exitoso. Por favor, revisa tu correo para verificar tu cuenta."
-}
-```
-
-**Errors:**
-- `409`: Email o username ya existe
-- `400`: Datos inválidos
-
----
-
-### Verificar Email
+### 2. Verificación
 ```http
 GET /auth/verify/:token
 ```
+✅ **Response:** Cuenta activada + **Paquete del Pionero** entregado  
+🎁 Incluye: 100 VAL, 5 boletos, 2 EVO, 1 personaje, 3 pociones, 1 espada
 
-**Response 200:**
-```json
-{
-  "message": "Cuenta verificada con éxito",
-  "package": {
-    "personajes": [...],
-    "items": [...],
-    "recursos": {...}
-  }
-}
-```
-
-**Errors:**
-- `400`: Token inválido o expirado
-
----
-
-### Login
+### 3. Login (con cookies)
 ```http
 POST /auth/login
 Content-Type: application/json
 
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
+{ "email": "user@example.com", "password": "pass123" }
 ```
 
-**Response 200:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "user_id",
-    "email": "user@example.com",
-    "username": "username",
-    "val": 100,
-    "boletos": 5,
-    "evo": 0,
-    "personajes": [...],
-    "inventarioEquipamiento": [...],
-    "inventarioConsumibles": [...]
-  }
-}
+**⚠️ NO devuelve token en response.** Cookie se establece automáticamente:
+```http
+Set-Cookie: token=...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
 ```
 
-**Errors:**
-- `401`: Credenciales inválidas
-- `403`: Cuenta no verificada
+**Frontend:**
+```typescript
+fetch('/auth/login', {
+  method: 'POST',
+  credentials: 'include',  // ⚠️ OBLIGATORIO
+  body: JSON.stringify({ email, password })
+});
+```
+
+### 4. Logout
+```http
+POST /auth/logout
+```
+✅ Borra cookie + invalida token (blacklist)
 
 ---
 
@@ -97,419 +91,127 @@ Content-Type: application/json
 ### Obtener Usuario Actual
 ```http
 GET /api/users/me
-Authorization: Bearer {token}
+Cookie: token=<JWT>  (automático)
 ```
 
-**Response 200:**
-```json
-{
-  "id": "user_id",
-  "email": "user@example.com",
-  "username": "username",
-  "isVerified": true,
-  "val": 100,
-  "boletos": 5,
-  "evo": 0,
-  "invocaciones": 1,
-  "evoluciones": 0,
-  "boletosDiarios": 3,
-  "personajes": [
-    {
-      "_id": "char_id",
-      "personajeId": "base_d_001",
-      "rango": "D",
-      "nivel": 1,
-      "etapa": 1,
-      "experiencia": 0,
-      "stats": {
-        "atk": 10,
-        "defensa": 10,
-        "vida": 100
-      },
-      "saludActual": 100,
-      "saludMaxima": 100,
-      "estado": "saludable",
-      "equipamiento": [],
-      "activeBuffs": []
-    }
-  ],
-  "inventarioEquipamiento": [],
-  "inventarioConsumibles": [
-    {
-      "consumableId": "item_id",
-      "usos_restantes": 1
-    }
-  ]
-}
+**Response:** Perfil completo con personajes, inventario, recursos
+
+```typescript
+// Frontend
+const response = await fetch('/api/users/me', {
+  credentials: 'include'  // Cookie se envía automáticamente
+});
 ```
 
 ---
 
 ## 🎮 PERSONAJES
 
+### Equipar Item
+```http
+POST /api/characters/:id/equip
+Body: { "equipmentId": "..." }
+```
+✅ Equipa arma/armadura/accesorio  
+✅ Reemplaza automáticamente si slot ocupado
+
+### Desequipar Item
+```http
+POST /api/characters/:id/unequip
+Body: { "slot": "arma" | "armadura" | "accesorio" }
+```
+
+### Obtener Stats con Equipamiento
+```http
+GET /api/characters/:id/stats
+```
+✅ Devuelve: `stats_base`, `equipamiento`, `stats_totales`, `bonos_equipamiento`
+
 ### Usar Consumible
 ```http
-POST /api/characters/:characterId/use-consumable
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "consumableId": "consumable_id"
-}
+POST /api/characters/:id/use-consumable
+Body: { "consumableId": "..." }
 ```
+⚠️ **Auto-eliminación:** Si `usos_restantes <= 0`, item se borra automáticamente
 
-**Response 200:**
+**Response cuando se elimina:**
 ```json
 {
-  "message": "Consumible aplicado correctamente",
-  "character": {...},
-  "buff": {
-    "consumableId": "consumable_id",
-    "effects": {
-      "mejora_atk": 5,
-      "mejora_defensa": 3
-    },
-    "expiresAt": "2024-01-20T15:30:00.000Z"
-  }
+  "message": "Consumible usado (último uso - eliminado)",
+  "consumable": null
 }
 ```
-
----
-
-### Revivir Personaje
-```http
-POST /api/characters/:characterId/revive
-Authorization: Bearer {token}
-```
-
-**Response 200:**
-```json
-{
-  "message": "Personaje revivido exitosamente",
-  "character": {...},
-  "costoVal": 50
-}
-```
-
-**Errors:**
-- `400`: Personaje no está herido
-- `400`: VAL insuficiente
-
----
 
 ### Curar Personaje
 ```http
-POST /api/characters/:characterId/heal
-Authorization: Bearer {token}
+POST /api/characters/:id/heal
 ```
+💰 **Costo:** `Math.ceil((HP_MAX - HP_ACTUAL) / 10)` VAL
 
-**Response 200:**
-```json
-{
-  "message": "Personaje curado exitosamente",
-  "character": {...}
-}
-```
-
----
-
-### Evolucionar Personaje
+### Revivir Personaje
 ```http
-POST /api/characters/:characterId/evolve
-Authorization: Bearer {token}
+POST /api/characters/:id/revive
+Body: { "costVAL": 20 }
 ```
+✅ Solo si estado = "herido"
 
-**Response 200:**
-```json
-{
-  "message": "Personaje evolucionado exitosamente",
-  "character": {
-    "etapa": 2,
-    "stats": {
-      "atk": 25,
-      "defensa": 20,
-      "vida": 200
-    }
-  }
-}
-```
-
-**Errors:**
-- `400`: Nivel insuficiente
-- `400`: EVO insuficiente
-- `400`: Ya está en etapa máxima
-
----
-
-### Añadir Experiencia
+### Agregar XP
 ```http
-POST /api/characters/:characterId/add-experience
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "amount": 200
-}
+POST /api/characters/:id/add-experience
+Body: { "amount": 100 }
 ```
+✅ Sube nivel automáticamente  
+✅ HP curado gratis al subir nivel
 
-**Response 200:**
-```json
-{
-  "message": "Experiencia añadida",
-  "character": {
-    "nivel": 2,
-    "experiencia": 50,
-    "stats": {
-      "atk": 12,
-      "defensa": 12,
-      "vida": 110
-    }
-  },
-  "leveledUp": true,
-  "newLevel": 2
-}
+### Evolucionar
+```http
+POST /api/characters/:id/evolve
 ```
+✅ Requiere: nivel mínimo + cristales EVO  
+✅ Stats boost masivo
 
 ---
 
 ## 🏪 MARKETPLACE
 
-### Listar Items
+### Buscar Listings
 ```http
-GET /api/marketplace/listings?type=equipment&precioMin=10&precioMax=100&limit=20
+GET /api/marketplace/listings?tipo=arma&precioMax=100
 ```
+**Filtros:** tipo, precio, rango, nivel, destacados
 
-**Query Parameters:**
-- `type`: 'character' | 'equipment' | 'consumable'
-- `precioMin`: number
-- `precioMax`: number
-- `destacados`: boolean
-- `rango`: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
-- `nivelMin`: number
-- `nivelMax`: number
-- `limit`: number (default: 20)
-- `offset`: number (default: 0)
-
-**Response 200:**
-```json
-[
-  {
-    "_id": "listing_id",
-    "vendedor": "user_id",
-    "tipo": "equipment",
-    "itemId": "item_id",
-    "precio": 50,
-    "estado": "activo",
-    "destacado": false,
-    "fechaCreacion": "2024-01-15T10:00:00.000Z",
-    "fechaExpiracion": "2024-01-22T10:00:00.000Z",
-    "metadata": {
-      "nivel": 5,
-      "stats": {
-        "atk": 10,
-        "defensa": 5
-      }
-    },
-    "vendedorData": {
-      "username": "seller_username"
-    }
-  }
-]
-```
-
----
-
-### Crear Listing
+### Crear Venta
 ```http
 POST /api/marketplace/listings
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "itemId": "item_id",
-  "precio": 50,
-  "destacar": false,
-  "metadata": {
-    "nivel": 5,
-    "stats": {
-      "atk": 10,
-      "defensa": 5
-    }
-  }
-}
+Body: { "itemId": "...", "precio": 50 }
 ```
 
-**Response 201:**
-```json
-{
-  "_id": "listing_id",
-  "vendedor": "user_id",
-  "itemId": "item_id",
-  "precio": 50,
-  "estado": "activo",
-  "fechaCreacion": "2024-01-15T10:00:00.000Z",
-  "fechaExpiracion": "2024-01-22T10:00:00.000Z"
-}
-```
-
-**Errors:**
-- `400`: Item no encontrado
-- `400`: Item ya está listado
-- `400`: VAL insuficiente (si destacar=true)
-
----
-
-### Comprar Item
+### Comprar
 ```http
 POST /api/marketplace/listings/:id/buy
-Authorization: Bearer {token}
 ```
 
-**Response 200:**
-```json
-{
-  "message": "Compra exitosa",
-  "listing": {...},
-  "transaction": {
-    "tipo": "compra_marketplace",
-    "monto": 50,
-    "fecha": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
-
-**Errors:**
-- `400`: Listing no disponible
-- `400`: VAL insuficiente
-- `400`: No puedes comprar tu propio item
-
----
-
-### Cancelar Listing
+### Cancelar
 ```http
-POST /api/marketplace/listings/:id/cancel
-Authorization: Bearer {token}
+DELETE /api/marketplace/listings/:id
 ```
-
-**Response 200:**
-```json
-{
-  "message": "Listing cancelado exitosamente",
-  "listing": {...}
-}
-```
-
-**Errors:**
-- `403`: No eres el dueño del listing
-- `400`: Listing ya no está activo
 
 ---
 
 ## 📦 PAQUETES
 
-### Listar Paquetes Disponibles
+### Listar Disponibles
 ```http
 GET /api/packages
 ```
 
-**Response 200:**
-```json
-[
-  {
-    "_id": "package_id",
-    "nombre": "Paquete Básico",
-    "precio_usdt": 10,
-    "personajes": 3,
-    "categorias_garantizadas": ["D", "C"],
-    "distribucion_aleatoria": "D:60,C:30,B:10",
-    "val_reward": 100,
-    "items_reward": ["item_id_1", "item_id_2"]
-  }
-]
-```
-
----
-
-### Obtener Paquetes del Usuario
-```http
-GET /api/user-packages
-Authorization: Bearer {token}
-```
-
-**Response 200:**
-```json
-[
-  {
-    "_id": "user_package_id",
-    "userId": "user_id",
-    "packageId": "package_id",
-    "abierto": false,
-    "fechaCompra": "2024-01-15T10:00:00.000Z"
-  }
-]
-```
-
----
-
-### Comprar Paquete
-```http
-POST /api/user-packages/purchase
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "packageId": "package_id",
-  "paymentMethod": "val"
-}
-```
-
-**Response 200:**
-```json
-{
-  "message": "Paquete comprado exitosamente",
-  "userPackage": {
-    "_id": "user_package_id",
-    "packageId": "package_id",
-    "abierto": false
-  }
-}
-```
-
----
-
 ### Abrir Paquete
 ```http
 POST /api/user-packages/open
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "userPackageId": "user_package_id"
-}
+Body: { "packageId": "...", "quantity": 1 }
 ```
-
-**Response 200:**
-```json
-{
-  "message": "Paquete abierto exitosamente",
-  "rewards": {
-    "personajes": [
-      {
-        "personajeId": "base_c_001",
-        "rango": "C",
-        "nivel": 1
-      }
-    ],
-    "items": [
-      {
-        "itemId": "item_id",
-        "cantidad": 1
-      }
-    ],
-    "val": 100
-  }
-}
-```
+✅ Sistema gacha  
+✅ Recompensas: personajes, items, VAL
 
 ---
 
@@ -520,338 +222,81 @@ Content-Type: application/json
 GET /api/dungeons
 ```
 
-**Response 200:**
-```json
-[
-  {
-    "_id": "dungeon_id",
-    "nombre": "Cueva Oscura",
-    "descripcion": "Una cueva llena de peligros",
-    "dificultad": "facil",
-    "nivel_recomendado": 5,
-    "max_personajes": 3,
-    "recompensas": {
-      "val_min": 10,
-      "val_max": 50,
-      "experiencia_base": 100,
-      "items_posibles": ["item_id_1", "item_id_2"]
-    },
-    "enemigos": [
-      {
-        "nombre": "Goblin",
-        "nivel": 3,
-        "stats": {
-          "atk": 8,
-          "vida": 50,
-          "defensa": 5
-        }
-      }
-    ],
-    "activa": true
-  }
-]
-```
-
----
-
-### Obtener Detalles de Mazmorra
+### Iniciar Mazmorra
 ```http
-GET /api/dungeons/:id
+POST /api/dungeons/:id/start
+Body: { "characterId": "..." }
 ```
-
-**Response 200:**
-```json
-{
-  "_id": "dungeon_id",
-  "nombre": "Cueva Oscura",
-  "descripcion": "Una cueva llena de peligros",
-  "dificultad": "facil",
-  "nivel_recomendado": 5,
-  "max_personajes": 3,
-  "recompensas": {...},
-  "enemigos": [...],
-  "activa": true
-}
-```
+✅ Validaciones automáticas: nivel, HP, estado  
+✅ Recompensas: VAL, XP, items
 
 ---
 
-### Entrar a Mazmorra
+## ⚙️ CONFIGURACIÓN Y DATOS
+
+### Endpoints Públicos
 ```http
-POST /api/dungeons/:id/enter
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "characterIds": ["char_id_1", "char_id_2"]
-}
+GET /api/base-characters    # Personajes base disponibles
+GET /api/equipment          # Equipamiento disponible
+GET /api/consumables        # Consumibles disponibles
+GET /api/game-settings      # Configuración del juego
+GET /api/level-requirements # XP requerida por nivel
+GET /health                 # Health check
 ```
 
-**Response 200:**
+---
+
+---
+
+## � DOCUMENTACIÓN COMPLETA
+
+**Para más detalles, ver:**
+
+### 📖 Referencias Completas
+- **`00_BACKEND_API_REFERENCE.md`** - Referencia completa con todos los detalles
+- **`15_GUIA_COMPLETA_AUTENTICACION_SESIONES.md`** - Sistema de cookies explicado
+- **`16_GUIA_EQUIPAMIENTO_PERSONAJES.md`** - Equipamiento, consumibles, XP, evolución
+- **`18_GUIA_ULTRA_RAPIDA_EJEMPLOS_BASICOS.md`** - Ejemplos copy-paste
+
+### 💻 Código Listo para Usar
+- **`03_MODELOS_TYPESCRIPT.md`** - Interfaces TypeScript
+- **`04_SERVICIOS_BASE.md`** - Servicios Angular listos
+- **`05_COMPONENTES_EJEMPLO.md`** - Componentes de ejemplo
+
+### 📋 Resumen de Cambios
+- **`17_RESUMEN_CAMBIOS_NOVIEMBRE_2025.md`** - Últimas actualizaciones
+
+---
+
+## ⚠️ ERRORES COMUNES
+
+| Código | Acción |
+|--------|--------|
+| 401 | Redirect a login (sesión expirada) |
+| 400 | Mostrar `error` al usuario |
+| 403 | "No tienes permiso" |
+| 404 | "No encontrado" |
+
+**Todos los errores devuelven:**
 ```json
-{
-  "message": "Batalla iniciada",
-  "resultado": {
-    "victoria": true,
-    "recompensas": {
-      "val": 35,
-      "experiencia": 120,
-      "items": ["item_id"]
-    },
-    "personajes": [
-      {
-        "characterId": "char_id_1",
-        "saludFinal": 75,
-        "experienciaGanada": 60
-      }
-    ]
-  }
-}
+{ "error": "Mensaje descriptivo" }
 ```
 
 ---
 
-## ⚙️ CONFIGURACIÓN
+## 🔄 WEBSOCKET
 
-### Obtener Configuración del Juego
-```http
-GET /api/game-settings
+```typescript
+import io from 'socket.io-client';
+
+const socket = io('https://valgame-backend.onrender.com');
+socket.on('user:update', (data) => console.log(data));
+socket.on('marketplace:new-listing', (listing) => console.log(listing));
 ```
 
-**Response 200:**
-```json
-{
-  "nivel_maximo_personaje": 100,
-  "costo_revivir_personaje": 50,
-  "MAX_PERSONAJES_POR_EQUIPO": 3,
-  "EXP_GLOBAL_MULTIPLIER": 1,
-  "PERMADEATH_TIMER_HOURS": 24,
-  "nivel_evolucion_etapa_2": 40,
-  "nivel_evolucion_etapa_3": 100,
-  "aumento_stats_por_nivel": {
-    "D": { "atk": 2, "defensa": 2, "vida": 10 },
-    "C": { "atk": 3, "defensa": 3, "vida": 15 },
-    "B": { "atk": 4, "defensa": 4, "vida": 20 },
-    "A": { "atk": 5, "defensa": 5, "vida": 25 },
-    "S": { "atk": 6, "defensa": 6, "vida": 30 }
-  }
-}
-```
+**Ver:** `04_SERVICIOS_BASE.md` → SocketService completo
 
 ---
 
-### Obtener Requisitos de Nivel
-```http
-GET /api/level-requirements
-```
-
-**Response 200:**
-```json
-[
-  {
-    "nivel": 2,
-    "experiencia_requerida": 200,
-    "experiencia_acumulada": 200
-  },
-  {
-    "nivel": 3,
-    "experiencia_requerida": 300,
-    "experiencia_acumulada": 500
-  }
-]
-```
-
----
-
-### Obtener Personajes Base
-```http
-GET /api/base-characters
-```
-
-**Response 200:**
-```json
-[
-  {
-    "id": "base_d_001",
-    "nombre": "Aventurero Novato",
-    "descripcion": "Un aventurero principiante",
-    "descripcion_rango": "D",
-    "stats": {
-      "atk": 10,
-      "defensa": 10,
-      "vida": 100
-    },
-    "imagen": "aventurero_novato.png"
-  }
-]
-```
-
----
-
-## 🛡️ ITEMS
-
-### Obtener Equipamiento
-```http
-GET /api/equipment
-```
-
-**Response 200:**
-```json
-[
-  {
-    "_id": "equipment_id",
-    "nombre": "Espada de Hierro",
-    "descripcion": "Una espada básica",
-    "rareza": "comun",
-    "tipoItem": "Equipment",
-    "tipoEquipamiento": "arma",
-    "stats": {
-      "mejora_atk": 5
-    },
-    "precio_val": 50
-  }
-]
-```
-
----
-
-### Obtener Consumibles
-```http
-GET /api/consumables
-```
-
-**Response 200:**
-```json
-[
-  {
-    "_id": "consumable_id",
-    "nombre": "Poción de Vida",
-    "descripcion": "Restaura HP",
-    "rareza": "comun",
-    "tipoItem": "Consumable",
-    "efectos": {
-      "mejora_vida": 50
-    },
-    "duracion_minutos": 0,
-    "usos_maximos": 1,
-    "precio_val": 10
-  }
-]
-```
-
----
-
-## 🔒 AUTENTICACIÓN EN REQUESTS
-
-Todas las rutas protegidas requieren el header de autorización:
-
-```http
-Authorization: Bearer {token}
-```
-
-El token se obtiene al hacer login y debe incluirse en todas las peticiones a rutas protegidas.
-
----
-
-## ⚠️ CÓDIGOS DE ERROR COMUNES
-
-| Código | Significado |
-|--------|-------------|
-| 200 | OK - Petición exitosa |
-| 201 | Created - Recurso creado |
-| 400 | Bad Request - Datos inválidos |
-| 401 | Unauthorized - No autenticado |
-| 403 | Forbidden - Sin permisos |
-| 404 | Not Found - Recurso no encontrado |
-| 409 | Conflict - Conflicto (ej: email duplicado) |
-| 500 | Internal Server Error - Error del servidor |
-
----
-
-## 📝 FORMATO DE ERRORES
-
-```json
-{
-  "error": "Mensaje de error descriptivo"
-}
-```
-
-O para errores de validación:
-
-```json
-{
-  "error": {
-    "message": "Validation error",
-    "details": [
-      {
-        "field": "email",
-        "message": "Email inválido"
-      }
-    ]
-  }
-}
-```
-
----
-
-## 🔄 WEBSOCKET EVENTS
-
-### Conectar
-```javascript
-const socket = io('http://localhost:8080');
-
-// Autenticar
-socket.emit('auth', token);
-
-socket.on('auth:success', () => {
-  console.log('Autenticado');
-});
-```
-
-### Eventos Disponibles
-
-**Del servidor al cliente:**
-- `inventory:update` - Actualización de inventario
-- `reward:received` - Recompensa recibida
-- `character:update` - Actualización de personaje
-- `marketplace:update` - Actualización del marketplace
-- `game:event` - Evento global del juego
-- `rankings:update` - Actualización de rankings
-- `battle:update` - Actualización de batalla
-
----
-
-## 🧪 TESTING CON CURL
-
-### Registro
-```bash
-curl -X POST http://localhost:8080/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","username":"testuser","password":"test123"}'
-```
-
-### Login
-```bash
-curl -X POST http://localhost:8080/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"test123"}'
-```
-
-### Obtener Usuario (con token)
-```bash
-curl -X GET http://localhost:8080/api/users/me \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
----
-
-## 📚 RECURSOS ADICIONALES
-
-- **Postman Collection**: Importa la colección de Postman para probar todos los endpoints
-- **Swagger/OpenAPI**: (Próximamente) Documentación interactiva
-- **Tests E2E**: Revisa `/tests/e2e` para ejemplos de uso
-
----
-
-**Última actualización:** Enero 2024  
-**Versión del API:** 1.0.0
+**Última actualización:** 3 de noviembre de 2025  
+**Versión:** 2.0 (Cookies httpOnly + Equipamiento completo)

@@ -22,7 +22,13 @@
     "init-db": "ts-node -r dotenv/config src/scripts/init-db.ts",
     "setup-marketplace": "ts-node -r dotenv/config src/scripts/setup-marketplace.ts",
     "migrate:collections": "ts-node -r dotenv/config src/scripts/migrate-collections.ts",
-    "create-indexes": "node scripts/create-purchase-index.js"
+    "create-indexes": "node scripts/create-purchase-index.js",
+    "diagnose:onboarding": "ts-node scripts/diagnose-onboarding-flow.ts",
+    "fix:onboarding": "ts-node scripts/fix-onboarding-issues.ts",
+    "fix:onboarding:apply": "ts-node scripts/fix-onboarding-issues.ts --apply",
+    "migrate:evo-cost": "ts-node scripts/migrate-add-evo-cost.ts",
+    "fix:game-settings": "ts-node scripts/fix-game-settings-complete.ts",
+    "verify:game-settings": "ts-node scripts/verify-game-settings.ts"
   },
   "keywords": [],
   "author": "",
@@ -47,8 +53,10 @@
     "mongodb": "6.10.0",
     "mongoose": "8.8.4",
     "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.6",
     "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "typescript": "^5.9.3",
     "zod": "^4.1.11"
   },

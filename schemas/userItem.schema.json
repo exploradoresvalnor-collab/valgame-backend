@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UserItem",
+  "type": "object",
+  "required": ["instanceId", "userId", "itemId", "nombre"],
+  "properties": {
+    "instanceId": { "type": "string" },
+    "userId": { "type": "string" },
+    "itemId": { "type": "string" },
+    "nombre": { "type": "string" },
+    "slotAllowed": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "atributos": { "type": "object", "additionalProperties": true },
+    "permanent": { "type": "boolean" },
+    "meta": { "type": "object", "additionalProperties": true },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

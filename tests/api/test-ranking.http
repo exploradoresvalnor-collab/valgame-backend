@@ -1,0 +1,156 @@
+### ============================================
+### TESTS DEL SISTEMA DE RANKING
+### ============================================
+### Estos endpoints muestran el ranking global de jugadores
+### Se actualiza automáticamente cuando un jugador gana/pierde en mazmorras
+### ============================================
+
+### Variables
+@baseURL = http://localhost:8080
+@token = TU_TOKEN_AQUI
+
+### ============================================
+### 1. OBTENER RANKING GLOBAL (Top 10)
+### ============================================
+### Devuelve los 10 mejores jugadores ordenados por puntos
+### Público - No requiere autenticación
+GET {{baseURL}}/api/rankings
+Content-Type: application/json
+
+### ============================================
+### 2. OBTENER TOP 20 DEL RANKING GLOBAL
+### ============================================
+### Puedes especificar cuántos resultados quieres (limit)
+### Público - No requiere autenticación
+GET {{baseURL}}/api/rankings?limit=20
+Content-Type: application/json
+
+### ============================================
+### 3. OBTENER RANKING SEMANAL
+### ============================================
+### Ranking de la semana actual
+### Períodos disponibles: global, semanal, mensual
+### Público - No requiere autenticación
+GET {{baseURL}}/api/rankings/period/semanal
+Content-Type: application/json
+
+### ============================================
+### 4. OBTENER RANKING MENSUAL (Top 15)
+### ============================================
+### Ranking del mes actual con límite personalizado
+### Público - No requiere autenticación
+GET {{baseURL}}/api/rankings/period/mensual?limit=15
+Content-Type: application/json
+
+### ============================================
+### 5. OBTENER ESTADÍSTICAS GENERALES
+### ============================================
+### Muestra totales agregados: victorias, derrotas, puntos totales, etc.
+### Público - No requiere autenticación
+GET {{baseURL}}/api/rankings/stats
+Content-Type: application/json
+
+### ============================================
+### 6. OBTENER MI RANKING PERSONAL
+### ============================================
+### Muestra tu posición actual, puntos, victorias, derrotas
+### REQUIERE AUTENTICACIÓN - Debes estar logueado
+GET {{baseURL}}/api/rankings/me
+Content-Type: application/json
+Cookie: token={{token}}
+
+### ============================================
+### 7. JUGAR MAZMORRA PARA ACTUALIZAR RANKING
+### ============================================
+### Al ganar una mazmorra, automáticamente se suma:
+### - +10 puntos (configurado en puntos_ranking_por_victoria)
+### - +1 victoria
+### - +1 boleto usado
+### REQUIERE AUTENTICACIÓN
+POST {{baseURL}}/api/dungeons/play
+Content-Type: application/json
+Cookie: token={{token}}
+
+{
+  "dungeonId": "ID_DE_TU_MAZMORRA"
+}
+
+### ============================================
+### 8. COMPLETAR ACCIÓN EN MAZMORRA
+### ============================================
+### Después de jugar la mazmorra, debes completar las acciones
+### Si ganas, se actualizará tu ranking automáticamente
+### REQUIERE AUTENTICACIÓN
+POST {{baseURL}}/api/dungeons/action
+Content-Type: application/json
+Cookie: token={{token}}
+
+{
+  "combatId": "ID_DEL_COMBATE",
+  "actionType": "attack"
+}
+
+### ============================================
+### CÓMO PROBAR EL SISTEMA:
+### ============================================
+### 1. Registra un usuario o logueate
+### 2. Copia tu token de la cookie
+### 3. Reemplaza {{token}} arriba con tu token real
+### 4. Ejecuta "6. OBTENER MI RANKING PERSONAL" para ver tu ranking inicial
+### 5. Juega una mazmorra y gana (endpoints 7 y 8)
+### 6. Vuelve a ejecutar "6. OBTENER MI RANKING PERSONAL" - verás +10 puntos
+### 7. Ejecuta "1. OBTENER RANKING GLOBAL" para ver tu posición entre todos
+
+### ============================================
+### RESPUESTAS ESPERADAS:
+### ============================================
+
+### Ejemplo respuesta GET /api/rankings:
+# {
+#   "rankings": [
+#     {
+#       "_id": "673...",
+#       "userId": {
+#         "_id": "672...",
+#         "username": "JugadorPro",
+#         "email": "jugador@example.com"
+#       },
+#       "puntos": 150,
+#       "victorias": 15,
+#       "derrotas": 3,
+#       "ultimaPartida": "2025-11-03T20:45:00.000Z",
+#       "boletosUsados": 18,
+#       "periodo": "global",
+#       "posicion": 1
+#     },
+#     ...más jugadores...
+#   ]
+# }
+
+### Ejemplo respuesta GET /api/rankings/me:
+# {
+#   "ranking": {
+#     "_id": "673...",
+#     "userId": "672...",
+#     "puntos": 50,
+#     "victorias": 5,
+#     "derrotas": 2,
+#     "ultimaPartida": "2025-11-03T20:30:00.000Z",
+#     "boletosUsados": 7,
+#     "periodo": "global"
+#   },
+#   "posicion": 12
+# }
+
+### Ejemplo respuesta GET /api/rankings/stats:
+# {
+#   "stats": {
+#     "totalPlayers": 48,
+#     "totalVictorias": 324,
+#     "totalDerrotas": 156,
+#     "totalPuntos": 3240,
+#     "promedioVictoriasPorJugador": 6.75,
+#     "promedioDerrotasPorJugador": 3.25,
+#     "promedioPuntosPorJugador": 67.5
+#   }
+# }

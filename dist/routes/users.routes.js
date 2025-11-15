@@ -5,8 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const User_1 = require("../models/User");
+const Notification_1 = require("../models/Notification");
 const auth_1 = require("../middlewares/auth");
 const BaseCharacter_1 = __importDefault(require("../models/BaseCharacter")); // Importamos el modelo de personajes base para validación
+const Item_1 = require("../models/Item");
+const UserPackage_1 = __importDefault(require("../models/UserPackage")); // Importación correcta
+const Package_1 = __importDefault(require("../models/Package")); // Importación correcta
 const router = (0, express_1.Router)();
 // --- Rutas que ya tenías ---
 // Lista usuarios (solo para probar)
@@ -21,7 +25,176 @@ router.get('/me', auth_1.auth, async (req, res) => {
     const user = await User_1.User.findById(req.userId).select('-passwordHash');
     if (!user)
         return res.status(404).json({ error: 'Usuario no encontrado' });
-    res.json(user);
+    // ✅ Devolver datos completos con fallback a 0 para recursos
+    res.json({
+        id: user._id,
+        email: user.email,
+        username: user.username,
+        isVerified: user.isVerified,
+        tutorialCompleted: user.tutorialCompleted,
+        val: user.val ?? 0,
+        boletos: user.boletos ?? 0,
+        evo: user.evo ?? 0,
+        invocaciones: user.invocaciones ?? 0,
+        evoluciones: user.evoluciones ?? 0,
+        boletosDiarios: user.boletosDiarios ?? 0,
+        personajes: await Promise.all((user.personajes || []).map(async (p) => {
+            const base = await BaseCharacter_1.default.findOne({ id: p.personajeId });
+            return {
+                personajeId: p.personajeId,
+                nombre: base?.nombre || p.personajeId,
+                rango: p.rango,
+                nivel: p.nivel,
+                etapa: p.etapa,
+                progreso: p.progreso,
+                experiencia: p.experiencia,
+                saludActual: p.saludActual,
+                saludMaxima: p.saludMaxima,
+                estado: p.estado,
+                equipamiento: await Promise.all((p.equipamiento || []).map(async (eid) => {
+                    const eq = await Item_1.Item.findById(eid);
+                    return eq ? {
+                        id: eq._id,
+                        nombre: eq.nombre,
+                        tipoItem: eq.tipoItem,
+                        ...(eq.tipoItem ? { slot: eq.tipoItem } : {}),
+                    } : { id: eid };
+                })),
+                activeBuffs: p.activeBuffs,
+            };
+        })),
+        inventarioEquipamiento: await Promise.all((user.inventarioEquipamiento || []).map(async (id) => {
+            const item = await Item_1.Item.findById(id);
+            return item ? {
+                id: item._id,
+                nombre: item.nombre,
+                tipoItem: item.tipoItem,
+                ...(item.tipoItem ? { slot: item.tipoItem } : {}),
+            } : { id };
+        })),
+        inventarioConsumibles: await Promise.all((user.inventarioConsumibles || []).map(async (consumible) => {
+            const item = await Item_1.Item.findById(consumible.consumableId);
+            return item ? {
+                id: item._id,
+                nombre: item.nombre,
+                tipoItem: item.tipoItem,
+                usos_restantes: consumible.usos_restantes,
+            } : { id: consumible.consumableId, usos_restantes: consumible.usos_restantes };
+        })),
+        // --- NUEVO: paquetes del usuario expandidos ---
+        paquetes: await Promise.all((await UserPackage_1.default.find({ userId: user._id })).map(async (userPackage) => {
+            const paquete = await Package_1.default.findById(userPackage.paqueteId);
+            if (paquete) {
+                return {
+                    id: paquete._id,
+                    nombre: paquete.nombre,
+                    tipo: paquete.tipo,
+                    precio_usdt: paquete.precio_usdt,
+                    precio_val: paquete.precio_val,
+                    personajes: paquete.personajes,
+                    categorias_garantizadas: paquete.categorias_garantizadas,
+                    distribucion_aleatoria: paquete.distribucion_aleatoria,
+                    val_reward: paquete.val_reward,
+                    items_reward: paquete.items_reward,
+                    fecha: userPackage.fecha
+                };
+            }
+            else if (userPackage.packageSnapshot) {
+                // Si el paquete fue borrado, usar snapshot
+                return { ...userPackage.packageSnapshot, fecha: userPackage.fecha };
+            }
+            else {
+                return { id: userPackage.paqueteId, fecha: userPackage.fecha };
+            }
+        })),
+        limiteInventarioEquipamiento: user.limiteInventarioEquipamiento,
+        limiteInventarioConsumibles: user.limiteInventarioConsumibles,
+        limiteInventarioPersonajes: user.limiteInventarioPersonajes,
+        personajeActivoId: user.personajeActivoId,
+        receivedPioneerPackage: user.receivedPioneerPackage,
+        walletAddress: user.walletAddress,
+        fechaRegistro: user.fechaRegistro,
+        ultimaActualizacion: user.ultimaActualizacion
+    });
+});
+// GET /api/users/resources - Obtener solo los recursos del usuario (más ligero que /me)
+router.get('/resources', auth_1.auth, async (req, res) => {
+    try {
+        if (!req.userId) {
+            return res.status(401).json({ error: 'No autenticado' });
+        }
+        const user = await User_1.User.findById(req.userId).select('val boletos evo');
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        return res.json({
+            val: user.val,
+            boletos: user.boletos,
+            evo: user.evo
+        });
+    }
+    catch (error) {
+        console.error('Error al obtener recursos:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+// GET /api/users/dashboard - Obtener datos consolidados para el dashboard
+router.get('/dashboard', auth_1.auth, async (req, res) => {
+    try {
+        if (!req.userId) {
+            return res.status(401).json({ error: 'No autenticado' });
+        }
+        const user = await User_1.User.findById(req.userId).select('val boletos evo dungeon_stats personajes');
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        // Contar notificaciones no leídas
+        const unreadNotifications = await Notification_1.Notification.countDocuments({
+            userId: req.userId,
+            isRead: false
+        });
+        // Contar personajes heridos
+        const injuredCharacters = user.personajes.filter(p => p.estado === 'herido').length;
+        return res.json({
+            resources: {
+                val: user.val,
+                boletos: user.boletos,
+                evo: user.evo
+            },
+            dungeonStats: user.dungeon_stats,
+            notifications: {
+                unreadCount: unreadNotifications
+            },
+            characters: {
+                total: user.personajes.length,
+                injured: injuredCharacters
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error al obtener datos de dashboard:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+// PUT /api/users/tutorial/complete - Marcar el tutorial como completado
+router.put('/tutorial/complete', auth_1.auth, async (req, res) => {
+    try {
+        if (!req.userId) {
+            return res.status(401).json({ error: 'No autenticado' });
+        }
+        const user = await User_1.User.findByIdAndUpdate(req.userId, { tutorialCompleted: true }, { new: true }).select('tutorialCompleted');
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        return res.json({
+            message: 'Tutorial completado',
+            tutorialCompleted: user.tutorialCompleted
+        });
+    }
+    catch (error) {
+        console.error('Error al completar tutorial:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 // --- 👇 RUTA NUEVA PARA AÑADIR PERSONAJES 👇 ---
 // POST /users/characters/add
