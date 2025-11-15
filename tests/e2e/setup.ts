@@ -87,6 +87,7 @@ export async function seedTestData() {
     // Crear paquete pionero
     await Package.create({
         nombre: 'Paquete Pionero',
+        tipo: 'starter',
         precio_usdt: 0,
         personajes: 1,
         categorias_garantizadas: ['D'],

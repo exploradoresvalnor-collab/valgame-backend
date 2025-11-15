@@ -70,7 +70,7 @@ describe('E2E: purchase -> webhook -> open -> inventory', () => {
 
     // Abrir el paquete asignado
     const openRes = await request(app)
-      .post(`/api/user-packages/${up!._id.toString()}/open`)
+      .post(`/api/user-packages/${(up!._id as any).toString()}/open`)
       .set('Authorization', `Bearer ${token}`)
       .send();
 
