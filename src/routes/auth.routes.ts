@@ -133,8 +133,20 @@ router.get('/verify/:token', async (req, res) => {
           // Continuar aunque falle el paquete
         }
 
-        // Página de éxito con HTML mejorado
-        return res.send(`
+        // Detectar si es petición API (JSON) o browser (HTML)
+        const accept = req.headers.accept || '';
+        const isAPI = accept.includes('application/json') || req.query.format === 'json' || process.env.NODE_ENV === 'test';
+
+        if (isAPI) {
+          // Respuesta JSON para APIs/tests
+          return res.json({
+            ok: true,
+            message: 'Usuario verificado exitosamente',
+            package: packageResult
+          });
+        } else {
+          // Página HTML para browsers
+          return res.send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -186,7 +198,8 @@ router.get('/verify/:token', async (req, res) => {
   </div>
 </body>
 </html>
-        `);
+          `);
+        }
 
     } catch (error: any) {
         console.error('[VERIFY] ❌ Error en verificación:', error.message);
