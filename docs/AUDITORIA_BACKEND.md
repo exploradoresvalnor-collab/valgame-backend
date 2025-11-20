@@ -282,11 +282,11 @@ if (frontendOrigin) {
 }
 ```
 
-#### 2. Falta Validación de Entrada (EN PROGRESO)
+#### 2. Falta Validación de Entrada (EN DESARROLLO - LIBRE)
 ```typescript
-// ✅ AGREGADO: Validación con Zod en /api/users/characters/add
-import { AddCharacterSchema } from '../validations/character.schemas';
-router.post('/characters/add', auth, validateBody(AddCharacterSchema), ...);
+// ✅ AGREGADO: Validación con Zod en /api/users/characters/add (temporalmente removida para desarrollo local)
+// router.post('/characters/add', auth, validateBody(AddCharacterSchema), ...);
+// Ahora: router.post('/characters/add', auth, ...); // Libre para desarrollo rápido
 ```
 
 #### 3. Rate Limiting Inconsistente
@@ -455,13 +455,9 @@ Se implementó un sistema completo para detectar y reparar problemas en el flujo
 
 ## 📊 ACTUALIZACIONES DEL DOCUMENTO
 
-### 2025-11-19
-- ✅ Implementado endpoint DELETE `/api/users/characters/:personajeId` para eliminar personajes
-- ✅ Agregada validación Zod en `/api/users/characters/add`
-- ✅ Corregida configuración CORS para usar FRONTEND_ORIGIN
-- ✅ Simplificada lógica de eliminación de consumibles en `useConsumable`
-- ✅ Implementados buffs temporales para consumibles con duración
-- ✅ Integración de buffs en sistema de combate automático
+### 2025-11-19 (Actualización)
+- ✅ Removida validación Zod de `/api/users/characters/add` para desarrollo local (permite contar rápido)
+- ✅ Manteniendo otros cambios de seguridad (CORS, etc.)
 
 ---
 

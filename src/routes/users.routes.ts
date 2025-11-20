@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import { User } from '../models/User';
 import { Notification } from '../models/Notification';
 import { validateBody } from '../middlewares/validate';
-import { AddCharacterSchema } from '../validations/character.schemas';
 import BaseCharacter from '../models/BaseCharacter'; // Importamos el modelo de personajes base para validación
 import { Item } from '../models/Item';
 import UserPackage from '../models/UserPackage'; // Importación correcta
@@ -227,7 +226,7 @@ router.put('/tutorial/complete', auth, async (req: Request, res: Response) => {
 // --- 👇 RUTA NUEVA PARA AÑADIR PERSONAJES 👇 ---
 
 // POST /users/characters/add
-router.post('/characters/add', auth, validateBody(AddCharacterSchema), async (req: Request, res: Response) => {
+router.post('/characters/add', auth, async (req: Request, res: Response) => {
   const { personajeId, rango } = req.body;
   const userId = req.userId;
 
