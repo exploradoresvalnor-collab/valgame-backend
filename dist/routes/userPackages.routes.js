@@ -191,151 +191,79 @@ router.post('/por-correo', async (req, res) => {
         res.status(500).json({ error: 'Error al consultar paquetes por correo.' });
     }
 });
-exports.default = router;
-// POST /api/user-packages/open
-// body: { userId, paqueteId }  (paqueteId opcional si el usuario tiene un UserPackage)
-router.post('/open', async (req, res) => {
-    const { userId, paqueteId } = req.body;
+// POST /api/user-packages/:id/open
+// Abre un `UserPackage` específico que pertenece al usuario autenticado.
+router.post('/:id/open', async (req, res) => {
+    const userId = req.userId; // provisto por el middleware de auth en app.ts
+    const userPackageId = req.params.id;
     if (!userId)
-        return res.status(400).json({ error: 'Falta userId' });
-    // 🔒 TRANSACCIÓN ATÓMICA para prevenir race conditions
+        return res.status(401).json({ error: 'No autorizado' });
+    if (!mongoose_1.Types.ObjectId.isValid(userPackageId))
+        return res.status(400).json({ error: 'userPackageId inválido' });
     const session = await mongoose_1.default.startSession();
     session.startTransaction();
     try {
-        // 🔒 SEGURIDAD 1: Validar que el usuario existe
         const user = await User_1.User.findById(userId).session(session);
         if (!user) {
             await session.abortTransaction();
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
-        // 🔒 SEGURIDAD 2: Validar autorización (req.user._id === userId)
-        if (!mongoose_1.Types.ObjectId.isValid(userId)) {
+        // Lock atómico: marcar el UserPackage como locked si pertenece al usuario
+        const userPackageToOpen = await UserPackage_1.default.findOneAndUpdate({
+            _id: userPackageId,
+            userId,
+            $or: [
+                { locked: { $exists: false } },
+                { locked: false },
+                { locked: true, lockedAt: { $lt: new Date(Date.now() - 30000) } }
+            ]
+        }, { $set: { locked: true, lockedAt: new Date() } }, { new: true, session }).select('+locked');
+        if (!userPackageToOpen) {
             await session.abortTransaction();
-            return res.status(400).json({ error: 'userId inválido' });
+            return res.status(404).json({ error: 'UserPackage no encontrado o ya en proceso' });
         }
-        let pkg;
-        let userPackageToDelete;
-        if (paqueteId) {
-            // Buscar paquete específico
-            pkg = await Package_1.default.findById(paqueteId).session(session);
-            // 🔒 LOCK ATÓMICO: Buscar y lockear el UserPackage en una sola operación
-            userPackageToDelete = await UserPackage_1.default.findOneAndUpdate({
-                userId,
-                paqueteId,
-                $or: [
-                    { locked: { $exists: false } },
-                    { locked: false },
-                    {
-                        locked: true,
-                        lockedAt: { $lt: new Date(Date.now() - 30000) } // Lock expirado (30s)
-                    }
-                ]
-            }, {
-                $set: { locked: true, lockedAt: new Date() }
-            }, {
-                new: true,
-                session
-            }).select('+locked');
-            if (!userPackageToDelete) {
-                await session.abortTransaction();
-                return res.status(429).json({
-                    error: 'Paquete no disponible o ya está siendo abierto',
-                    message: 'El paquete está siendo procesado o no existe'
-                });
-            }
-        }
-        else {
-            // Buscar cualquier paquete disponible y lockearlo
-            userPackageToDelete = await UserPackage_1.default.findOneAndUpdate({
-                userId,
-                $or: [
-                    { locked: { $exists: false } },
-                    { locked: false },
-                    {
-                        locked: true,
-                        lockedAt: { $lt: new Date(Date.now() - 30000) }
-                    }
-                ]
-            }, {
-                $set: { locked: true, lockedAt: new Date() }
-            }, {
-                new: true,
-                session
-            }).select('+locked');
-            if (!userPackageToDelete) {
-                await session.abortTransaction();
-                return res.status(404).json({ error: 'Usuario no tiene paquetes disponibles' });
-            }
-            pkg = await Package_1.default.findById(userPackageToDelete.paqueteId).session(session);
-        }
+        const pkg = await Package_1.default.findById(userPackageToOpen.paqueteId).session(session);
         if (!pkg) {
             await session.abortTransaction();
-            return res.status(404).json({ error: 'Paquete no encontrado' });
+            return res.status(404).json({ error: 'Paquete base no encontrado' });
         }
-        // 1) Añadir val_reward si existe
+        // Aplica las mismas reglas de rewards que la versión previa
         if (pkg.val_reward) {
             user.val = (user.val || 0) + pkg.val_reward;
         }
-        // 2) Añadir items_reward si existen
         if (pkg.items_reward && Array.isArray(pkg.items_reward)) {
-            // 🔒 SEGURIDAD 6: Manejo de errores en loops
+            user.inventarioEquipamiento = user.inventarioEquipamiento || [];
             for (const itemId of pkg.items_reward) {
                 try {
-                    // si es equipment añadir a inventarioEquipamiento, si es consumable añadir a inventarioConsumibles
-                    // simplificamos: añadimos a inventarioEquipamiento
-                    user.inventarioEquipamiento = user.inventarioEquipamiento || [];
                     if (!user.inventarioEquipamiento.some((id) => String(id) === String(itemId))) {
                         user.inventarioEquipamiento.push(new mongoose_1.Types.ObjectId(String(itemId)));
                     }
                 }
                 catch (itemError) {
-                    console.error(`[OPEN-PACKAGE] Error agregando item ${itemId}:`, itemError);
-                    // Continuar con el siguiente item en vez de romper todo
+                    console.error('[OPEN-PACKAGE] Error agregando item:', itemError);
                 }
             }
         }
-        // 3) Asignar personajes (personajes: pkg.personajes)
         const toAssign = pkg.personajes || 1;
         const assigned = [];
-        // 🔒 SEGURIDAD 3: Validar límites de inventario ANTES de asignar
         const MAX_CHARACTERS = user.limiteInventarioPersonajes || 50;
         const MAX_EQUIPMENT = user.limiteInventarioEquipamiento || 200;
         const currentCharacters = user.personajes?.length || 0;
         const currentEquipment = user.inventarioEquipamiento?.length || 0;
         const itemsToAdd = (pkg.items_reward || []).length;
-        // Validar que hay espacio para nuevos personajes
         if (currentCharacters + toAssign > MAX_CHARACTERS) {
             await session.abortTransaction();
-            return res.status(400).json({
-                error: 'Límite de personajes alcanzado.',
-                limit: MAX_CHARACTERS,
-                current: currentCharacters,
-                trying_to_add: toAssign,
-                message: 'Vende o elimina algunos personajes primero'
-            });
+            return res.status(400).json({ error: 'Límite de personajes alcanzado' });
         }
-        // Validar que hay espacio para nuevos items
         if (currentEquipment + itemsToAdd > MAX_EQUIPMENT) {
             await session.abortTransaction();
-            return res.status(400).json({
-                error: 'Límite de inventario alcanzado.',
-                limit: MAX_EQUIPMENT,
-                current: currentEquipment,
-                trying_to_add: itemsToAdd,
-                message: 'Vende o elimina algunos items primero'
-            });
+            return res.status(400).json({ error: 'Límite de inventario alcanzado' });
         }
-        // Si hay categorias_garantizadas, primero asignarlas
         const guaranteed = pkg.categorias_garantizadas || [];
-        const categoriesList = await Category_1.default.find();
-        function chooseRandomBaseForCategory(_catName) {
-            // El rango se asigna al personaje del usuario, no al BaseCharacter
-            // Por tanto, simplemente escogemos un personaje base aleatorio
-            return BaseCharacter_1.default.aggregate([
-                { $sample: { size: 1 } }
-            ]).then((res) => res[0]);
+        const categoriesList = await Category_1.default.find().session(session);
+        async function chooseRandomBaseForCategory(_catName) {
+            return BaseCharacter_1.default.aggregate([{ $sample: { size: 1 } }]).then((res) => res[0]);
         }
-        // Rellenar con garantizados
         for (const cat of guaranteed) {
             if (assigned.length >= toAssign)
                 break;
@@ -360,18 +288,15 @@ router.post('/open', async (req, res) => {
                 }
             }
             catch (charError) {
-                console.error(`[OPEN-PACKAGE] Error asignando personaje garantizado ${cat}:`, charError);
-                // Continuar con el siguiente personaje
+                console.error('[OPEN-PACKAGE] Error asignando personaje garantizado:', charError);
             }
         }
-        // Si faltan, asignar aleatoriamente por probabilidades en Category
         while (assigned.length < toAssign) {
             try {
-                // elegir categoría por probabilidad
                 const cats = categoriesList;
                 const r = Math.random();
                 let accum = 0;
-                let chosenCat = cats[cats.length - 1].nombre;
+                let chosenCat = cats[cats.length - 1]?.nombre;
                 for (const c of cats) {
                     accum += c.probabilidad || 0;
                     if (r <= accum) {
@@ -398,22 +323,16 @@ router.post('/open', async (req, res) => {
                     assigned.push(base.id);
                 }
                 else {
-                    // si no hay base para esa categoria, romper para evitar loop infinito
-                    console.warn(`[OPEN-PACKAGE] No se encontró personaje base para categoría: ${chosenCat}`);
                     break;
                 }
             }
             catch (randomCharError) {
                 console.error('[OPEN-PACKAGE] Error asignando personaje aleatorio:', randomCharError);
-                // Romper el loop para evitar loop infinito en caso de error persistente
                 break;
             }
         }
-        // 🔒 GUARDAR usuario con la sesión de transacción
         await user.save({ session });
-        // 🔒 ELIMINAR el UserPackage (consumir) dentro de la transacción
-        await UserPackage_1.default.findByIdAndDelete(userPackageToDelete._id, { session });
-        // 📝 AUDITORÍA: Registrar la apertura del paquete
+        await UserPackage_1.default.findByIdAndDelete(userPackageToOpen._id, { session });
         await PurchaseLog_1.default.create([{
                 userId: new mongoose_1.Types.ObjectId(userId),
                 packageId: pkg._id,
@@ -429,29 +348,16 @@ router.post('/open', async (req, res) => {
                     packageName: pkg.nombre || 'Unknown'
                 }
             }], { session });
-        // 🔒 COMMIT de la transacción - Todo o nada
         await session.commitTransaction();
-        res.json({
-            ok: true,
-            assigned,
-            summary: {
-                charactersReceived: assigned.length,
-                itemsReceived: itemsToAdd,
-                valReceived: pkg.val_reward || 0,
-                totalCharacters: user.personajes.length,
-                totalItems: user.inventarioEquipamiento.length,
-                valBalance: user.val
-            }
-        });
+        res.json({ ok: true, assigned, summary: { charactersReceived: assigned.length, itemsReceived: itemsToAdd, valReceived: pkg.val_reward || 0, totalCharacters: user.personajes.length, totalItems: user.inventarioEquipamiento.length, valBalance: user.val } });
     }
     catch (err) {
-        // 🔒 ROLLBACK en caso de error
         await session.abortTransaction();
         console.error('[USER-PACKAGE-OPEN] Error:', err);
         res.status(500).json({ error: 'Error al abrir paquete' });
     }
     finally {
-        // 🔒 SIEMPRE cerrar la sesión
         session.endSession();
     }
 });
+exports.default = router;

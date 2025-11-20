@@ -140,7 +140,9 @@ export const getShopInfo = async (_req: AuthRequest, res: Response) => {
     res.json({
       exchangeRates: {
         evoPerVal: exchangeRate,
-        valPerEvo: 1 / exchangeRate
+        valPerEvo: 1 / exchangeRate,
+        boletosPerVal: 100, // 100 VAL = 1 boleto
+        valPerBoleto: 0.01
       },
       packages: [
         // TODO: Obtener paquetes de la base de datos
@@ -171,6 +173,96 @@ export const getShopInfo = async (_req: AuthRequest, res: Response) => {
 
   } catch (error) {
     console.error('Error al obtener información de la tienda:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+};
+
+/**
+ * Comprar boletos con VAL
+ * POST /api/shop/buy-boletos
+ * Body: { amount: number }
+ */
+export const buyBoletos = async (req: AuthRequest, res: Response) => {
+  const { amount } = req.body;
+  const userId = req.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Usuario no autenticado.' });
+  }
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'La cantidad debe ser mayor a 0.' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    // Costo: 100 VAL = 1 boleto
+    const COST_PER_BOLETO = 100;
+    const totalCost = amount * COST_PER_BOLETO;
+
+    // Validar que tiene suficiente VAL
+    if (user.val < totalCost) {
+      return res.status(400).json({
+        error: `No tienes suficiente VAL para comprar ${amount} boleto${amount > 1 ? 's' : ''}.`,
+        required: totalCost,
+        current: user.val,
+        missing: totalCost - user.val
+      });
+    }
+
+    // Validar límite máximo de boletos
+    const maxBoletos = 10;
+    const boletosActuales = user.boletos || 0;
+    if (boletosActuales + amount > maxBoletos) {
+      return res.status(400).json({
+        error: `No puedes tener más de ${maxBoletos} boletos. Actualmente tienes ${boletosActuales}.`,
+        maximo: maxBoletos,
+        actual: boletosActuales,
+        solicitado: amount
+      });
+    }
+
+    // Realizar la transacción
+    user.val -= totalCost;
+    user.boletos = boletosActuales + amount;
+
+    await user.save();
+
+    // Notificar en tiempo real
+    try {
+      const realtimeService = RealtimeService.getInstance();
+      if (typeof (realtimeService as any).notifyResourceUpdate === 'function') {
+        (realtimeService as any).notifyResourceUpdate(userId, {
+          val: user.val,
+          boletos: user.boletos,
+          type: 'BUY_BOLETOS'
+        });
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[buyBoletos] RealtimeService no disponible:', err);
+      }
+    }
+
+    res.json({
+      message: `Has comprado ${amount} boleto${amount > 1 ? 's' : ''} por ${totalCost} VAL.`,
+      transaction: {
+        amount,
+        cost: totalCost,
+        costPerBoleto: COST_PER_BOLETO
+      },
+      resources: {
+        val: user.val,
+        boletos: user.boletos
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al comprar boletos:', error);
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };

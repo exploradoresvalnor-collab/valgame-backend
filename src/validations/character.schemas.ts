@@ -42,9 +42,7 @@ export const HealCharacterSchema = z.object({
 export const AddCharacterSchema = z.object({
   personajeId: z.string()
     .min(1, 'El ID del personaje es requerido'),
-  rango: z.enum(['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], {
-    errorMap: () => ({ message: 'El rango debe ser uno de: D, C, B, A, S, SS, SSS' })
-  })
+  rango: z.enum(['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'])
 });
 
 // Tipos TypeScript derivados de los schemas

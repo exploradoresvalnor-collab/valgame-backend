@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { auth } from '../middlewares/auth';
 import { User } from '../models/User';
 import { Notification } from '../models/Notification';
 import { validateBody } from '../middlewares/validate';
@@ -6,6 +7,7 @@ import BaseCharacter from '../models/BaseCharacter'; // Importamos el modelo de 
 import { Item } from '../models/Item';
 import UserPackage from '../models/UserPackage'; // Importación correcta
 import PackageModel from '../models/Package'; // Importación correcta
+import EnergyService from '../services/energy.service';
 
 const router = Router();
 
@@ -24,6 +26,9 @@ router.get('/me', auth, async (req: Request, res: Response) => {
   const user = await User.findById(req.userId).select('-passwordHash');
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
+  // Obtener estado de energía con regeneración automática
+  const energyStatus = await EnergyService.getEnergyStatus(user);
+
   // ✅ Devolver datos completos con fallback a 0 para recursos
   res.json({
     id: user._id,
@@ -33,6 +38,9 @@ router.get('/me', auth, async (req: Request, res: Response) => {
     tutorialCompleted: user.tutorialCompleted,
     val: user.val ?? 0,
     boletos: user.boletos ?? 0,
+    energia: energyStatus.energia,
+    energiaMaxima: energyStatus.energiaMaxima,
+    tiempoParaSiguienteRegeneracionEnergia: energyStatus.tiempoParaSiguienteRegeneracion,
     evo: user.evo ?? 0,
     invocaciones: user.invocaciones ?? 0,
     evoluciones: user.evoluciones ?? 0,
@@ -135,14 +143,20 @@ router.get('/resources', auth, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'No autenticado' });
     }
 
-    const user = await User.findById(req.userId).select('val boletos evo');
+    const user = await User.findById(req.userId).select('val boletos energia energiaMaxima ultimoReinicioEnergia fechaRegistro evo');
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
+    // Obtener estado de energía con regeneración automática
+    const energyStatus = await EnergyService.getEnergyStatus(user);
+
     return res.json({
       val: user.val,
       boletos: user.boletos,
+      energia: energyStatus.energia,
+      energiaMaxima: energyStatus.energiaMaxima,
+      tiempoParaSiguienteRegeneracionEnergia: energyStatus.tiempoParaSiguienteRegeneracion,
       evo: user.evo
     });
   } catch (error) {
@@ -159,10 +173,13 @@ router.get('/dashboard', auth, async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'No autenticado' });
     }
 
-    const user = await User.findById(req.userId).select('val boletos evo dungeon_stats personajes');
+    const user = await User.findById(req.userId).select('val boletos energia energiaMaxima ultimoReinicioEnergia fechaRegistro evo dungeon_stats personajes');
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
+
+    // Obtener estado de energía con regeneración automática
+    const energyStatus = await EnergyService.getEnergyStatus(user);
 
     // Contar notificaciones no leídas
     const unreadNotifications = await Notification.countDocuments({
@@ -177,6 +194,9 @@ router.get('/dashboard', auth, async (req: Request, res: Response) => {
       resources: {
         val: user.val,
         boletos: user.boletos,
+        energia: energyStatus.energia,
+        energiaMaxima: energyStatus.energiaMaxima,
+        tiempoParaSiguienteRegeneracionEnergia: energyStatus.tiempoParaSiguienteRegeneracion,
         evo: user.evo
       },
       dungeonStats: user.dungeon_stats,
@@ -374,6 +394,68 @@ router.delete('/characters/:personajeId', auth, async (req: Request, res: Respon
   } catch (error) {
     console.error('Error al eliminar personaje:', error);
     return res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
+
+// POST /api/users/energy/consume - Consumir energía para actividades
+router.post('/energy/consume', auth, async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const { amount } = req.body;
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ error: 'Cantidad de energía inválida' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const result = await EnergyService.consumeEnergy(user, amount);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.message });
+    }
+
+    // Obtener estado actualizado de energía
+    const energyStatus = await EnergyService.getEnergyStatus(user);
+
+    return res.json({
+      message: result.message,
+      energia: energyStatus.energia,
+      energiaMaxima: energyStatus.energiaMaxima,
+      tiempoParaSiguienteRegeneracion: energyStatus.tiempoParaSiguienteRegeneracion
+    });
+  } catch (error) {
+    console.error('Error al consumir energía:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+// GET /api/users/energy/status - Obtener estado actual de energía
+router.get('/energy/status', auth, async (req: Request, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const energyStatus = await EnergyService.getEnergyStatus(user);
+
+    return res.json(energyStatus);
+  } catch (error) {
+    console.error('Error al obtener estado de energía:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

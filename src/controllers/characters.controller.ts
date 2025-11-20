@@ -135,7 +135,7 @@ export const useConsumable = async (req: AuthRequest, res: Response) => {
     if (consumable.duracion_efecto_minutos && consumable.duracion_efecto_minutos > 0) {
       const buffExpiresAt = new Date(Date.now() + consumable.duracion_efecto_minutos * 60 * 1000);
       const buff = {
-        name: consumable.nombre,
+        consumableId: inventoryItem.consumableId,
         effects: {
           mejora_atk: consumable.efectos.mejora_atk || 0,
           mejora_defensa: consumable.efectos.mejora_defensa || 0,

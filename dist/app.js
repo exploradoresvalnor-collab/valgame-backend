@@ -58,13 +58,32 @@ app.use((0, helmet_1.default)()); // Añade cabeceras de seguridad
 app.post('/api/payments/webhook', express_1.default.raw({ type: 'application/json' }), (req, res) => payment_service_1.default.handleWebhook(req, res));
 app.use((0, cookie_parser_1.default)()); // 🔐 Middleware para cookies httpOnly
 app.use(express_1.default.json()); // Permite al servidor entender JSON
-// ⚠️ MODO DESARROLLO: Permitir solicitudes de TODOS los dominios
-// TODO: Restaurar validación por dominios antes de producción final
-console.warn('[CORS] ⚠️ MODO DESARROLLO: Aceptando solicitudes de todos los orígenes');
-app.use((0, cors_1.default)({
-    origin: true, // Permite cualquier origen
-    credentials: true
-}));
+// --- Configuración CORS Segura ---
+const frontendOrigin = process.env.FRONTEND_ORIGIN;
+if (frontendOrigin) {
+    // Modo producción: dominios específicos
+    const allowedOrigins = frontendOrigin.split(',').map(origin => origin.trim());
+    app.use((0, cors_1.default)({
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            }
+            else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        credentials: true
+    }));
+    console.log('✅ CORS configurado para dominios específicos:', allowedOrigins);
+}
+else {
+    // Modo desarrollo: permitir todos (con advertencia)
+    console.warn('[CORS] ⚠️ MODO DESARROLLO: Aceptando solicitudes de todos los orígenes');
+    app.use((0, cors_1.default)({
+        origin: true,
+        credentials: true
+    }));
+}
 // Importar rate limiters
 const rateLimits_1 = require("./middlewares/rateLimits");
 // Aplica los rate limiters según el tipo de ruta

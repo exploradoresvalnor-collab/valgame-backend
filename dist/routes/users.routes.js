@@ -4,13 +4,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const auth_1 = require("../middlewares/auth");
 const User_1 = require("../models/User");
 const Notification_1 = require("../models/Notification");
-const auth_1 = require("../middlewares/auth");
 const BaseCharacter_1 = __importDefault(require("../models/BaseCharacter")); // Importamos el modelo de personajes base para validación
 const Item_1 = require("../models/Item");
 const UserPackage_1 = __importDefault(require("../models/UserPackage")); // Importación correcta
 const Package_1 = __importDefault(require("../models/Package")); // Importación correcta
+const energy_service_1 = __importDefault(require("../services/energy.service"));
 const router = (0, express_1.Router)();
 // --- Rutas que ya tenías ---
 // Lista usuarios (solo para probar)
@@ -25,6 +26,8 @@ router.get('/me', auth_1.auth, async (req, res) => {
     const user = await User_1.User.findById(req.userId).select('-passwordHash');
     if (!user)
         return res.status(404).json({ error: 'Usuario no encontrado' });
+    // Obtener estado de energía con regeneración automática
+    const energyStatus = await energy_service_1.default.getEnergyStatus(user);
     // ✅ Devolver datos completos con fallback a 0 para recursos
     res.json({
         id: user._id,
@@ -34,6 +37,9 @@ router.get('/me', auth_1.auth, async (req, res) => {
         tutorialCompleted: user.tutorialCompleted,
         val: user.val ?? 0,
         boletos: user.boletos ?? 0,
+        energia: energyStatus.energia,
+        energiaMaxima: energyStatus.energiaMaxima,
+        tiempoParaSiguienteRegeneracionEnergia: energyStatus.tiempoParaSiguienteRegeneracion,
         evo: user.evo ?? 0,
         invocaciones: user.invocaciones ?? 0,
         evoluciones: user.evoluciones ?? 0,
@@ -43,6 +49,7 @@ router.get('/me', auth_1.auth, async (req, res) => {
             return {
                 personajeId: p.personajeId,
                 nombre: base?.nombre || p.personajeId,
+                imagen: base?.imagen || null,
                 rango: p.rango,
                 nivel: p.nivel,
                 etapa: p.etapa,
@@ -57,6 +64,7 @@ router.get('/me', auth_1.auth, async (req, res) => {
                         id: eq._id,
                         nombre: eq.nombre,
                         tipoItem: eq.tipoItem,
+                        imagen: eq.imagen,
                         ...(eq.tipoItem ? { slot: eq.tipoItem } : {}),
                     } : { id: eid };
                 })),
@@ -123,13 +131,18 @@ router.get('/resources', auth_1.auth, async (req, res) => {
         if (!req.userId) {
             return res.status(401).json({ error: 'No autenticado' });
         }
-        const user = await User_1.User.findById(req.userId).select('val boletos evo');
+        const user = await User_1.User.findById(req.userId).select('val boletos energia energiaMaxima ultimoReinicioEnergia fechaRegistro evo');
         if (!user) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
+        // Obtener estado de energía con regeneración automática
+        const energyStatus = await energy_service_1.default.getEnergyStatus(user);
         return res.json({
             val: user.val,
             boletos: user.boletos,
+            energia: energyStatus.energia,
+            energiaMaxima: energyStatus.energiaMaxima,
+            tiempoParaSiguienteRegeneracionEnergia: energyStatus.tiempoParaSiguienteRegeneracion,
             evo: user.evo
         });
     }
@@ -144,10 +157,12 @@ router.get('/dashboard', auth_1.auth, async (req, res) => {
         if (!req.userId) {
             return res.status(401).json({ error: 'No autenticado' });
         }
-        const user = await User_1.User.findById(req.userId).select('val boletos evo dungeon_stats personajes');
+        const user = await User_1.User.findById(req.userId).select('val boletos energia energiaMaxima ultimoReinicioEnergia fechaRegistro evo dungeon_stats personajes');
         if (!user) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
+        // Obtener estado de energía con regeneración automática
+        const energyStatus = await energy_service_1.default.getEnergyStatus(user);
         // Contar notificaciones no leídas
         const unreadNotifications = await Notification_1.Notification.countDocuments({
             userId: req.userId,
@@ -159,6 +174,9 @@ router.get('/dashboard', auth_1.auth, async (req, res) => {
             resources: {
                 val: user.val,
                 boletos: user.boletos,
+                energia: energyStatus.energia,
+                energiaMaxima: energyStatus.energiaMaxima,
+                tiempoParaSiguienteRegeneracionEnergia: energyStatus.tiempoParaSiguienteRegeneracion,
                 evo: user.evo
             },
             dungeonStats: user.dungeon_stats,
@@ -201,14 +219,6 @@ router.put('/tutorial/complete', auth_1.auth, async (req, res) => {
 router.post('/characters/add', auth_1.auth, async (req, res) => {
     const { personajeId, rango } = req.body;
     const userId = req.userId;
-    // 1. Validaciones de entrada
-    if (!personajeId || !rango) {
-        return res.status(400).json({ error: 'Faltan los campos personajeId o rango.' });
-    }
-    const rangosValidos = ["D", "C", "B", "A", "S", "SS", "SSS"];
-    if (!rangosValidos.includes(rango)) {
-        return res.status(400).json({ error: `El rango '${rango}' no es válido.` });
-    }
     try {
         // 2. Verificar que el personaje base exista en el catálogo del juego
         const baseCharacter = await BaseCharacter_1.default.findOne({ id: personajeId });
@@ -294,6 +304,93 @@ router.get('/debug/my-data', auth_1.auth, async (req, res) => {
     }
     catch (error) {
         res.status(500).json({ error: 'Error interno al buscar datos de debug.' });
+    }
+});
+// --- 👇 RUTA PARA ELIMINAR PERSONAJES 👇 ---
+// DELETE /users/characters/:personajeId
+router.delete('/characters/:personajeId', auth_1.auth, async (req, res) => {
+    const { personajeId } = req.params;
+    const userId = req.userId;
+    if (!personajeId) {
+        return res.status(400).json({ error: 'Falta el parámetro personajeId.' });
+    }
+    try {
+        // 1. Buscar al usuario
+        const user = await User_1.User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+        // 2. Verificar que el personaje le pertenece al usuario
+        const personajeIndex = user.personajes.findIndex(p => p.personajeId === personajeId);
+        if (personajeIndex === -1) {
+            return res.status(404).json({ error: 'Personaje no encontrado.' });
+        }
+        // 3. No permitir eliminar el personaje activo
+        if (user.personajeActivoId === personajeId) {
+            return res.status(400).json({ error: 'No puedes eliminar el personaje activo.' });
+        }
+        // 4. Eliminar el personaje
+        user.personajes.splice(personajeIndex, 1);
+        await user.save();
+        // 5. Enviar respuesta exitosa
+        return res.status(200).json({
+            message: 'Personaje eliminado exitosamente.',
+            personajes: user.personajes
+        });
+    }
+    catch (error) {
+        console.error('Error al eliminar personaje:', error);
+        return res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+});
+// POST /api/users/energy/consume - Consumir energía para actividades
+router.post('/energy/consume', auth_1.auth, async (req, res) => {
+    try {
+        if (!req.userId) {
+            return res.status(401).json({ error: 'No autenticado' });
+        }
+        const { amount } = req.body;
+        if (!amount || typeof amount !== 'number' || amount <= 0) {
+            return res.status(400).json({ error: 'Cantidad de energía inválida' });
+        }
+        const user = await User_1.User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        const result = await energy_service_1.default.consumeEnergy(user, amount);
+        if (!result.success) {
+            return res.status(400).json({ error: result.message });
+        }
+        // Obtener estado actualizado de energía
+        const energyStatus = await energy_service_1.default.getEnergyStatus(user);
+        return res.json({
+            message: result.message,
+            energia: energyStatus.energia,
+            energiaMaxima: energyStatus.energiaMaxima,
+            tiempoParaSiguienteRegeneracion: energyStatus.tiempoParaSiguienteRegeneracion
+        });
+    }
+    catch (error) {
+        console.error('Error al consumir energía:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+// GET /api/users/energy/status - Obtener estado actual de energía
+router.get('/energy/status', auth_1.auth, async (req, res) => {
+    try {
+        if (!req.userId) {
+            return res.status(401).json({ error: 'No autenticado' });
+        }
+        const user = await User_1.User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        const energyStatus = await energy_service_1.default.getEnergyStatus(user);
+        return res.json(energyStatus);
+    }
+    catch (error) {
+        console.error('Error al obtener estado de energía:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 exports.default = router;

@@ -471,6 +471,80 @@ export class GameSettingsService {
 
 ---
 
+## 9️⃣ energy.service.ts
+
+```typescript
+// src/app/core/services/energy.service.ts
+
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { ApiService } from './api.service';
+
+export interface EnergyConsumeRequest {
+  cantidad: number;
+}
+
+export interface EnergyConsumeResponse {
+  success: boolean;
+  message: string;
+  energiaRestante: number;
+  energiaMaxima: number;
+  proximaRegeneracion: Date;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class EnergyService {
+  constructor(private api: ApiService) {}
+
+  /**
+   * Consume energía del usuario para actividades de juego
+   * @param cantidad Cantidad de energía a consumir
+   * @returns Observable con resultado del consumo
+   */
+  consumeEnergy(cantidad: number): Observable<EnergyConsumeResponse> {
+    return this.api.post<EnergyConsumeResponse>('/api/users/energy/consume', {
+      cantidad
+    });
+  }
+
+  /**
+   * Verifica si el usuario tiene suficiente energía
+   * @param energiaActual Energía actual del usuario
+   * @param energiaRequerida Energía requerida para la actividad
+   * @returns true si tiene suficiente energía
+   */
+  hasEnoughEnergy(energiaActual: number, energiaRequerida: number): boolean {
+    return energiaActual >= energiaRequerida;
+  }
+
+  /**
+   * Calcula el tiempo restante para la próxima regeneración
+   * @param ultimoReinicio Última vez que se regeneró energía
+   * @returns Tiempo en milisegundos hasta la próxima regeneración
+   */
+  getTimeToNextRegeneration(ultimoReinicio: Date): number {
+    const now = new Date();
+    const nextRegen = new Date(ultimoReinicio.getTime() + 30 * 60 * 1000); // 30 minutos
+    return Math.max(0, nextRegen.getTime() - now.getTime());
+  }
+
+  /**
+   * Formatea el tiempo restante en formato legible
+   * @param milliseconds Tiempo en milisegundos
+   * @returns String formateado (ej: "5m 30s")
+   */
+  formatTimeRemaining(milliseconds: number): string {
+    const minutes = Math.floor(milliseconds / (1000 * 60));
+    const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+    return `${minutes}m ${seconds}s`;
+  }
+}
+```
+
+---
+
 ## ✅ CHECKLIST DE SERVICIOS
 
 Después de copiar todos los archivos, verifica:

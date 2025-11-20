@@ -1,34 +1,215 @@
-# 🎮 Valgame Backend
+# 🎮 Valgame Backend v2.0
 
 Backend del juego RPG Valgame, construido con Node.js, Express, TypeScript y MongoDB.
 
+**Versión:** 2.0.0 - Reorganización Completa  
+**Estado:** ✅ Producción Ready  
+**Última actualización:** 20 de noviembre de 2025
+
 ---
 
-## 📚 DOCUMENTACIÓN COMPLETA
+## 🚀 INICIO RÁPIDO
+
+### 1. Configuración Inicial
+```bash
+# Clonar repositorio
+git clone <repository-url>
+cd valgame-backend
+
+# Instalar dependencias
+npm install
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales reales
+
+# Iniciar base de datos y servidor
+npm run seed
+npm run dev
+```
+
+### 2. Verificar Instalación
+```bash
+# El servidor debería estar corriendo en http://localhost:8080
+curl http://localhost:8080/api/health
+```
+
+---
+
+## 📚 DOCUMENTACIÓN ORGANIZADA
 
 ### 🎯 Documentos Esenciales (Leer en este orden)
 
-1. **[📦 DEPENDENCIAS_PRODUCCION.md](docs/DEPENDENCIAS_PRODUCCION.md)**
-   - Node 22.16.0, MongoDB 8.0, versiones exactas de npm packages
-   - Configuración de Render.com (producción en vivo)
-   - Variables de entorno requeridas (.env)
-   - Comandos de instalación y despliegue
+1. **[📖 docs_reorganizada/README_MASTER.md](docs_reorganizada/README_MASTER.md)**
+   - Visión completa del proyecto reorganizado
+   - Navegación por todas las secciones
+   - Estado actual y próximos pasos
 
-2. **[🗺️ MAPA_BACKEND.md](docs/MAPA_BACKEND.md)**
-   - Estructura de código completa (carpetas y archivos explicados)
-   - Flujo de usuario completo (12 funcionalidades principales)
-   - Endpoints críticos resumidos
-   - Seguridad explicada visualmente
+2. **[⚡ docs_reorganizada/00_INICIO/GUIA_RAPIDA_SETUP.md](docs_reorganizada/00_INICIO/GUIA_RAPIDA_SETUP.md)**
+   - Configuración completa en 5 minutos
+   - Prerrequisitos y dependencias
+   - Solución de problemas comunes
 
-3. **[📖 DOCUMENTACION.md](docs/DOCUMENTACION.md)**
-   - Sistemas del juego (combate, progresión, marketplace)
-   - Economía del juego (VAL, EVO, items)
-   - Mecánicas detalladas (permadeath, evolución, gacha)
+3. **[🏗️ docs_reorganizada/00_INICIO/ARQUITECTURA_GENERAL.md](docs_reorganizada/00_INICIO/ARQUITECTURA_GENERAL.md)**
+   - Arquitectura técnica completa
+   - Stack tecnológico y patrones
+   - Flujos principales del sistema
 
-### 📂 Índice General
-👉 **[docs/00_INICIO/README.md](docs/00_INICIO/README.md)** - Índice maestro de toda la documentación
+### 📂 Estructura Documental
+```
+docs_reorganizada/
+├── README_MASTER.md                 ✅ Visión general
+├── 00_INICIO/                      ✅ Inicio y arquitectura
+├── 01_BACKEND_CORE/                ✅ API, BD, modelos, testing
+├── 04_SECURITY/                    ✅ Seguridad y auditoría
+└── 05_DEPLOYMENT/                  ✅ Deployment y escalabilidad
+```
 
 ---
+
+## 🔧 FUNCIONALIDADES PRINCIPALES
+
+### ✅ Autenticación & Usuarios
+- Registro con verificación de email
+- Login con JWT (httpOnly cookies)
+- Recuperación de contraseña
+- Reenvío de verificación
+
+### ✅ Sistema de Juego
+- **Ranking competitivo** - 4 endpoints (global, personal, períodos, stats)
+- **Combate automático** - Sistema de mazmorras con loot
+- **Progresión de personajes** - XP, niveles, evolución, rangos
+- **Marketplace P2P** - Compra/venta entre jugadores
+
+### ✅ Economía & Items
+- **Monedas:** VAL (principal), EVO (evolución)
+- **Items:** Equipamiento, consumibles, boosters
+- **Gacha system:** Paquetes con probabilidades
+- **Tienda:** Compras con monedas del juego
+
+### ✅ Características Avanzadas
+- **WebSocket** - Eventos en tiempo real
+- **Permadeath** - Sistema de muerte permanente
+- **Energía** - Sistema de regeneración temporal
+- **Cron jobs** - Automatización de marketplace y permadeath
+
+---
+
+## 🛠️ STACK TECNOLÓGICO
+
+| Componente | Tecnología | Versión |
+|------------|------------|---------|
+| **Runtime** | Node.js | 22.16.0 |
+| **Framework** | Express.js | 5.1.0 |
+| **Lenguaje** | TypeScript | 5.9.3 |
+| **Base de Datos** | MongoDB | 8.0 |
+| **ODM** | Mongoose | 8.20.0 |
+| **Autenticación** | JWT + bcrypt | - |
+| **Validación** | Zod | 4.1.11 |
+| **WebSocket** | Socket.IO | 4.8.1 |
+| **Testing** | Jest + Supertest | - |
+| **Deployment** | Render.com | - |
+
+---
+
+## 📊 ESTADÍSTICAS DEL PROYECTO
+
+- **📄 Endpoints:** 54 operativos
+- **🧪 Tests:** 22 archivos (16 E2E + 4 Unit + 2 Security)
+- **📚 Documentación:** 12 documentos maestros organizados
+- **🔒 Seguridad:** OWASP compliant + auditoría completa
+- **🚀 Escalabilidad:** Preparado para millones de usuarios
+
+---
+
+## 🧪 TESTING
+
+### Ejecutar Tests Completos
+```bash
+# Test maestro (flujo completo)
+npm run test:master
+
+# Todos los tests E2E
+npm run test:e2e
+
+# Tests unitarios
+npm run test:unit
+
+# Cobertura completa
+npm run test:coverage
+```
+
+### Tests Disponibles
+- **16 Tests E2E** - Validación completa de flujos
+- **4 Tests Unitarios** - Servicios críticos
+- **2 Tests de Seguridad** - Marketplace y paquetes
+- **Scripts de automatización** - Flujos comunes
+
+---
+
+## 🚀 DEPLOYMENT
+
+### Producción (Render.com)
+```bash
+# Validar código antes de deploy
+npm run validate
+
+# El proyecto está configurado para deployment automático en Render.com
+# con health checks, logs y monitoreo incluidos
+```
+
+### Desarrollo Local
+```bash
+# Iniciar en modo desarrollo
+npm run dev
+
+# Construir para producción
+npm run build
+
+# Ejecutar build
+npm start
+```
+
+---
+
+## 🔒 SEGURIDAD
+
+- ✅ **OWASP Top 10** cubierto
+- ✅ **JWT seguro** con expiración
+- ✅ **bcrypt** para hashing de contraseñas
+- ✅ **Helmet** para headers de seguridad
+- ✅ **Rate limiting** anti-abuso
+- ✅ **Validación Zod** en todas las entradas
+- ✅ **Auditoría completa** documentada
+
+---
+
+## 📞 SOPORTE & CONTACTO
+
+**Repositorio:** https://github.com/exploradoresvalnor-collab/valgame-backend
+**Documentación:** `docs_reorganizada/README_MASTER.md`
+**Issues:** Crear issue en GitHub para soporte
+
+---
+
+## 🎯 PRÓXIMOS PASOS
+
+1. ✅ **Reorganización completa** - Documentación estructurada
+2. ✅ **Seguridad auditada** - Vulnerabilidades corregidas
+3. 🔄 **Frontend separado** - Mover a repositorio propio
+4. 🔄 **CI/CD pipeline** - Automatización de deployment
+5. 🔄 **Tests de performance** - Validación de carga
+
+---
+
+**🎮 ¡Bienvenido a Valgame Backend v2.0!**  
+**📚 Lee la documentación organizada para empezar**
+
+---
+
+**Versión:** 2.0.0  
+**Estado:** ✅ Completo y Producción Ready  
+**Fecha:** 20 de noviembre de 2025
 
 ## 🚀 Quick Start
 

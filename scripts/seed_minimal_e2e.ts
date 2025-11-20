@@ -19,7 +19,7 @@ async function main() {
     puntos_ranking_por_victoria: 10,
     costo_ticket_en_val: 50,
     nivel_maximo_personaje: 100,
-    MAX_PERSONAJES_POR_EQUIPO: 3,
+    MAX_PERSONAJES_POR_EQUIPO: 9,
     EXP_GLOBAL_MULTIPLIER: 1,
     costo_revivir_personaje: 50,
     PERMADEATH_TIMER_HOURS: 24,
@@ -113,7 +113,9 @@ async function main() {
         passwordHash: 'hash-fake',
         isVerified: true,
         val: 100,
-        boletos: 5
+        boletos: 10,
+        energia: 100,
+        energiaMaxima: 100
       }
     },
     { upsert: true }

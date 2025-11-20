@@ -32,7 +32,9 @@ async function testHttpOnlyCookies() {
       passwordHash,
       isVerified: true, // Ya verificado para poder hacer login
       val: 1000,
-      boletos: 5,
+      boletos: 10,
+      energia: 100,
+      energiaMaxima: 100,
       evo: 0
     });
     

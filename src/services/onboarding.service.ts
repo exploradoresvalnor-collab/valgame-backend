@@ -47,9 +47,15 @@ export async function deliverPioneerPackage(user: IUser) {
   console.log(`[ONBOARDING] 💰 VAL otorgado: ${valInicial}`);
 
   // 2. Boletos (para abrir paquetes y conseguir personajes)
-  const boletosIniciales = 5;
+  const boletosIniciales = 10;
   user.boletos = (user.boletos || 0) + boletosIniciales;
   console.log(`[ONBOARDING] 🎫 Boletos otorgados: ${boletosIniciales}`);
+
+  // 2.5. Energía (para actividades como mazmorras)
+  const energiaInicial = 100;
+  user.energia = energiaInicial;
+  user.energiaMaxima = 100;
+  console.log(`[ONBOARDING] ⚡ Energía inicial: ${energiaInicial}/${user.energiaMaxima}`);
 
   // 3. EVO (para evolucionar personajes)
   const evoInicial = 2;

@@ -1,9 +1,3 @@
-# Dependencias
-node_modules/
-
-# Archivos de compilación
-dist/
-
 # Variables de entorno
 .env
 .env.local

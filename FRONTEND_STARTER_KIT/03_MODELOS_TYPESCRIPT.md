@@ -19,6 +19,9 @@ export interface User {
   val: number;
   boletos: number;
   evo: number;
+  energia: number;           // ✅ NUEVO: Energía actual (0-100)
+  energiaMaxima: number;     // ✅ NUEVO: Energía máxima (configurable)
+  ultimoReinicioEnergia?: Date; // ✅ NUEVO: Última regeneración automática
   invocaciones: number;
   evoluciones: number;
   boletosDiarios: number;

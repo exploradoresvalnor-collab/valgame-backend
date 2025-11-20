@@ -1,6 +1,6 @@
 # 📋 RESUMEN DE CAMBIOS IMPLEMENTADOS - NOVIEMBRE 2025
 
-**Fecha:** 3 de noviembre de 2025  
+**Fecha:** 20 de noviembre de 2025  
 **Estado:** ✅ TODOS LOS SISTEMAS FUNCIONANDO Y PROBADOS
 
 ---
@@ -776,6 +776,148 @@ El backend está **100% funcional y probado**. Toda la lógica compleja está im
 4. Mostrar los datos recibidos
 
 **No hay limitaciones técnicas**. Todo funciona. Es momento de construir la interfaz. 🎮
+
+---
+
+### 🔋 10️⃣ SISTEMA DE ENERGÍA/STAMINA COMPLETO (NOVEDAD 2025)
+
+#### ❌ Antes (Sin Sistema de Energía)
+```typescript
+// Sin límite de actividades
+// Jugadores podían farmear indefinidamente
+// Sin retención diaria
+```
+
+#### ✅ Ahora (Sistema Completo de Energía)
+```typescript
+// Modelo User actualizado
+interface User {
+  energia: number;           // 0-100
+  energiaMaxima: number;     // Configurable (100 por defecto)
+  ultimoReinicioEnergia?: Date;
+}
+
+// Endpoint de consumo
+POST /api/users/energy/consume
+Body: { "cantidad": 10 }
+
+// Regeneración automática cada 30 minutos
+// +1 energía por intervalo
+// Máximo 100 energía
+```
+
+**Actividades que consumen energía:**
+- **Mazmorras:** 5 energía por entrada
+- **Curación:** 2 energía por uso
+- **Evolución:** 10 energía por evolución
+
+**Lógica de regeneración:**
+```typescript
+const tiempoTranscurrido = Date.now() - ultimoReinicio.getTime();
+const intervalosCompletos = Math.floor(tiempoTranscurrido / (30 * 60 * 1000));
+const energiaARegenerar = Math.min(intervalosCompletos, MAX_ENERGY - energiaActual);
+```
+
+**Resultados probados:**
+```bash
+# Test E2E
+1. Usuario con 100 energía
+2. Consumir 10 energía → 90 restante ✅
+3. Intentar consumir 100 → Error "Energía insuficiente" ✅
+4. Esperar 30 minutos → Energía regenerada automáticamente ✅
+```
+
+**Archivos modificados:**
+- `src/models/User.ts` - Campos de energía añadidos
+- `src/services/energy.service.ts` - **NUEVO** Servicio completo
+- `src/routes/users.routes.ts` - Endpoint `/api/users/energy/consume`
+- `src/controllers/characters.controller.ts` - Consumo en actividades
+
+---
+
+### 💰 11️⃣ MEJORAS ECONÓMICAS Y BALANCE (NOVEDAD 2025)
+
+#### Equipo Expandido (3 → 9 Personajes)
+```typescript
+// Antes: MAX_PERSONAJES_POR_EQUIPO = 3
+// Ahora: MAX_PERSONAJES_POR_EQUIPO = 9
+
+// Permite estrategias más complejas
+// Mayor retención por colección
+```
+
+#### Sistema de Tickets Mejorado
+```typescript
+// Antes: 5 tickets diarios
+// Ahora: 10 tickets diarios
+
+// Antes: Sin límite estricto de farming
+// Ahora: Sistema de tickets previene farming excesivo
+```
+
+#### Costos de Curación Duplicados
+```typescript
+// Antes: Curación gratis o costo bajo
+// Ahora: Costo dinámico = Math.ceil((HP_MAX - HP_ACTUAL) / 10)
+
+// Ejemplo: Personaje con 50/200 HP
+// Costo = Math.ceil(150/10) = 15 VAL
+```
+
+#### Endpoint de Compra de Tickets
+```typescript
+POST /api/shop/buy-tickets
+Body: { "cantidad": 5 }
+
+// Permite comprar tickets adicionales con VAL
+// Mantiene economía activa
+```
+
+**Análisis de Progresión Completo:**
+- ✅ Análisis detallado de juegos Gacha exitosos (Genshin Impact, Honkai Star Rail)
+- ✅ Identificación de patrones de retención de jugadores
+- ✅ Implementación de mejoras específicas para aumentar engagement
+
+**Archivos modificados:**
+- `src/controllers/shop.controller.ts` - Endpoint de compra de tickets
+- `src/services/game-settings.service.ts` - Configuraciones actualizadas
+- `src/controllers/characters.controller.ts` - Costos de curación duplicados
+
+---
+
+### 🎮 12️⃣ SISTEMAS FUTUROS DE COMBATE PLANIFICADOS (NOVEDAD 2025)
+
+#### Auto-Battle (Combate Automático)
+```typescript
+// Planificación completa en Valnor-guia.md
+POST /api/combat/auto-battle/start
+- IA combate automáticamente usando mejores estrategias
+- Recompensas reducidas (70% de normales)
+- Ahorra tiempo a jugadores experimentados
+```
+
+#### PVP Simulado
+```typescript
+POST /api/pvp/simulated/attack/:matchId
+- Combate asíncrono entre jugadores
+- Sistema de matchmaking por rango/puntuación
+- Defensa automática con mejor formación
+```
+
+#### PVP Real-Time
+```typescript
+POST /api/pvp/realtime/join-queue
+- Combate en tiempo real con WebSocket
+- Salas de espera con matchmaking
+- Combate por turnos con límite de tiempo
+```
+
+**Fases de implementación:**
+1. **Fase 1 (1-2 semanas):** Auto-battle básico
+2. **Fase 2 (2-3 semanas):** PVP simulado
+3. **Fase 3 (3-4 semanas):** PVP real-time completo
+
+**Documentación:** Completada en `Valnor-guia.md` sección "SISTEMAS DE COMBATE FUTUROS (PLANIFICACIÓN)"
 
 ---
 

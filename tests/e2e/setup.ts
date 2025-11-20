@@ -119,7 +119,7 @@ export async function seedTestData() {
         // Campos que ya estaban
         nivel_maximo_personaje: 100,
         costo_revivir_personaje: 50,
-        MAX_PERSONAJES_POR_EQUIPO: 3,
+        MAX_PERSONAJES_POR_EQUIPO: 9,
         EXP_GLOBAL_MULTIPLIER: 1,
         PERMADEATH_TIMER_HOURS: 24,
         

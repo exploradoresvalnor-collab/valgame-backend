@@ -56,6 +56,9 @@ export interface IUser extends Document {
   walletAddress?: string;
   val: number;
   boletos: number;
+  energia: number;
+  energiaMaxima: number;
+  ultimoReinicioEnergia?: Date;
   evo: number;
   invocaciones: number;
   evoluciones: number;
@@ -157,6 +160,9 @@ const UserSchema = new Schema<IUser>({
     walletAddress: { type: String, unique: true, sparse: true },
     val: { type: Number, default: 0, min: 0 },
     boletos: { type: Number, default: 0, min: 0 },
+    energia: { type: Number, default: 100, min: 0 },
+    energiaMaxima: { type: Number, default: 100, min: 1 },
+    ultimoReinicioEnergia: { type: Date },
     evo: { type: Number, default: 0, min: 0 },
     invocaciones: { type: Number, default: 0, min: 0 },
     evoluciones: { type: Number, default: 0, min: 0 },

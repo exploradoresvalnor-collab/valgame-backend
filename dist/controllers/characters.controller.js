@@ -1,0 +1,383 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.evolveCharacter = exports.addExperience = exports.healCharacter = exports.useConsumable = exports.reviveCharacter = void 0;
+const User_1 = require("../models/User");
+const GameSetting_1 = __importDefault(require("../models/GameSetting"));
+const BaseCharacter_1 = __importDefault(require("../models/BaseCharacter"));
+const realtime_service_1 = require("../services/realtime.service");
+const reviveCharacter = async (req, res) => {
+    const { characterId } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+        return res.status(401).json({ error: 'Usuario no autenticado.' });
+    }
+    try {
+        // Cargar usuario y configuración del juego
+        const [user, gameSettings] = await Promise.all([
+            User_1.User.findById(userId),
+            GameSetting_1.default.findOne()
+        ]);
+        if (!user)
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        if (!gameSettings)
+            return res.status(500).json({ error: 'Configuración del juego no encontrada.' });
+        // Encontrar el personaje específico dentro del array del usuario
+        const character = user.personajes.find(p => p.personajeId === characterId);
+        if (!character) {
+            return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
+        }
+        // Validar que el personaje está herido
+        if (character.estado !== 'herido') {
+            return res.status(400).json({ error: `El personaje ${character.personajeId} no está herido.` });
+        }
+        // Validar y cobrar el costo de resurrección
+        const cost = gameSettings.costo_revivir_personaje;
+        if (user.val < cost) {
+            return res.status(400).json({ error: `No tienes suficiente VAL para revivir al personaje. Costo: ${cost} VAL.` });
+        }
+        // Realizar el cobro
+        user.val -= cost;
+        // Revivir al personaje
+        character.estado = 'saludable';
+        character.saludActual = character.saludMaxima;
+        character.fechaHerido = null;
+        // Guardar los cambios en la base de datos
+        await user.save();
+        // Notificar en tiempo real (solo si está inicializado)
+        try {
+            const realtimeService = realtime_service_1.RealtimeService.getInstance();
+            realtimeService.notifyCharacterUpdate(userId, characterId, {
+                estado: character.estado,
+                saludActual: character.saludActual,
+                type: 'REVIVE'
+            });
+        }
+        catch (err) {
+            // En testing, el servicio de realtime puede no estar inicializado
+            if (process.env.NODE_ENV !== 'test') {
+                console.warn('[reviveCharacter] RealtimeService no disponible:', err);
+            }
+        }
+        // Enviar respuesta
+        res.json({
+            message: `¡El personaje ${character.personajeId} ha sido revivido!`,
+            valRestante: user.val,
+            characterState: {
+                personajeId: character.personajeId,
+                estado: character.estado,
+                saludActual: character.saludActual
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error al revivir el personaje:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+exports.reviveCharacter = reviveCharacter;
+// --- FUNCIÓN CORREGIDA PARA USAR CONSUMIBLES ---
+const useConsumable = async (req, res) => {
+    const { characterId } = req.params;
+    const { itemId } = req.body; // ID del item consumible
+    const userId = req.userId;
+    if (!userId) {
+        return res.status(401).json({ error: 'Usuario no autenticado.' });
+    }
+    if (!itemId) {
+        return res.status(400).json({ error: 'Debes proporcionar el ID del consumible a usar.' });
+    }
+    try {
+        // RUTA DE POPULATE CORREGIDA
+        const user = await User_1.User.findById(userId).populate('inventarioConsumibles.consumableId');
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        }
+        // RUTA DE ACCESO CORREGIDA
+        const inventoryItem = user.inventarioConsumibles.find((i) => i.consumableId._id.toString() === itemId);
+        if (!inventoryItem) {
+            return res.status(404).json({ error: 'El item no se encuentra en tu inventario.' });
+        }
+        const consumable = inventoryItem.consumableId;
+        const character = user.personajes.find(p => p.personajeId === characterId);
+        if (!character) {
+            return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
+        }
+        // Lógica para aplicar efectos del consumible
+        if (consumable.efectos.mejora_vida) {
+            // Efecto inmediato: curar vida
+            character.saludActual = Math.min(character.saludMaxima, character.saludActual + consumable.efectos.mejora_vida);
+        }
+        // Aplicar buffs temporales si hay duración
+        if (consumable.duracion_efecto_minutos && consumable.duracion_efecto_minutos > 0) {
+            const buffExpiresAt = new Date(Date.now() + consumable.duracion_efecto_minutos * 60 * 1000);
+            const buff = {
+                consumableId: inventoryItem.consumableId,
+                effects: {
+                    mejora_atk: consumable.efectos.mejora_atk || 0,
+                    mejora_defensa: consumable.efectos.mejora_defensa || 0,
+                    mejora_xp_porcentaje: consumable.efectos.mejora_xp_porcentaje || 0
+                },
+                expiresAt: buffExpiresAt
+            };
+            character.activeBuffs.push(buff);
+        }
+        // Reducir usos o eliminar
+        inventoryItem.usos_restantes -= 1;
+        if (inventoryItem.usos_restantes <= 0) {
+            // Eliminar el subdocumento del array
+            user.inventarioConsumibles.pull(inventoryItem._id);
+        }
+        // Asegurarse de marcar el array como modificado para que mongoose persista los cambios
+        if (typeof user.markModified === 'function') {
+            user.markModified('inventarioConsumibles');
+        }
+        await user.save();
+        res.json({
+            message: `Has usado ${consumable.nombre} en ${character.personajeId}.`,
+            saludActual: character.saludActual
+        });
+    }
+    catch (error) {
+        console.error('Error al usar el consumible:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+exports.useConsumable = useConsumable;
+const healCharacter = async (req, res) => {
+    const { characterId } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+        return res.status(401).json({ error: 'Usuario no autenticado.' });
+    }
+    try {
+        const user = await User_1.User.findById(userId);
+        if (!user)
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        const character = user.personajes.find(p => p.personajeId === characterId);
+        if (!character) {
+            return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
+        }
+        // 1. Validar el estado del personaje
+        if (character.estado === 'herido') {
+            return res.status(400).json({ error: `El personaje está herido y debe ser revivido, no curado.` });
+        }
+        if (character.saludActual >= character.saludMaxima) {
+            return res.status(400).json({ error: `El personaje ${character.personajeId} ya tiene la salud al máximo.` });
+        }
+        // 2. Calcular el costo (2 VAL por 10 HP curados, redondeado hacia arriba)
+        const healthToHeal = character.saludMaxima - character.saludActual;
+        const cost = Math.ceil(healthToHeal / 10) * 2;
+        if (user.val < cost) {
+            return res.status(400).json({ error: `No tienes suficiente VAL para curar al personaje. Costo: ${cost} VAL.` });
+        }
+        // 3. Realizar la transacción
+        user.val -= cost;
+        character.saludActual = character.saludMaxima;
+        await user.save();
+        // Notificar en tiempo real (solo si está inicializado)
+        try {
+            const realtimeService = realtime_service_1.RealtimeService.getInstance();
+            realtimeService.notifyCharacterUpdate(userId, characterId, {
+                saludActual: character.saludActual,
+                type: 'HEAL'
+            });
+        }
+        catch (err) {
+            // En testing, el servicio de realtime puede no estar inicializado
+            if (process.env.NODE_ENV !== 'test') {
+                console.warn('[healCharacter] RealtimeService no disponible:', err);
+            }
+        }
+        // 4. Enviar respuesta
+        res.json({
+            message: `¡El personaje ${character.personajeId} ha sido curado por completo!`,
+            valRestante: user.val,
+            costo: cost,
+            characterState: {
+                personajeId: character.personajeId,
+                saludActual: character.saludActual
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error al curar el personaje:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+exports.healCharacter = healCharacter;
+const LevelHistory_1 = require("../models/LevelHistory");
+const LevelRequirement_1 = __importDefault(require("../models/LevelRequirement"));
+const addExperience = async (req, res) => {
+    const { characterId } = req.params;
+    const { amount } = req.body;
+    const userId = req.userId;
+    if (!userId) {
+        return res.status(401).json({ error: 'Usuario no autenticado.' });
+    }
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'La cantidad de experiencia debe ser mayor a 0.' });
+    }
+    try {
+        const user = await User_1.User.findById(userId);
+        if (!user)
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        const character = user.personajes.find(p => p.personajeId === characterId);
+        if (!character) {
+            return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
+        }
+        // Obtener el nivel actual y la experiencia necesaria para el siguiente nivel
+        const levelBefore = character.nivel;
+        character.experiencia = (character.experiencia || 0) + amount;
+        // Verificar si subió de nivel
+        let leveledUp = false;
+        while (true) {
+            const nextLevelReq = await LevelRequirement_1.default.findOne({ nivel: character.nivel + 1 });
+            if (!nextLevelReq || character.experiencia < nextLevelReq.experiencia_requerida) {
+                break;
+            }
+            // Subir de nivel
+            character.nivel += 1;
+            leveledUp = true;
+            // Guardar stats anteriores antes de actualizarlos
+            const statsAnteriores = { ...character.stats };
+            const experienciaAnterior = character.experiencia - amount;
+            // Actualizar stats según el nuevo nivel
+            const baseChar = await BaseCharacter_1.default.findOne({ id: character.personajeId });
+            if (baseChar) {
+                character.stats = {
+                    atk: baseChar.stats.atk + (character.nivel - 1) * 2,
+                    defensa: baseChar.stats.defensa + (character.nivel - 1) * 2,
+                    vida: baseChar.stats.vida + (character.nivel - 1) * 10
+                };
+                character.saludMaxima = character.stats.vida;
+                character.saludActual = character.stats.vida;
+            }
+            // Si subió de nivel, registrar en el historial con la información detallada
+            const levelHistory = new LevelHistory_1.LevelHistory({
+                userId: user._id,
+                personajeId: characterId,
+                nivel: character.nivel,
+                experienciaTotal: character.experiencia,
+                experienciaAnterior: experienciaAnterior,
+                experienciaNueva: character.experiencia,
+                statsAnteriores: statsAnteriores,
+                statsNuevos: character.stats,
+                fecha: new Date()
+            });
+            await levelHistory.save();
+        }
+        await user.save();
+        // Notificar en tiempo real (solo si está inicializado)
+        try {
+            const realtimeService = realtime_service_1.RealtimeService.getInstance();
+            realtimeService.notifyCharacterUpdate(userId, characterId, {
+                nivel: character.nivel,
+                experiencia: character.experiencia,
+                stats: character.stats,
+                type: leveledUp ? 'LEVEL_UP' : 'EXP_GAIN'
+            });
+        }
+        catch (err) {
+            // En testing, el servicio de realtime puede no estar inicializado
+            if (process.env.NODE_ENV !== 'test') {
+                console.warn('[addExperience] RealtimeService no disponible:', err);
+            }
+        }
+        res.json({
+            message: leveledUp
+                ? `¡${character.personajeId} ha subido al nivel ${character.nivel}!`
+                : `${character.personajeId} ha ganado ${amount} de experiencia`,
+            characterState: {
+                personajeId: character.personajeId,
+                nivel: character.nivel,
+                experiencia: character.experiencia,
+                stats: character.stats,
+                leveledUp
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error al añadir experiencia:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+exports.addExperience = addExperience;
+const evolveCharacter = async (req, res) => {
+    const { characterId } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+        return res.status(401).json({ error: 'Usuario no autenticado.' });
+    }
+    try {
+        const user = await User_1.User.findById(userId);
+        if (!user)
+            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        const characterToEvolve = user.personajes.find(p => p.personajeId === characterId);
+        if (!characterToEvolve) {
+            return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
+        }
+        const baseChar = await BaseCharacter_1.default.findOne({ id: characterToEvolve.personajeId });
+        if (!baseChar || !baseChar.evoluciones) {
+            return res.status(404).json({ error: 'No se encontró la información de evolución para este personaje.' });
+        }
+        const nextEvolution = baseChar.evoluciones.find(evo => evo.etapa === characterToEvolve.etapa + 1);
+        if (!nextEvolution) {
+            return res.status(400).json({ error: 'Este personaje ya ha alcanzado su máxima evolución.' });
+        }
+        // --- Verificación de Requisitos ---
+        const { nivel, val, evo } = nextEvolution.requisitos;
+        // val puede venir como string o number, manejamos ambos
+        const valCost = typeof val === 'number' ? val : parseInt(String(val || '0'), 10);
+        if (characterToEvolve.nivel < nivel) {
+            return res.status(400).json({ error: `Se requiere nivel ${nivel} para evolucionar. Nivel actual: ${characterToEvolve.nivel}.` });
+        }
+        if (user.val < valCost) {
+            return res.status(400).json({ error: `No tienes suficiente VAL para evolucionar. Requerido: ${valCost} VAL.` });
+        }
+        if (user.evo < evo) {
+            return res.status(400).json({ error: `No tienes suficientes Cristales de Evolución. Requerido: ${evo} EVO.` });
+        }
+        // --- Cobro de Recursos ---
+        user.val -= valCost;
+        user.evo -= evo;
+        // --- Actualización del Personaje ---
+        // nextEvolution.etapa puede ser number; casteamos para satisfacer el tipo esperado en el subdocumento
+        characterToEvolve.etapa = nextEvolution.etapa;
+        characterToEvolve.stats = nextEvolution.stats; // Asignar las nuevas estadísticas base
+        characterToEvolve.saludMaxima = nextEvolution.stats.vida; // Actualizar salud máxima
+        characterToEvolve.saludActual = nextEvolution.stats.vida; // Curar completamente
+        await user.save();
+        // Emitir evento WebSocket
+        try {
+            const realtimeService = realtime_service_1.RealtimeService.getInstance();
+            realtimeService.notifyCharacterUpdate(userId, characterId, {
+                etapa: characterToEvolve.etapa,
+                stats: characterToEvolve.stats,
+                saludMaxima: characterToEvolve.saludMaxima,
+                saludActual: characterToEvolve.saludActual,
+                type: 'EVOLVE'
+            });
+        }
+        catch (err) {
+            if (process.env.NODE_ENV !== 'test') {
+                console.warn('[evolveCharacter] RealtimeService no disponible:', err);
+            }
+        }
+        res.json({
+            message: `¡Felicidades! ${baseChar.nombre} ha evolucionado a ${nextEvolution.nombre}! `,
+            character: {
+                personajeId: characterToEvolve.personajeId,
+                etapa: characterToEvolve.etapa,
+                stats: characterToEvolve.stats
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error al evolucionar el personaje:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+exports.evolveCharacter = evolveCharacter;
