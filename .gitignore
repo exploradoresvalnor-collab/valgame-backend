@@ -31,3 +31,6 @@ cookies.txt
 server-output.log
 .cors-domains
 *.log.tmp
+
+# Carpeta de desarrollo frontend temporal
+front para arreglar/
