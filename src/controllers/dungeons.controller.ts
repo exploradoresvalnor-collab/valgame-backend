@@ -50,6 +50,11 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     if (!dungeon) return res.status(404).json({ error: 'Mazmorra no encontrada.' });
     if (!gameSettings) return res.status(500).json({ error: 'Configuración del juego no encontrada.' });
     if (!levelRequirements || levelRequirements.length === 0) return res.status(500).json({ error: 'Requisitos de nivel no encontrados.' });
+    // Validar que el usuario tenga boletos suficientes
+    if (!user.boletos || user.boletos < 1) {
+      return res.status(400).json({ error: 'No tienes boletos suficientes para entrar a la mazmorra. Compra más en la tienda.' });
+    }
+
     if (team.length > gameSettings.MAX_PERSONAJES_POR_EQUIPO) {
         return res.status(400).json({ error: `El equipo no puede tener más de ${gameSettings.MAX_PERSONAJES_POR_EQUIPO} personajes.` });
     }
@@ -414,6 +419,9 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         { upsert: true, new: true }
       );
     }
+
+    // --- Restar boleto usado ---
+    user.boletos -= 1;
 
     // --- 6. Actualizar Estado de Personajes ---
     combatTeam.forEach(char => {

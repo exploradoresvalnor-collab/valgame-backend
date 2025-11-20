@@ -1850,6 +1850,168 @@ La guía anterior cubre el flujo de paquetes, inventario y mecánicas básicas. 
 
 Esta actualización completa la guía `Valnor-guia.md` con todas las pantallas y endpoints implementados, manteniendo la estructura paso a paso. Ahora es una referencia completa para el desarrollo frontend, con ejemplos de llamadas, UX y errores. Si necesitas más detalles en alguna sección o ejemplos de código adicionales, avísame.
 
+---
+
+## 📊 AUDITORÍA ECONÓMICA Y BALANCE DEL JUEGO
+
+### 🎯 OBJETIVOS DE LA ECONOMÍA
+- **Equilibrio**: Ganancias = Costos (break even en sesiones normales)
+- **Progresión**: Dificultad creciente pero justa
+- **Retención**: Recompensas satisfactorias sin abuso
+- **Monetización**: VAL como moneda premium, EVO como recurso raro
+
+### 💰 SISTEMA ECONÓMICO ACTUAL (PRE-BALANCE)
+
+#### Recursos del Jugador
+- **VAL**: Moneda principal (comprada con USDT)
+- **EVO**: Cristales de evolución (raros, de mazmorras)
+- **Boletos**: Para entrar a mazmorras (¿implementado?)
+- **Boletos Diarios**: Recompensa diaria (máx 10)
+
+#### Costos Actuales (BALANCEADOS)
+- **Entrada Mazmorra**: ✅ 1 boleto por entrada
+- **Curación**: ✅ 2 VAL = 10 HP (antes 1 VAL)
+- **Revivir**: 50 VAL fijos
+- **Evolución**: VAL + EVO variables por etapa/rango
+
+#### Ganancias por Mazmorra
+- **VAL**: Base + escalado por nivel de mazmorra
+- **EXP**: Base + escalado + buffs de consumibles
+- **Ítems**: Drop tables con probabilidades variables
+- **Personajes Exclusivos**: A partir de nivel 20 de mazmorra
+
+### ⚠️ PROBLEMAS ECONÓMICOS IDENTIFICADOS
+
+#### 1. **Entrada Gratuita a Mazmorras**
+- **Problema**: Jugadores pueden farmear infinitamente
+- **Impacto**: Economía rota, abuso de drops
+- **Solución**: Implementar costo de boletos
+
+#### 2. **Curación Muy Barata**
+- **Problema**: 1 VAL = 10 HP permite curar equipos grandes barato
+- **Ejemplo**: Equipo de 9 personajes = 90 HP total, costo ~9 VAL
+- **Impacto**: Combate sin riesgo económico
+- **Solución**: Aumentar costo o implementar límite diario
+
+#### 3. **Equipo Limitado a 3 Personajes**
+- **Problema**: Solo 3 personajes reduce estrategia
+- **Impacto**: Gameplay limitado, menos engagement
+- **Solución**: Expandir a 9 personajes máximo
+
+#### 4. **Ganancias sin Balance**
+- **Problema**: Proporción VAL vs dificultad no estudiada
+- **Impacto**: Posible pay-to-win o farming excesivo
+- **Solución**: Análisis de ROI por sesión
+
+### 🎮 PROPUESTAS DE BALANCE
+
+#### Equipo: 3 → 9 Personajes
+```typescript
+// Cambiar en GameSettings
+MAX_PERSONAJES_POR_EQUIPO: 9  // Antes: 3
+```
+
+#### Sistema de Boletos para Mazmorras
+- **Costo**: 1 boleto por entrada
+- **Regeneración**: 5 boletos diarios gratis
+- **Compra**: 100 VAL = 1 boleto extra
+- **Máximo**: 10 boletos totales
+
+#### Curación Balanceada
+- **Costo Base**: 2 VAL = 10 HP (antes 1)
+- **Límite Diario**: Máximo 500 VAL en curaciones por día
+- **Alternativa**: Hospital gratuito limitado (3 usos/día)
+
+#### Sistema de Energía/Stamina
+- **Energía**: 100 puntos base
+- **Costo por Mazmorra**: 20-50 energía (según dificultad)
+- **Regeneración**: 10/minuto, completa en 10 minutos
+- **Compra**: 50 VAL = 50 energía extra
+
+#### Sistema de Boletos
+- **Uso**: 1 boleto por entrada a mazmorra
+- **Regeneración**: 5 boletos diarios gratis
+- **Compra**: 100 VAL = 1 boleto extra
+- **Máximo**: 10 boletos totales
+- **Diarios**: Hasta 10 boletos diarios adicionales
+
+### 📈 ANÁLISIS DE GANANCIAS ESPERADAS
+
+#### Sesión Típica (20 minutos)
+- **Entrada**: 1 boleto (gratis diario)
+- **Ganancias**:
+  - VAL: 50-200 (según mazmorra)
+  - EXP: 100-500 por personaje
+  - Ítems: 0-3 drops (20% probabilidad cada uno)
+- **Costos**:
+  - Curación: 20-100 VAL (doble de antes)
+  - Revivir: 0-150 VAL (si derrota)
+- **ROI**: Break even o +50 VAL neto
+
+#### Sesión Premium (con VAL)
+- **Compra Boletos**: 100 VAL → 1 boleto extra
+- **ROI**: Recuperar inversión en 2-3 mazmorras
+- **Beneficio**: Más sesiones = más progreso
+
+### 🛠️ IMPLEMENTACIÓN PASO A PASO
+
+#### Fase 1: Cambios Básicos (Esta Semana)
+1. **Cambiar límite equipo**: 3 → 9 personajes
+2. **Implementar boletos**: Costo 1 boleto/entrada
+3. **Aumentar curación**: 1 → 2 VAL por 10 HP
+
+#### Fase 2: Sistema de Energía (Próxima Semana)
+1. **Agregar energía al usuario**
+2. **Implementar costo por mazmorra**
+3. **Sistema de regeneración automática**
+
+#### Fase 3: Balance Final (Semana Siguiente)
+1. **Ajustar ganancias de mazmorras**
+2. **Balancear probabilidades de drops**
+3. **Testing extensivo de economía**
+
+### 📊 MÉTRICAS A MONITOREAR
+
+#### Economía
+- **ARPDAU**: Average Revenue Per Daily Active User
+- **Retention**: D1, D7, D30
+- **Conversion**: % usuarios que compran VAL
+
+#### Gameplay
+- **Session Length**: Duración promedio de sesión
+- **Win Rate**: % victorias por mazmorra
+- **Churn Rate**: % usuarios que dejan de jugar
+
+#### Balance
+- **Level Up Rate**: Velocidad de subida de nivel
+- **Resource Sink**: VAL gastado vs ganado
+- **Drop Rates**: Probabilidades reales vs teóricas
+
+### 🎯 REGLAS PARA DESARROLLADORES
+
+#### ✅ HACER
+- **Monitorear métricas diariamente**
+- **A/B testing para cambios económicos**
+- **Encuestas a jugadores sobre balance**
+- **Logs detallados de transacciones**
+
+#### ❌ EVITAR
+- **Cambios económicos sin testing**
+- **Nerfs sin compensación**
+- **Buffs permanentes sin costo**
+- **Features que rompan la economía**
+
+### 📅 CRONOGRAMA
+
+| Semana | Tarea | Estado |
+|--------|-------|--------|
+| Esta | ✅ Equipo 3→9 + Boletos básicos + Curación 2x | ✅ Completado |
+| +1 | Sistema de energía | 📋 Planificado |
+| +2 | Balance final + testing | 📋 Planificado |
+| +3 | Monitoreo y ajustes | 📋 Planificado |
+
+---
+
 **Última actualización:** 19 de noviembre de 2025  
-**Estado:** ✅ Guía Completa y Actualizada
+**Estado:** 📋 Plan de Economía en Desarrollo
 

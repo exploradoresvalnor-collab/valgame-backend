@@ -196,9 +196,9 @@ export const healCharacter = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: `El personaje ${character.personajeId} ya tiene la salud al máximo.` });
     }
 
-    // 2. Calcular el costo (1 VAL por 10 HP curados, redondeado hacia arriba)
+    // 2. Calcular el costo (2 VAL por 10 HP curados, redondeado hacia arriba)
     const healthToHeal = character.saludMaxima - character.saludActual;
-    const cost = Math.ceil(healthToHeal / 10);
+    const cost = Math.ceil(healthToHeal / 10) * 2;
 
     if (user.val < cost) {
       return res.status(400).json({ error: `No tienes suficiente VAL para curar al personaje. Costo: ${cost} VAL.` });

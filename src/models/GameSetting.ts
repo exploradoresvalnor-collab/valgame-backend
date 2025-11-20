@@ -34,7 +34,7 @@ const GameSettingSchema: Schema = new Schema({
   costo_evo_etapa_2: { type: Map, of: Number },
   costo_evo_etapa_3: { type: Map, of: Number },
   tasa_cambio_usdt: { type: Number },
-  MAX_PERSONAJES_POR_EQUIPO: { type: Number, required: true, default: 3 },
+  MAX_PERSONAJES_POR_EQUIPO: { type: Number, required: true, default: 9 },
   EXP_GLOBAL_MULTIPLIER: { type: Number, required: true, default: 1 },
   costo_revivir_personaje: { type: Number, required: true, default: 50 },
   costo_evo_por_val: { type: Number, default: 100 }, // 100 VAL = 1 EVO
