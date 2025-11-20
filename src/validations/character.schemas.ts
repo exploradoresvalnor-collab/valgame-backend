@@ -38,9 +38,13 @@ export const HealCharacterSchema = z.object({
   // No requiere body, solo el characterId en params
 });
 
-// Schema para revivir personaje (sin body, solo validación de params)
-export const ReviveCharacterSchema = z.object({
-  // No requiere body, solo el characterId en params
+// Schema para añadir personaje
+export const AddCharacterSchema = z.object({
+  personajeId: z.string()
+    .min(1, 'El ID del personaje es requerido'),
+  rango: z.enum(['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], {
+    errorMap: () => ({ message: 'El rango debe ser uno de: D, C, B, A, S, SS, SSS' })
+  })
 });
 
 // Tipos TypeScript derivados de los schemas

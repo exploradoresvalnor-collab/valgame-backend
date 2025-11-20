@@ -125,30 +125,32 @@ export const useConsumable = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
 
-    // Lógica para aplicar efectos del consumible (ejemplo)
-    character.saludActual = Math.min(character.saludMaxima, character.saludActual + (consumable.efectos.mejora_vida || 0));
+    // Lógica para aplicar efectos del consumible
+    if (consumable.efectos.mejora_vida) {
+      // Efecto inmediato: curar vida
+      character.saludActual = Math.min(character.saludMaxima, character.saludActual + consumable.efectos.mejora_vida);
+    }
+
+    // Aplicar buffs temporales si hay duración
+    if (consumable.duracion_efecto_minutos && consumable.duracion_efecto_minutos > 0) {
+      const buffExpiresAt = new Date(Date.now() + consumable.duracion_efecto_minutos * 60 * 1000);
+      const buff = {
+        name: consumable.nombre,
+        effects: {
+          mejora_atk: consumable.efectos.mejora_atk || 0,
+          mejora_defensa: consumable.efectos.mejora_defensa || 0,
+          mejora_xp_porcentaje: consumable.efectos.mejora_xp_porcentaje || 0
+        },
+        expiresAt: buffExpiresAt
+      };
+      character.activeBuffs.push(buff);
+    }
 
     // Reducir usos o eliminar
     inventoryItem.usos_restantes -= 1;
     if (inventoryItem.usos_restantes <= 0) {
-  // Intentar eliminar el subdocumento de forma segura
-  const docArrayAny: any = user.inventarioConsumibles as any;
-      // Determinar un id objetivo para eliminar: preferir _id del subdocumento, si existe
-      const targetId = (inventoryItem as any)._id ? (inventoryItem as any)._id : ((inventoryItem as any).consumableId && ((inventoryItem as any).consumableId._id || (inventoryItem as any).consumableId));
-
-      try {
-        const tid = String(targetId);
-        // Filtrar por coincidencia con el _id del subdocumento o con el _id del consumable
-        user.inventarioConsumibles = user.inventarioConsumibles.filter((c: any) => {
-          const subId = c && c._id ? String(c._id) : null;
-          const cid = c && c.consumableId ? (c.consumableId._id ? String(c.consumableId._id) : String(c.consumableId)) : null;
-          // Mantener el elemento si ninguno coincide con tid
-          return subId !== tid && cid !== tid;
-        }) as any;
-      } catch (err) {
-        // último recurso: filtrar por igualdad profunda
-        user.inventarioConsumibles = user.inventarioConsumibles.filter((c: any) => JSON.stringify(c) !== JSON.stringify(inventoryItem)) as any;
-      }
+      // Eliminar el subdocumento del array
+      user.inventarioConsumibles.pull(inventoryItem._id);
     }
 
     // Asegurarse de marcar el array como modificado para que mongoose persista los cambios

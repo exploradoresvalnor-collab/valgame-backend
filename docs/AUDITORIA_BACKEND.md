@@ -20,8 +20,8 @@
 3. ⚠️ **CORS abierto a todos los dominios** (temporal, debe corregirse en prod)
 4. ⚠️ **Falta validación de entrada en varios endpoints**
 5. ⚠️ **Mensajes de error inconsistentes**
-6. ⚠️ **Falta endpoint de "reenviar correo de verificación"**
-7. ⚠️ **No hay endpoint para "recuperar contraseña"**
+6. ✅ **Falta endpoint de "reenviar correo de verificación"** - ✅ IMPLEMENTADO (2025-11-19)
+7. ✅ **No hay endpoint para "recuperar contraseña"** - ✅ IMPLEMENTADO (2025-11-19)
 
 ### 🔧 Mejoras Recomendadas
 1. 📝 Documentación API (Swagger/OpenAPI)
@@ -212,12 +212,34 @@ router.delete('/characters/:personajeId', auth, async (req, res) => {
 
 ---
 
-### 5️⃣ FLUJO: MAZMORRAS Y COMBATE
+### 5️⃣ FLUJO: USO DE CONSUMIBLES (RESUELTO 2025-11-19)
 
-#### Pendiente de Revisión
-- ⏳ Revisar `/api/dungeons/*` endpoints
-- ⏳ Validar flujo de combate completo
-- ⏳ Verificar sistema de recompensas
+#### Problema Original
+- ✅ **RESUELTO:** Lógica buggy para eliminar consumibles cuando usos_restantes <= 0
+- ✅ **RESUELTO:** Consumibles no aplicaban buffs temporales, solo curación inmediata
+
+#### Solución Implementada
+```typescript
+// ✅ Lógica simplificada para eliminación:
+if (inventoryItem.usos_restantes <= 0) {
+  user.inventarioConsumibles.pull(inventoryItem._id);
+}
+
+// ✅ Aplicación de buffs temporales:
+if (consumable.duracion_efecto_minutos) {
+  const buff = {
+    name: consumable.nombre,
+    effects: { mejora_atk, mejora_defensa, mejora_xp_porcentaje },
+    expiresAt: new Date(Date.now() + duracion * 60 * 1000)
+  };
+  character.activeBuffs.push(buff);
+}
+```
+
+#### Integración en Combate
+- Los buffs se aplican automáticamente en `startDungeon` antes del combate
+- Permite usar consumibles fuera del combate para buffs temporales
+- Combate sigue siendo automático, pero con stats mejoradas
 
 ---
 
@@ -241,35 +263,35 @@ router.delete('/characters/:personajeId', auth, async (req, res) => {
 
 ### ⚠️ Vulnerabilidades Potenciales
 
-#### 1. CORS Abierto (TEMPORAL)
+#### 1. CORS Abierto (RESUELTO 2025-11-19)
 ```typescript
-// ⚠️ ACTUAL (modo desarrollo):
-app.use(cors({ origin: true, credentials: true }));
-
-// ✅ DEBE CAMBIARSE EN PRODUCCIÓN:
-app.use(cors({ 
-  origin: ['https://tudominio.com', 'https://app.tudominio.com'],
-  credentials: true 
-}));
+// ✅ RESUELTO: Ahora usa FRONTEND_ORIGIN si está definida
+const frontendOrigin = process.env.FRONTEND_ORIGIN;
+if (frontendOrigin) {
+  const allowedOrigins = frontendOrigin.split(',').map(origin => origin.trim());
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  }));
+}
 ```
 
-#### 2. Falta Validación de Entrada
+#### 2. Falta Validación de Entrada (EN PROGRESO)
 ```typescript
-// ❌ Muchos endpoints no validan entrada con Zod
-// Ejemplo en /api/users/characters/add:
-const { personajeId, rango } = req.body; // Sin validación
-
-// ✅ DEBE SER:
-const AddCharacterSchema = z.object({
-  personajeId: z.string().min(1),
-  rango: z.enum(['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'])
-});
-const { personajeId, rango } = AddCharacterSchema.parse(req.body);
+// ✅ AGREGADO: Validación con Zod en /api/users/characters/add
+import { AddCharacterSchema } from '../validations/character.schemas';
+router.post('/characters/add', auth, validateBody(AddCharacterSchema), ...);
 ```
 
 #### 3. Rate Limiting Inconsistente
 ```typescript
-// ⚠️ Algunos endpoints críticos no tienen rate limit específico
+// ⚠️ PENDIENTE: Algunos endpoints críticos no tienen rate limit específico
 // Ejemplo: /api/users/characters/add (podría ser abusado)
 
 // ✅ AGREGAR:
@@ -351,9 +373,9 @@ return res.status(400).json({
 ## 📝 CHECKLIST DE ACCIÓN INMEDIATA
 
 ### Para Desarrollador
-- [ ] Implementar POST `/auth/forgot-password`
-- [ ] Implementar POST `/auth/reset-password/:token`
-- [ ] Implementar POST `/auth/resend-verification`
+- [ ] Implementar POST `/auth/forgot-password` - ✅ IMPLEMENTADO (2025-11-19)
+- [ ] Implementar POST `/auth/reset-password/:token` - ✅ IMPLEMENTADO (2025-11-19)
+- [ ] Implementar POST `/auth/resend-verification` - ✅ IMPLEMENTADO (2025-11-19)
 - [ ] Agregar validaciones Zod en endpoints sin validar
 - [ ] Revisar y ajustar CORS para producción
 - [ ] Agregar DELETE `/api/users/characters/:personajeId`
@@ -433,11 +455,13 @@ Se implementó un sistema completo para detectar y reparar problemas en el flujo
 
 ## 📊 ACTUALIZACIONES DEL DOCUMENTO
 
-### 2025-11-02
-- ✅ Implementado sistema de diagnóstico de onboarding
-- ✅ Resuelto problema de recursos NULL en endpoints
-- ✅ Creados scripts automatizados de detección y reparación
-- 📝 Documentación completa del sistema de diagnóstico
+### 2025-11-19
+- ✅ Implementado endpoint DELETE `/api/users/characters/:personajeId` para eliminar personajes
+- ✅ Agregada validación Zod en `/api/users/characters/add`
+- ✅ Corregida configuración CORS para usar FRONTEND_ORIGIN
+- ✅ Simplificada lógica de eliminación de consumibles en `useConsumable`
+- ✅ Implementados buffs temporales para consumibles con duración
+- ✅ Integración de buffs en sistema de combate automático
 
 ---
 

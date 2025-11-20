@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { User } from '../models/User';
 import { Notification } from '../models/Notification';
-import { auth } from '../middlewares/auth';
+import { validateBody } from '../middlewares/validate';
+import { AddCharacterSchema } from '../validations/character.schemas';
 import BaseCharacter from '../models/BaseCharacter'; // Importamos el modelo de personajes base para validación
 import { Item } from '../models/Item';
 import UserPackage from '../models/UserPackage'; // Importación correcta
@@ -226,19 +227,9 @@ router.put('/tutorial/complete', auth, async (req: Request, res: Response) => {
 // --- 👇 RUTA NUEVA PARA AÑADIR PERSONAJES 👇 ---
 
 // POST /users/characters/add
-router.post('/characters/add', auth, async (req: Request, res: Response) => {
+router.post('/characters/add', auth, validateBody(AddCharacterSchema), async (req: Request, res: Response) => {
   const { personajeId, rango } = req.body;
   const userId = req.userId;
-
-  // 1. Validaciones de entrada
-  if (!personajeId || !rango) {
-    return res.status(400).json({ error: 'Faltan los campos personajeId o rango.' });
-  }
-
-  const rangosValidos = ["D", "C", "B", "A", "S", "SS", "SSS"];
-  if (!rangosValidos.includes(rango)) {
-    return res.status(400).json({ error: `El rango '${rango}' no es válido.` });
-  }
 
   try {
     // 2. Verificar que el personaje base exista en el catálogo del juego
@@ -340,6 +331,50 @@ router.get('/debug/my-data', auth, async (req: Request, res: Response) => {
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: 'Error interno al buscar datos de debug.' });
+  }
+});
+// --- 👇 RUTA PARA ELIMINAR PERSONAJES 👇 ---
+
+// DELETE /users/characters/:personajeId
+router.delete('/characters/:personajeId', auth, async (req: Request, res: Response) => {
+  const { personajeId } = req.params;
+  const userId = req.userId;
+
+  if (!personajeId) {
+    return res.status(400).json({ error: 'Falta el parámetro personajeId.' });
+  }
+
+  try {
+    // 1. Buscar al usuario
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    // 2. Verificar que el personaje le pertenece al usuario
+    const personajeIndex = user.personajes.findIndex(p => p.personajeId === personajeId);
+    if (personajeIndex === -1) {
+      return res.status(404).json({ error: 'Personaje no encontrado.' });
+    }
+
+    // 3. No permitir eliminar el personaje activo
+    if (user.personajeActivoId === personajeId) {
+      return res.status(400).json({ error: 'No puedes eliminar el personaje activo.' });
+    }
+
+    // 4. Eliminar el personaje
+    user.personajes.splice(personajeIndex, 1);
+    await user.save();
+
+    // 5. Enviar respuesta exitosa
+    return res.status(200).json({ 
+      message: 'Personaje eliminado exitosamente.',
+      personajes: user.personajes 
+    });
+
+  } catch (error) {
+    console.error('Error al eliminar personaje:', error);
+    return res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });
 
