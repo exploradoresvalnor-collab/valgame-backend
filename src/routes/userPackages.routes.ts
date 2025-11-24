@@ -6,6 +6,7 @@ import PackageModel from '../models/Package';
 import Category from '../models/Category';
 import BaseCharacter from '../models/BaseCharacter';
 import PurchaseLog from '../models/PurchaseLog';
+import { RealtimeService } from '../services/realtime.service';
 
 const router = Router();
 
@@ -79,6 +80,16 @@ router.post('/agregar', async (req, res) => {
       }
     });
 
+    // Emitir evento WebSocket para notificar que se compró el paquete
+    const realtime = RealtimeService.getInstance();
+    realtime.notifyInventoryUpdate(userId, {
+      val: updatedUser.val,
+      valSpent: precio,
+      newPackage: nuevo,
+      action: 'purchase',
+      packageName: (paquete as any).nombre || 'Unknown'
+    });
+
     return res.json({ 
       success: true,
       ok: true, 
@@ -98,8 +109,16 @@ router.post('/quitar', async (req, res) => {
   if (!userId || !paqueteId) return res.status(400).json({ error: 'Faltan datos.' });
 
   try {
-    const eliminado = await UserPackage.findOneAndDelete({ userId, paqueteId });
-    if (!eliminado) return res.status(404).json({ error: 'No encontrado.' });
+    const eliminado = await UserPackage.findOneAndDelete({ userId, paqueteId });    
+    if (!eliminado) return res.status(404).json({ error: 'No encontrado.' });       
+    
+    // Emitir evento WebSocket para notificar que se removió un paquete
+    const realtime = RealtimeService.getInstance();
+    realtime.notifyInventoryUpdate(userId, {
+      action: 'packageRemoved',
+      removedPackageId: paqueteId
+    });
+    
     res.json({ ok: true, eliminado });
   } catch (error) {
     res.status(500).json({ error: 'Error al quitar paquete.' });
@@ -335,6 +354,17 @@ router.post('/:id/open', async (req, res) => {
     }], { session });
 
     await session.commitTransaction();
+
+    // Emitir evento WebSocket para notificar actualización de inventario
+    const realtime = RealtimeService.getInstance();
+    realtime.notifyInventoryUpdate(userId, {
+      personajes: user.personajes.length,
+      equipamiento: user.inventarioEquipamiento.length,
+      val: user.val,
+      newCharacters: assigned,
+      newItems: ((pkg as any).items_reward || []).map((id: any) => new Types.ObjectId(String(id))),
+      valGranted: (pkg as any).val_reward || 0
+    });
 
     res.json({ ok: true, assigned, summary: { charactersReceived: assigned.length, itemsReceived: itemsToAdd, valReceived: (pkg as any).val_reward || 0, totalCharacters: user.personajes.length, totalItems: user.inventarioEquipamiento.length, valBalance: user.val } });
   } catch (err) {
