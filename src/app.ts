@@ -24,7 +24,6 @@ import categoriesRoutes from './routes/categories.routes';
 import itemsRoutes from './routes/items.routes';
 import packagesRoutes from './routes/packages.routes';
 import userPackagesRoutes from './routes/userPackages.routes';
-import aliasesRoutes from './routes/aliases.routes';
 import gameSettingsRoutes from './routes/gameSettings.routes';
 import levelRequirementsRoutes from './routes/levelRequirements.routes';
 import eventsRoutes from './routes/events.routes';
@@ -41,6 +40,7 @@ import rankingsRoutes from './routes/rankings.routes';
 import teamsRoutes from './routes/teams/teams.routes';
 import userCharactersRoutes from './routes/user-characters.routes';
 import chatRoutes from './routes/chat.routes';
+import aliasRoutes from './routes/alias.routes';
 
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -144,7 +144,6 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/items', itemsRoutes);
 app.use('/api/user-packages', userPackagesRoutes);
-app.use('/api', aliasesRoutes);  // Aliases para endpoints populares
 app.use('/api/level-requirements', levelRequirementsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/player-stats', playerStatsRoutes);
@@ -154,6 +153,7 @@ app.use('/api/rankings', rankingsRoutes);
 app.use('/api/teams', teamsRoutes);
 app.use('/api/user-characters', userCharactersRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api', aliasRoutes);
 
 
 // --- Arranque del Servidor ---
