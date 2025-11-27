@@ -1,3 +1,56 @@
+# Resumen Ejecutivo - Estado del Backend Valnor (para Frontend Starter Kit)
+
+Fecha: 25 de noviembre de 2025
+
+Resumen rápido
+- Estado: Desarrollo activo — Módulo `Survival` mejorado con sistema de escenarios y recompensas por hitos. Se implementó integración segura y no intrusiva en el flujo existente.
+- Calidad actual: Compilación TypeScript exitosa. Tests unitarios en ejecución: la mayoría pasan; hay una suite de `user-packages.open` que fue instrumentada para depuración y está en proceso de verificación.
+
+Cambios técnicos relevantes (últimas semanas)
+- Nuevo modelo: `SurvivalScenario` (`src/models/SurvivalScenario.ts`) para definir escenarios y `milestoneRewards` (milestones: 10/15/25/30).
+- Nuevo servicio helper: `SurvivalMilestonesService` (`src/services/survivalMilestones.service.ts`) que aplica recompensas al finalizar una run (single-player por defecto).
+- Extensiones en modelos:
+  - `SurvivalSession` (`scenarioSlug`, `maxRoundReached`)
+  - `SurvivalRun` (`scenarioSlug`, `milestoneDetails` para auditoría)
+- Integración mínima y segura: `endSurvival` llama a `SurvivalMilestonesService.applyForRun(...)` envuelto en try/catch; evita romper el flujo principal.
+
+Efecto en la API pública (impacto en frontend)
+- Nuevos datos de run devueltos en `survival_runs` incluyen `milestoneDetails` (lista de hitos aplicados). Esto no cambia rutas existentes ni contratos de respuesta de `endSurvival` (se guarda en la DB); si el frontend revisa `survival_runs` ahora puede leer `milestoneDetails` para mostrar recompensas históricas.
+- `SurvivalSession` puede contener `scenarioSlug` — si el frontend crea sesiones de survival (start), puede enviar `scenarioSlug` en la petición (próximo paso: validar y soportar en `startSurvival`).
+
+Estado de pruebas
+- Compilación TypeScript: OK.
+- Tests unitarios: la mayoría pasan. Falla aislada en `tests/unit/user-packages.open.test.ts` debido a un error de transacción observado durante tests (se intentó `abortTransaction` después de `commitTransaction`).
+- Acción tomada: se instrumentó `userPackages.open` para capturar el estado de `session.inTransaction()` antes/después de commit y en el catch, y se parcheó la ruta para que notificaciones post-commit no interrumpan el flujo (se usan try/catch alrededor de `notifyInventoryUpdate`).
+
+Pendientes críticos
+- Revisar y estabilizar la prueba `user-packages.open` (actualmente en proceso de depuración). Resultado esperado: eliminar llamadas a `abortTransaction` cuando la transacción ya fue commiteada y/o garantizar que errores en notificaciones no provoquen abort.
+- Validar/expresar en la API `startSurvival` la aceptación de `scenarioSlug` y validación de requisitos (nivel, etapa). Esto permitirá que el frontend seleccione escenarios desde la UI.
+- Añadir seeds de escenarios en `data/survival_scenarios/` y script `npm run seed` para poblar rápidamente los 3 escenarios de ejemplo (`basico-castillo`, `intermedio-cueva`, `avanzado-templo`).
+- Tests unitarios y e2e para `survival` (aplicar recompensas, actualizar ranking, notificaciones realtime).
+
+Instrucciones rápidas para el equipo frontend
+- Leer `SurvivalRun` para mostrar `milestoneDetails` en la pantalla de resumen de run. Campo: `milestoneDetails: [{ milestoneNumber, rewards: { exp, val, items }, appliedAt }]`.
+- Si quieren que el frontend permita elegir escenario al crear una sesión, coordinaré la extensión de `startSurvival` para validar `scenarioSlug` y devolver errores claros (400) si el usuario no cumple requisitos (nivel/etapa).
+- Para mostrar notificaciones en tiempo real cuando se aplican recompensas, escuchar eventos Socket.IO: `reward:received` y `inventory:update`. (El helper emite `reward:received` si `RealtimeService` está inicializado.)
+
+Checklist de aceptación (claves para cerrar esta iteración)
+- [ ] `startSurvival` acepta y valida `scenarioSlug`.
+- [ ] Seeds con 3 escenarios cargadas y `npm run seed` documentado.
+- [ ] Tests unitarios pasan (incluyendo `user-packages.open`).
+- [ ] Documentación del endpoint `GET /api/user-runs/:id` o similar actualizada para incluir `milestoneDetails`.
+- [ ] Frontend recibe eventos `reward:received` y `inventory:update` y muestra correctamente las recompensas.
+
+Qué puedo hacer ahora (elige una)
+- Generar los 3 escenarios de ejemplo y añadir el script de seed. — Yo lo implemento y ejecuto `npm run seed` si lo deseas.
+- Completar `startSurvival` para validar `scenarioSlug` y actualizar tests. — Requiere confirmación de reglas: ¿qué requisitos exactos por escenario? (ej. minLevel, minStage)
+- Finalizar depuración de `user-packages.open` (revisar logs y eliminar la condición que intenta abortar luego de commit). — Yo puedo terminar esto ahora y volver a ejecutar `npm run test:unit`.
+
+Contacto rápido
+- Si quieres que implemente alguno de los pasos arriba, dime cuál y lo hago. Si prefieres, coloco un PR con los cambios y lo revisas antes del merge.
+
+---
+Archivo generado por el equipo de backend — si necesitas adaptarlo a un formato más corto o traducirlo para stakeholders, puedo hacerlo.
 # 📋 RESUMEN EJECUTIVO - DOCUMENTACIÓN CREADA
 
 **Fecha:** 3 de noviembre de 2025  

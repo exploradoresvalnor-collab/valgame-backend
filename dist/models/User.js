@@ -102,6 +102,17 @@ const UserSchema = new mongoose_1.Schema({
             mejor_racha: { type: Number, default: 0, min: 0 }
         }, { _id: false }),
         default: () => ({ total_victorias: 0, total_derrotas: 0, mejor_racha: 0 })
+    },
+    survivalPoints: { type: Number, default: 0, min: 0 },
+    currentSurvivalSession: { type: mongoose_1.Schema.Types.ObjectId, ref: 'SurvivalSession', default: null },
+    survivalStats: {
+        type: new mongoose_1.Schema({
+            totalRuns: { type: Number, default: 0, min: 0 },
+            maxWave: { type: Number, default: 0, min: 0 },
+            totalPoints: { type: Number, default: 0, min: 0 },
+            averageWave: { type: Number, default: 0, min: 0 }
+        }, { _id: false }),
+        default: () => ({ totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 })
     }
 }, {
     timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },

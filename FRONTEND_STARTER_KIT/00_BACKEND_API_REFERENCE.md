@@ -1550,3 +1550,493 @@ ngOnInit() {
 **¡Listo para desarrollar tu frontend!** 🎉
 
 Todos los endpoints están documentados, probados y funcionando en producción.
+
+---
+
+# ��� SURVIVAL - NUEVOS ENDPOINTS (v2.0)
+
+## 1. POST /api/survival/start - Iniciar Sesión
+
+**Descripción:** Inicia una nueva sesión de Survival con un personaje seleccionado.
+
+**Request:**
+```json
+{
+  "characterId": "507f1f77bcf86cd799439011",
+  "equipmentIds": ["507f1f77bcf86cd799439012"],
+  "consumableIds": ["507f1f77bcf86cd799439013"]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "session": {
+    "sessionId": "survival_507f191e810c19729de860ea",
+    "userId": "507f1f77bcf86cd799439011",
+    "characterId": "507f1f77bcf86cd799439012",
+    "currentWave": 0,
+    "totalPoints": 0,
+    "equipment": {
+      "head": { "itemId": "507f1f77bcf86cd799439012", "stats": { "ataque": 5 } },
+      "body": { "itemId": "507f1f77bcf86cd799439013", "stats": { "defensa": 3 } },
+      "hands": { "itemId": "507f1f77bcf86cd799439014", "stats": {} },
+      "feet": { "itemId": "507f1f77bcf86cd799439015", "stats": {} }
+    },
+    "consumables": [],
+    "createdAt": "2025-11-27T10:00:00Z"
+  }
+}
+```
+
+**Errores:** 400 Character must have 4 equipped items | 404 Character not found
+
+---
+
+## 2. POST /api/survival/:sessionId/complete-wave
+
+**Descripción:** Completa una oleada.
+
+**Request:**
+```json
+{
+  "enemiesDefeated": 5,
+  "damageDealt": 250,
+  "damageTaken": 45
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "run": {
+    "runId": "run_507f191e810c19729de860ea",
+    "sessionId": "survival_507f191e810c19729de860ea",
+    "currentWave": 1,
+    "totalPoints": 250,
+    "waveHistory": [
+      { "wave": 1, "enemiesDefeated": 5, "pointsEarned": 250 }
+    ]
+  }
+}
+```
+
+---
+
+## 3. POST /api/survival/:sessionId/use-consumable
+
+**Descripción:** Usa un consumible durante la sesión.
+
+**Request:**
+```json
+{
+  "consumableId": "507f1f77bcf86cd799439013"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "consumable": {
+    "id": "507f1f77bcf86cd799439013",
+    "name": "Poción de Vida",
+    "effect": "heal",
+    "effectValue": 50,
+    "usesRemaining": 2
+  },
+  "characterStatus": {
+    "health": 100,
+    "maxHealth": 100
+  }
+}
+```
+
+---
+
+## 4. POST /api/survival/:sessionId/pickup-drop
+
+**Descripción:** Recoge items que caen de enemigos.
+
+**Request:**
+```json
+{
+  "dropItemId": "507f1f77bcf86cd799439020"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "itemPickedUp": {
+    "itemId": "507f1f77bcf86cd799439020",
+    "name": "Cofre de Oro",
+    "reward": { "val": 100, "points": 50 }
+  }
+}
+```
+
+---
+
+## 5. POST /api/survival/:sessionId/end
+
+**Descripción:** Finaliza exitosamente una sesión.
+
+**Request:**
+```json
+{
+  "finalWave": 5,
+  "totalEnemiesDefeated": 25,
+  "totalPoints": 1250,
+  "duration": 600
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "rewards": {
+    "survivalPoints": 1250,
+    "exp": 500,
+    "val": 200,
+    "items": []
+  },
+  "leaderboardPosition": 15
+}
+```
+
+---
+
+## 6. POST /api/survival/:sessionId/report-death
+
+**Descripción:** Reporta muerte/fin de sesión.
+
+**Request:**
+```json
+{
+  "waveDefeatedAt": 3,
+  "totalEnemiesDefeated": 15,
+  "totalPoints": 750,
+  "duration": 300
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "rewards": {
+    "survivalPoints": 375,
+    "exp": 0,
+    "val": 0
+  }
+}
+```
+
+---
+
+## 7. POST /api/survival/exchange-points/exp
+
+**Descripción:** Canjea puntos por EXP.
+
+**Request:**
+```json
+{
+  "characterId": "507f1f77bcf86cd799439011",
+  "pointsToExchange": 500
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "exchange": {
+    "pointsExchanged": 500,
+    "expGained": 500,
+    "newCharacterExp": 2500,
+    "leveledUp": true,
+    "newLevel": 36
+  },
+  "remainingSurvivalPoints": 750
+}
+```
+
+---
+
+## 8. POST /api/survival/exchange-points/val
+
+**Descripción:** Canjea puntos por moneda (VAL).
+
+**Request:**
+```json
+{
+  "pointsToExchange": 300
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "exchange": {
+    "pointsExchanged": 300,
+    "valGained": 150,
+    "newUserVal": 5000,
+    "exchangeRate": 2
+  },
+  "remainingSurvivalPoints": 450
+}
+```
+
+---
+
+## 9. POST /api/survival/exchange-points/items
+
+**Descripción:** Canjea puntos por items.
+
+**Request:**
+```json
+{
+  "itemId": "507f1f77bcf86cd799439025",
+  "pointsToSpend": 200
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "exchange": {
+    "itemPurchased": {
+      "itemId": "507f1f77bcf86cd799439025",
+      "name": "Escudo Legendario",
+      "rarity": "legendary"
+    },
+    "pointsSpent": 200
+  },
+  "remainingSurvivalPoints": 250
+}
+```
+
+---
+
+## 10. GET /api/survival/leaderboard
+
+**Descripción:** Obtiene ranking global. Query: `?limit=50&offset=0&timeRange=all_time`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "leaderboard": [
+    {
+      "position": 1,
+      "userId": "507f1f77bcf86cd799439011",
+      "userName": "HeroMaster",
+      "characterName": "Héroe",
+      "totalPoints": 50000,
+      "totalSessions": 125,
+      "averageWave": 4.8
+    }
+  ],
+  "totalLeaderboardSize": 1500
+}
+```
+
+---
+
+## 11. GET /api/survival/my-stats
+
+**Descripción:** Obtiene mis estadísticas personales.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "stats": {
+    "userId": "507f1f77bcf86cd799439011",
+    "totalSessions": 45,
+    "totalPoints": 8500,
+    "averageWave": 3.2,
+    "leaderboardRank": 127,
+    "personalRecords": {
+      "highestWave": 5,
+      "mostPointsInSession": 1250
+    }
+  }
+}
+```
+
+---
+
+## 12. POST /api/survival/:sessionId/abandon
+
+**Descripción:** Abandona la sesión actual.
+
+**Request:**
+```json
+{
+  "reason": "manual"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "rewardsForwarded": {
+    "survivalPoints": 250,
+    "reason": "Abandonment penalty (50%)"
+  }
+}
+```
+
+---
+
+## 🏥 HEALTH CHECK ENDPOINTS
+
+### GET /api/health
+
+**Descripción:** Health check básico - verifica que el servidor está disponible  
+**Autenticación:** ❌ No requiere  
+**Rate Limit:** ✅ Permitido sin límite
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "timestamp": "2025-11-27T10:30:00.000Z",
+  "uptime": 123456789,
+  "database": "connected",
+  "version": "2.0.0",
+  "environment": "production"
+}
+```
+
+**Ejemplo en Frontend:**
+```typescript
+// Angular HttpClient
+this.http.get('/api/health').subscribe(
+  (status) => console.log('Server alive:', status),
+  (error) => console.log('Server down:', error)
+);
+
+// Fetch API
+fetch('/api/health')
+  .then(res => res.json())
+  .then(data => console.log('Status:', data))
+  .catch(() => console.log('Offline'));
+```
+
+---
+
+### GET /api/health/ready
+
+**Descripción:** Readiness probe - verifica que todo está listo  
+**Autenticación:** ❌ No requiere  
+**Para:** Kubernetes, Docker health checks
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "ready": true,
+  "timestamp": "2025-11-27T10:30:00.000Z"
+}
+```
+
+**Response (503 Service Unavailable):**
+```json
+{
+  "ok": false,
+  "error": "Database not ready",
+  "ready": false
+}
+```
+
+---
+
+### GET /api/health/live
+
+**Descripción:** Liveness probe - verifica que el proceso está vivo  
+**Autenticación:** ❌ No requiere  
+**Para:** Kubernetes, Docker containers
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "live": true,
+  "timestamp": "2025-11-27T10:30:00.000Z"
+}
+```
+
+---
+
+## ⚠️ ERROR HANDLING & OFFLINE SUPPORT
+
+### Respuesta de Error Enriquecida (503, 504)
+
+Cuando hay problemas de conexión, las respuestas incluyen metadata para reintentos:
+
+**Response (503 Service Unavailable):**
+```json
+{
+  "ok": false,
+  "error": "No se pudo conectar con el servidor",
+  "code": "ConnectionError",
+  "status": 503,
+  "isConnectionError": true,
+  "retryable": true,
+  "attemptCount": 1,
+  "maxAttempts": 3,
+  "suggestedAction": "retry",
+  "timestamp": "2025-11-27T10:30:00.000Z",
+  "path": "/api/characters/1/level-up"
+}
+```
+
+**Headers HTTP especiales:**
+```
+X-Connection-Error: true
+X-Retry-After: 5
+X-Offline-Indicator: show
+X-Connection-Status: degraded
+```
+
+### Frontend: Detectar Desconexión
+
+```typescript
+// En tu servicio HTTP
+this.http.get('/api/...').subscribe(
+  (data) => { /* éxito */ },
+  (error) => {
+    if (error.status === 503 || error.status === 504) {
+      // Error de conexión
+      console.log('Offline:', error.error.isConnectionError);
+      console.log('Reintentar:', error.error.retryable);
+    }
+  }
+);
+```
+
+### Frontend: Usar Componente OfflineIndicator
+
+```html
+<!-- En app.component.html -->
+<app-offline-indicator></app-offline-indicator>
+<router-outlet></router-outlet>
+```
+
+Ver: **28_COMPONENTE_OFFLINE_INDICATOR.md** para implementación completa
+
+---
+
+**Última actualización:** 27 de Noviembre, 2025 ✨
+**Versión API:** 2.1.0 (Con Error Handling)
+**Status:** ✅ PRODUCCIÓN

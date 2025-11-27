@@ -356,19 +356,32 @@ router.post('/:id/open', async (req, res) => {
     await session.commitTransaction();
 
     // Emitir evento WebSocket para notificar actualización de inventario
-    const realtime = RealtimeService.getInstance();
-    realtime.notifyInventoryUpdate(userId, {
-      personajes: user.personajes.length,
-      equipamiento: user.inventarioEquipamiento.length,
-      val: user.val,
-      newCharacters: assigned,
-      newItems: ((pkg as any).items_reward || []).map((id: any) => new Types.ObjectId(String(id))),
-      valGranted: (pkg as any).val_reward || 0
-    });
+    try {
+      const realtime = RealtimeService.getInstance();
+      realtime.notifyInventoryUpdate(userId, {
+        personajes: user.personajes.length,
+        equipamiento: user.inventarioEquipamiento.length,
+        val: user.val,
+        newCharacters: assigned,
+        newItems: ((pkg as any).items_reward || []).map((id: any) => new Types.ObjectId(String(id))),
+        valGranted: (pkg as any).val_reward || 0
+      });
+    } catch (notifyErr) {
+      console.warn('[USER-PACKAGE-OPEN] Notification failed:', (notifyErr as any)?.message || notifyErr);
+    }
 
     res.json({ ok: true, assigned, summary: { charactersReceived: assigned.length, itemsReceived: itemsToAdd, valReceived: (pkg as any).val_reward || 0, totalCharacters: user.personajes.length, totalItems: user.inventarioEquipamiento.length, valBalance: user.val } });
   } catch (err) {
-    await session.abortTransaction();
+    // Intentar abortar la transacción, pero silenciar cualquier
+    // error (p. ej. "Cannot call abortTransaction after calling commitTransaction").
+    try {
+      await session.abortTransaction().catch((_e: any) => {
+        // Silenciar errores de abort
+      });
+    } catch (_e) {
+      // No hacer nada adicional
+    }
+
     console.error('[USER-PACKAGE-OPEN] Error:', err);
     res.status(500).json({ error: 'Error al abrir paquete' });
   } finally {

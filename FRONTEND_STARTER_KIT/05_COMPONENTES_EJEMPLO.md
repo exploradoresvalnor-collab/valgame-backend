@@ -479,3 +479,582 @@ export class LoginComponent implements OnInit {
 ---
 
 **Siguiente paso:** Ve a `06_CONFIGURACION.md`
+
+---
+
+# ÌæÆ COMPONENTES SURVIVAL (v2.0)
+
+## COMPONENTE 1: Seleccionar Personaje
+
+**Archivo:** `src/app/survival/select-character/select-character.component.ts`
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { UserService } from '../../services/user.service';
+
+@Component({
+  selector: 'app-select-character',
+  templateUrl: './select-character.component.html',
+  styleUrls: ['./select-character.component.scss']
+})
+export class SelectCharacterComponent implements OnInit {
+  characters: any[] = [];
+  selectedCharacterId: string | null = null;
+  loading = false;
+
+  constructor(private userService: UserService, private router: Router) {}
+
+  ngOnInit(): void {
+    this.loadCharacters();
+  }
+
+  loadCharacters(): void {
+    this.userService.getUser().subscribe(
+      (response) => {
+        this.characters = response.personajes || [];
+        this.selectedCharacterId = response.personajeActivoId;
+      }
+    );
+  }
+
+  selectCharacter(characterId: string): void {
+    this.selectedCharacterId = characterId;
+    const character = this.characters.find(c => c._id === characterId);
+    // Validar que tenga 4 items equipados
+    if (character?.equipamiento?.length !== 4) {
+      alert('Este personaje debe tener 4 items equipados en RPG');
+      return;
+    }
+  }
+
+  enterSurvival(): void {
+    if (!this.selectedCharacterId) {
+      alert('Selecciona un personaje');
+      return;
+    }
+    this.router.navigate(['/survival/prepare', this.selectedCharacterId]);
+  }
+
+  goBack(): void {
+    this.router.navigate(['/dashboard']);
+  }
+}
+```
+
+**Archivo:** `src/app/survival/select-character/select-character.component.html`
+
+```html
+<div class="select-character-container">
+  <h1>MIS PERSONAJES</h1>
+  
+  <div class="characters-list">
+    <div *ngIf="characters.length === 0" class="empty-state">
+      <p>No tienes personajes. Crea uno en RPG primero.</p>
+    </div>
+
+    <div *ngFor="let char of characters" 
+         [class.selected]="selectedCharacterId === char._id"
+         (click)="selectCharacter(char._id)"
+         class="character-card">
+      
+      <div class="char-header">
+        <h3>{{ char.nombre }}</h3>
+        <span class="level">Nv {{ char.nivel }}</span>
+      </div>
+
+      <div class="char-info">
+        <p><strong>Experiencia:</strong> {{ char.experiencia }}/{{ char.experienciaMaxima }}</p>
+        <p><strong>Equipo:</strong> {{ char.equipamiento?.length || 0 }}/4 ‚úì</p>
+      </div>
+
+      <div class="char-stats">
+        <span>‚öîÔ∏è {{ char.stats.ataque }}</span>
+        <span>Ìª°Ô∏è {{ char.stats.defensa }}</span>
+        <span>‚ù§Ô∏è {{ char.stats.salud }}</span>
+      </div>
+
+      <div *ngIf="selectedCharacterId === char._id" class="selected-badge">
+        ‚úì SELECCIONADO
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button (click)="goBack()" class="btn-secondary">VOLVER</button>
+    <button (click)="enterSurvival()" 
+            [disabled]="!selectedCharacterId"
+            class="btn-primary">
+      ENTRAR A SURVIVAL
+    </button>
+  </div>
+</div>
+```
+
+---
+
+## COMPONENTE 2: Pre-Sesi√≥n (Equipamiento)
+
+**Archivo:** `src/app/survival/prepare/prepare.component.ts`
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { UserService } from '../../services/user.service';
+import { SurvivalService } from '../../services/survival.service';
+
+@Component({
+  selector: 'app-prepare',
+  templateUrl: './prepare.component.html',
+  styleUrls: ['./prepare.component.scss']
+})
+export class PrepareComponent implements OnInit {
+  character: any;
+  equipment: any = {};
+  consumables: any[] = [];
+  selectedConsumables: string[] = [];
+  loading = false;
+  characterId: string = '';
+
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private userService: UserService,
+    private survivalService: SurvivalService
+  ) {}
+
+  ngOnInit(): void {
+    this.characterId = this.route.snapshot.paramMap.get('characterId') || '';
+    this.loadCharacter();
+  }
+
+  loadCharacter(): void {
+    this.userService.getUser().subscribe(
+      (response) => {
+        this.character = response.personajes.find(c => c._id === this.characterId);
+        this.equipCharacter();
+      }
+    );
+  }
+
+  equipCharacter(): void {
+    // Mapear equipamiento del personaje a slots
+    if (this.character?.equipamiento?.length === 4) {
+      this.equipment = {
+        head: this.character.equipamiento[0],
+        body: this.character.equipamiento[1],
+        hands: this.character.equipamiento[2],
+        feet: this.character.equipamiento[3]
+      };
+    }
+  }
+
+  startSurvival(): void {
+    this.loading = true;
+    this.survivalService.startSurvival(
+      this.characterId,
+      [this.equipment.head._id, this.equipment.body._id, 
+       this.equipment.hands._id, this.equipment.feet._id],
+      this.selectedConsumables
+    ).subscribe(
+      (response) => {
+        this.loading = false;
+        this.router.navigate(['/survival/play', response.session.sessionId]);
+      },
+      (error) => {
+        this.loading = false;
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  toggleConsumable(consumableId: string): void {
+    const index = this.selectedConsumables.indexOf(consumableId);
+    if (index > -1) {
+      this.selectedConsumables.splice(index, 1);
+    } else if (this.selectedConsumables.length < 5) {
+      this.selectedConsumables.push(consumableId);
+    }
+  }
+
+  cancel(): void {
+    this.router.navigate(['/survival']);
+  }
+}
+```
+
+**Archivo:** `src/app/survival/prepare/prepare.component.html`
+
+```html
+<div class="prepare-container">
+  <h1>PREPARAR SESI√ìN DE SURVIVAL</h1>
+
+  <div class="character-info">
+    <h2>{{ character?.nombre }} - Nivel {{ character?.nivel }}</h2>
+  </div>
+
+  <div class="equipment-section">
+    <h3>‚öîÔ∏è EQUIPAMIENTO (Autom√°tico)</h3>
+    
+    <div class="equipment-grid">
+      <div class="equipment-slot">
+        <div class="slot-name">Cabeza</div>
+        <div class="slot-item" *ngIf="equipment.head">
+          {{ equipment.head.nombre }}
+          <div class="item-stats">+{{ equipment.head.stats?.defensa || 0 }} DEF</div>
+        </div>
+      </div>
+
+      <div class="equipment-slot">
+        <div class="slot-name">Cuerpo</div>
+        <div class="slot-item" *ngIf="equipment.body">
+          {{ equipment.body.nombre }}
+          <div class="item-stats">+{{ equipment.body.stats?.defensa || 0 }} DEF</div>
+        </div>
+      </div>
+
+      <div class="equipment-slot">
+        <div class="slot-name">Manos</div>
+        <div class="slot-item" *ngIf="equipment.hands">
+          {{ equipment.hands.nombre }}
+          <div class="item-stats">+{{ equipment.hands.stats?.ataque || 0 }} ATQ</div>
+        </div>
+      </div>
+
+      <div class="equipment-slot">
+        <div class="slot-name">Pies</div>
+        <div class="slot-item" *ngIf="equipment.feet">
+          {{ equipment.feet.nombre }}
+          <div class="item-stats">+{{ equipment.feet.stats?.velocidad || 0 }} VEL</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="consumables-section" *ngIf="character?.inventarioConsumibles?.length">
+    <h3>Ì≤ä CONSUMIBLES (Opcional, m√°x 5)</h3>
+    
+    <div class="consumables-list">
+      <div *ngFor="let consumable of character.inventarioConsumibles" 
+           class="consumable-item">
+        <input type="checkbox" 
+               [id]="'cons_' + consumable._id"
+               [checked]="selectedConsumables.includes(consumable._id)"
+               (change)="toggleConsumable(consumable._id)">
+        <label [for]="'cons_' + consumable._id">
+          {{ consumable.nombre }} x{{ consumable.usosRestantes || 0 }}
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button (click)="cancel()" class="btn-secondary">CANCELAR</button>
+    <button (click)="startSurvival()" 
+            [disabled]="loading"
+            class="btn-primary">
+      {{ loading ? 'INICIANDO...' : 'INICIAR SURVIVAL' }}
+    </button>
+  </div>
+</div>
+```
+
+---
+
+## COMPONENTE 3: En Combate (Gameplay)
+
+**Archivo:** `src/app/survival/play/play.component.ts`
+
+```typescript
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { SurvivalService } from '../../services/survival.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+
+@Component({
+  selector: 'app-play',
+  templateUrl: './play.component.html',
+  styleUrls: ['./play.component.scss']
+})
+export class PlayComponent implements OnInit, OnDestroy {
+  sessionId: string = '';
+  currentWave = 0;
+  currentPoints = 0;
+  enemiesOnScreen = 5;
+  playerHealth = 100;
+  playerMaxHealth = 100;
+  gameStartTime: Date = new Date();
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private route: ActivatedRoute,
+    private survivalService: SurvivalService
+  ) {}
+
+  ngOnInit(): void {
+    this.sessionId = this.route.snapshot.paramMap.get('sessionId') || '';
+  }
+
+  completeWave(): void {
+    const enemiesDefeated = this.enemiesOnScreen;
+    const damageDealt = Math.random() * 300 + 100;
+    const damageTaken = Math.random() * 50;
+
+    this.survivalService.completeWave(
+      this.sessionId,
+      enemiesDefeated,
+      damageDealt,
+      damageTaken
+    ).subscribe(
+      (response) => {
+        this.currentWave++;
+        this.currentPoints += 250;
+        this.playerHealth = Math.max(0, this.playerHealth - damageTaken);
+        
+        if (this.currentWave >= 5) {
+          this.finishSurvival('victory');
+        }
+      }
+    );
+  }
+
+  useConsumable(): void {
+    alert('Usar consumible (l√≥gica del juego)');
+  }
+
+  flee(): void {
+    if (confirm('¬øAbandonar la sesi√≥n?')) {
+      this.finishSurvival('fled');
+    }
+  }
+
+  finishSurvival(status: 'victory' | 'death' | 'fled'): void {
+    const duration = Math.floor(
+      (new Date().getTime() - this.gameStartTime.getTime()) / 1000
+    );
+
+    if (status === 'victory') {
+      this.survivalService.endSurvival(
+        this.sessionId,
+        this.currentWave,
+        this.currentWave * this.enemiesOnScreen,
+        this.currentPoints,
+        duration
+      ).subscribe(
+        (response) => {
+          alert('¬°Ganaste! ' + JSON.stringify(response.rewards));
+        }
+      );
+    } else {
+      this.survivalService.reportDeath(
+        this.sessionId,
+        this.currentWave,
+        this.currentWave * this.enemiesOnScreen,
+        this.currentPoints,
+        duration
+      ).subscribe(
+        (response) => {
+          alert('Perdiste en oleada ' + this.currentWave);
+        }
+      );
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+}
+```
+
+**Archivo:** `src/app/survival/play/play.component.html`
+
+```html
+<div class="play-container">
+  <div class="hud">
+    <div class="player-stats">
+      <div class="stat">
+        <label>VIDA:</label>
+        <div class="health-bar">
+          <div class="health-fill" [style.width.%]="(playerHealth/playerMaxHealth)*100"></div>
+        </div>
+        <span>{{ playerHealth }}/{{ playerMaxHealth }}</span>
+      </div>
+
+      <div class="stat">
+        <label>OLEADA:</label>
+        <span class="wave-number">{{ currentWave }}/5</span>
+      </div>
+
+      <div class="stat">
+        <label>PUNTOS:</label>
+        <span class="points">{{ currentPoints }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="game-area">
+    <h2>Oleada {{ currentWave + 1 }} - {{ enemiesOnScreen }} Enemigos</h2>
+    
+    <div class="enemies">
+      <div *ngFor="let i of [0,1,2,3,4]" class="enemy">
+        <div class="enemy-icon">Ì±π</div>
+        <div class="enemy-health">
+          <div class="health-bar small">
+            <div class="health-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button (click)="completeWave()" class="btn-attack">‚öîÔ∏è ATACAR</button>
+    <button (click)="useConsumable()" class="btn-consumable">Ì≤ä CONSUMIBLE</button>
+    <button (click)="flee()" class="btn-flee">ÌøÉ HUIR</button>
+  </div>
+</div>
+```
+
+---
+
+## COMPONENTE 4: Resultado
+
+**Archivo:** `src/app/survival/result/result.component.html`
+
+```html
+<div class="result-container">
+  <div class="result-header" [class.victory]="status === 'victory'">
+    <h1 *ngIf="status === 'victory'">Ìæâ ¬°GANASTE!</h1>
+    <h1 *ngIf="status === 'defeat'">‚ò†Ô∏è PERDISTE</h1>
+  </div>
+
+  <div class="result-details">
+    <div class="stat-row">
+      <span>Oleadas:</span>
+      <strong>{{ finalWave }}/5</strong>
+    </div>
+    <div class="stat-row">
+      <span>Enemigos:</span>
+      <strong>{{ totalEnemiesDefeated }}</strong>
+    </div>
+    <div class="stat-row">
+      <span>Puntos:</span>
+      <strong>{{ totalPoints }}</strong>
+    </div>
+  </div>
+
+  <div class="rewards" *ngIf="status === 'victory'">
+    <h3>Ì≥¶ RECOMPENSAS</h3>
+    <div class="reward-item">+{{ rewards.exp }} EXP</div>
+    <div class="reward-item">+{{ rewards.val }} VAL</div>
+    <div *ngFor="let item of rewards.items" class="reward-item">{{ item }}</div>
+  </div>
+
+  <div class="actions">
+    <button (click)="playAgain()" class="btn-primary">OTRA SESI√ìN</button>
+    <button (click)="exchange()" class="btn-secondary">CANJEAR PUNTOS</button>
+    <button (click)="goMenu()" class="btn-tertiary">MEN√ö</button>
+  </div>
+</div>
+```
+
+---
+
+## COMPONENTE 5: Canje de Puntos
+
+**Archivo:** `src/app/survival/exchange/exchange.component.html`
+
+```html
+<div class="exchange-container">
+  <h1>CANJEAR PUNTOS DE SURVIVAL</h1>
+
+  <div class="points-available">
+    <span>Puntos disponibles:</span>
+    <strong>{{ userSurvivalPoints }}</strong>
+  </div>
+
+  <div class="exchange-options">
+    <div class="exchange-option">
+      <h3>Ì≥ö EXPERIENCIA</h3>
+      <p class="rate">1 punto = 1 EXP</p>
+      <input type="number" 
+             [(ngModel)]="pointsToExchangeExp"
+             max="userSurvivalPoints"
+             placeholder="Ingresa puntos">
+      <button (click)="exchangeExp()" class="btn-primary">CANJEAR</button>
+    </div>
+
+    <div class="exchange-option">
+      <h3>Ì≤∞ MONEDA (VAL)</h3>
+      <p class="rate">2 puntos = 1 VAL</p>
+      <input type="number" 
+             [(ngModel)]="pointsToExchangeVal"
+             [max]="userSurvivalPoints"
+             placeholder="Ingresa puntos">
+      <button (click)="exchangeVal()" class="btn-primary">CANJEAR</button>
+    </div>
+
+    <div class="exchange-option">
+      <h3>ÌæÅ ITEMS ESPECIALES</h3>
+      <select [(ngModel)]="selectedItemId">
+        <option *ngFor="let item of survivalItems" [value]="item._id">
+          {{ item.nombre }} ({{ item.precioPuntos }} pts)
+        </option>
+      </select>
+      <button (click)="exchangeItem()" class="btn-primary">COMPRAR</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button (click)="goBack()" class="btn-secondary">VOLVER</button>
+  </div>
+</div>
+```
+
+---
+
+## COMPONENTE 6: Leaderboard
+
+**Archivo:** `src/app/survival/leaderboard/leaderboard.component.html`
+
+```html
+<div class="leaderboard-container">
+  <h1>ÌøÜ RANKING GLOBAL</h1>
+
+  <div class="my-rank" *ngIf="myRank">
+    <p>Tu posici√≥n: <strong>#{{ myRank.position }}</strong></p>
+    <p>Puntos: <strong>{{ myRank.totalPoints }}</strong></p>
+  </div>
+
+  <table class="leaderboard-table">
+    <thead>
+      <tr>
+        <th>Posici√≥n</th>
+        <th>Jugador</th>
+        <th>Personaje</th>
+        <th>Puntos</th>
+        <th>Sesiones</th>
+        <th>Oleada Prom.</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let entry of leaderboard" [class.my-entry]="entry.userId === currentUserId">
+        <td>{{ entry.position }}</td>
+        <td>{{ entry.userName }}</td>
+        <td>{{ entry.characterName }}</td>
+        <td><strong>{{ entry.totalPoints }}</strong></td>
+        <td>{{ entry.totalSessions }}</td>
+        <td>{{ entry.averageWave | number:'1.1-1' }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="actions">
+    <button (click)="loadMore()" *ngIf="!allLoaded">CARGAR M√ÅS</button>
+    <button (click)="goBack()" class="btn-secondary">VOLVER</button>
+  </div>
+</div>
+```
+

@@ -768,3 +768,41 @@ export const getListings = async (filters: {
     throw error;
   }
 };
+
+// ✅ NUEVA: Obtener listings del usuario actual
+export const getUserListings = async (userId: string, filters: { limit?: number, offset?: number } = {}) => {
+
+  try {
+    // Query para obtener listings del usuario (incluyendo expirados y cancelados para historial)
+    const query = { sellerId: userId };
+
+    // Paginación
+    const limit = Math.min(filters.limit || 20, 100);
+    const offset = Math.max(filters.offset || 0, 0);
+
+    const [listings, total] = await Promise.all([
+      Listing.find(query)
+        .sort({ fechaCreacion: -1 }) // Más recientes primero
+        .skip(offset)
+        .limit(limit)
+        .populate('sellerId', 'username'),
+      Listing.countDocuments(query)
+    ]);
+
+    return {
+      listings,
+      total,
+      hasMore: total > offset + limit,
+      pagination: {
+        limit,
+        offset,
+        total,
+        page: Math.floor(offset / limit) + 1,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  } catch (error) {
+    console.error('Error al obtener listings del usuario:', error);
+    throw error;
+  }
+};

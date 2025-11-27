@@ -21,6 +21,7 @@
 
 ---
 
+
 ## Introducción
 
 ### Información General
@@ -31,23 +32,254 @@
 - **Real-time:** WebSocket (Socket.IO estilo) para notificaciones y eventos
 - **Base de Datos:** MongoDB con Mongoose ODM
 
-### Características Clave
+### Stack Frontend Recomendado
 
-- Registro y autenticación segura (email + contraseña)
-- Sistema de inventario con personajes, items y consumibles
-- Tienda oficial + Marketplace P2P
-- Mazmorras con combate automático
-- Rankings y competencia
-- Notificaciones en tiempo real
+**Opción 1 (Recomendado):**
+- Angular 15+
+- TypeScript 4.8+
+- RxJS 7+
+- Angular Material (UI)
+- Socket.IO Client
+
+**Opción 2 (Alternativa):**
+- Next.js 13+ (App Router)
+- React 18+
+- SWR o React Query (estado)
+- Zustand (global state)
+- Socket.IO Client
+
+### Características Clave del Backend
+
+- ✅ Registro y autenticación segura (email + contraseña, JWT)
+- ✅ Sistema de inventario con personajes, items y consumibles
+- ✅ Tienda oficial + Marketplace P2P
+- ✅ Mazmorras con combate automático + premios
+- ✅ Rankings y competencia en tiempo real
+- ✅ Notificaciones en tiempo real vía WebSocket
+- ✅ Rate limiting por endpoint
+- ✅ Transacciones atómicas para operaciones críticas
 
 ### Cómo Usar Esta Guía
 
 Cada sección contiene:
-- **Descrición del flujo UX**
-- **Endpoints reales del backend** (nombres exactos)
-- **Ejemplos de request/response JSON**
-- **Manejo de errores** (códigos HTTP, mensajes)
-- **Notas técnicas** para frontend (cookies, WebSocket, rate-limits)
+- **Descripción del flujo UX** (qué ve/hace el usuario)
+- **Arquitectura de componentes/servicios requeridos** (qué necesita el frontend)
+- **Endpoints reales del backend** (nombres exactos, métodos)
+- **Ejemplos de request/response JSON** (copiar/pegar)
+- **Ejemplos de código Angular/React** (implementación directa)
+- **Manejo de errores** (códigos HTTP, casos edge)
+- **Notas técnicas** (cookies, WebSocket, rate-limits, seguridad)
+- **Eventos WebSocket** (qué escuchar en tiempo real)
+
+---
+
+## 🏗️ Arquitectura Frontend Recomendada
+
+### Estructura de Carpetas (Angular)
+
+```
+src/
+├── app/
+│   ├── core/                          # Servicios singleton (auth, http, realtime)
+│   │   ├── services/
+│   │   │   ├── auth.service.ts        # Maneja login, register, logout, token
+│   │   │   ├── http.service.ts        # Cliente HTTP con interceptors
+│   │   │   ├── realtime.service.ts    # Socket.IO para WebSocket
+│   │   │   └── storage.service.ts     # LocalStorage, SessionStorage
+│   │   └── guards/
+│   │       ├── auth.guard.ts          # Protege rutas autenticadas
+│   │       └── admin.guard.ts         # (Opcional) Para admin
+│   │
+│   ├── shared/                         # Componentes reutilizables
+│   │   ├── components/
+│   │   │   ├── header/
+│   │   │   ├── footer/
+│   │   │   ├── sidebar/
+│   │   │   └── loading-spinner/
+│   │   └── models/
+│   │       ├── user.model.ts
+│   │       ├── character.model.ts
+│   │       ├── item.model.ts
+│   │       └── ...
+│   │
+│   ├── features/                      # Módulos por feature
+│   │   ├── auth/                      # FASE 1
+│   │   │   ├── pages/
+│   │   │   │   ├── login/
+│   │   │   │   ├── register/
+│   │   │   │   ├── verify-email/
+│   │   │   │   └── forgot-password/
+│   │   │   └── auth.module.ts
+│   │   │
+│   │   ├── dashboard/                 # FASE 2
+│   │   │   ├── pages/
+│   │   │   │   ├── dashboard/
+│   │   │   │   └── profile/
+│   │   │   └── dashboard.module.ts
+│   │   │
+│   │   ├── inventory/                 # FASE 3
+│   │   │   ├── pages/
+│   │   │   │   ├── characters/
+│   │   │   │   ├── items/
+│   │   │   │   └── consumables/
+│   │   │   ├── services/
+│   │   │   │   └── inventory.service.ts
+│   │   │   └── inventory.module.ts
+│   │   │
+│   │   ├── shop/                      # FASE 4
+│   │   │   ├── pages/
+│   │   │   │   ├── packages/
+│   │   │   │   └── package-detail/
+│   │   │   ├── services/
+│   │   │   │   └── package.service.ts
+│   │   │   └── shop.module.ts
+│   │   │
+│   │   ├── marketplace/               # FASE 5
+│   │   │   ├── pages/
+│   │   │   │   ├── listings/
+│   │   │   │   ├── my-listings/
+│   │   │   │   └── create-listing/
+│   │   │   ├── services/
+│   │   │   │   └── marketplace.service.ts
+│   │   │   └── marketplace.module.ts
+│   │   │
+│   │   ├── dungeons/                  # FASE 6
+│   │   │   ├── pages/
+│   │   │   │   ├── dungeons/
+│   │   │   │   ├── battle/
+│   │   │   │   ├── victory/
+│   │   │   │   └── defeat/
+│   │   │   ├── services/
+│   │   │   │   └── dungeon.service.ts
+│   │   │   └── dungeons.module.ts
+│   │   │
+│   │   └── rankings/                  # FASE 7
+│   │       ├── pages/
+│   │       │   └── rankings/
+│   │       ├── services/
+│   │       │   └── ranking.service.ts
+│   │       └── rankings.module.ts
+│   │
+│   └── app.module.ts
+├── assets/
+│   ├── images/
+│   ├── icons/
+│   └── styles/
+│       ├── global.scss
+│       ├── variables.scss
+│       └── mixins.scss
+└── environments/
+    ├── environment.ts
+    └── environment.prod.ts
+```
+
+### Servicios Core Requeridos
+
+**1. `auth.service.ts`**
+```typescript
+export class AuthService {
+  // Métodos:
+  register(email, username, password): Observable<any>
+  login(email, password): Observable<any>
+  logout(): Observable<any>
+  isAuthenticated(): boolean
+  getCurrentUser(): User | null
+  refreshUser(): Observable<User>
+}
+```
+
+**2. `realtime.service.ts`**
+```typescript
+export class RealtimeService {
+  // Métodos:
+  connect(token): void
+  disconnect(): void
+  on<T>(event, callback): void
+  emit<T>(event, data): void
+}
+```
+
+**3. `inventory.service.ts`**
+```typescript
+export class InventoryService {
+  getCharacters(): Observable<Character[]>
+  getItems(): Observable<Item[]>
+  equipItem(charId, itemId, slot): Observable<any>
+  unequipItem(charId, slot): Observable<any>
+  useConsumable(charId, consumableId): Observable<any>
+}
+```
+
+**4. `dungeon.service.ts`**
+```typescript
+export class DungeonService {
+  getDungeons(): Observable<Dungeon[]>
+  startDungeon(dungeonId, charId): Observable<BattleResult>
+}
+```
+
+**5. `marketplace.service.ts`**
+```typescript
+export class MarketplaceService {
+  getListings(filters?): Observable<Listing[]>
+  createListing(itemId, price): Observable<any>
+  buyListing(listingId): Observable<any>
+}
+```
+
+### Modelos de Datos (TypeScript)
+
+**User Model:**
+```typescript
+export interface User {
+  _id: string;
+  username: string;
+  email: string;
+  isVerified: boolean;
+  personajes: Character[];
+  personajeActivo: Character;
+  val: number;
+  boletos: number;
+  evo: number;
+  energia: number;
+  energiaMaxima: number;
+  inventarioEquipamiento: Equipment[];
+  inventarioConsumibles: ConsumableInstance[];
+}
+```
+
+**Character Model:**
+```typescript
+export interface Character {
+  _id: string;
+  nombre: string;
+  rango: 'D' | 'C' | 'B' | 'A' | 'S';
+  nivel: number;
+  etapa: number;
+  stats: {
+    vida: number;
+    ataque: number;
+    defensa: number;
+    velocidad: number;
+  };
+  saludActual: number;
+  saludMaxima: number;
+  estado: 'saludable' | 'herido' | 'muerto';
+  equipamiento: Equipment[];
+  experiencia: number;
+}
+```
+
+**Item Model:**
+```typescript
+export interface Item {
+  _id: string;
+  nombre: string;
+  tipo: 'weapon' | 'armor' | 'accessory' | 'consumable';
+  rareza: 'comun' | 'raro' | 'epicom' | 'legendario';
+  stats: { ataque?: number; defensa?: number; velocidad?: number };
+}
+```
 
 ---
 
@@ -82,18 +314,239 @@ Landing
 
 ---
 
+
 ### 2. Registro (Pantalla Principal de Registro)
 
-**Campos:** `email`, `username`, `password`
+**Componentes Requeridos:**
+- `RegisterComponent` (página principal)
+- `RegisterFormComponent` (formulario reutilizable)
+- `AuthService` (lógica de negocio)
+
+**Servicios Requeridos:**
+- `AuthService.register()`
+- Validadores personalizados (username, password)
+
+**Campos:** `email`, `username`, `password`, `passwordConfirm`
 
 **Validaciones Locales (Frontend):**
 - Email: formato válido (RFC 5322 básico)
 - Username: mínimo 3 caracteres, alfanuméricos + guión
 - Password: mínimo 6 caracteres
+- Confirmación: debe coincidir con password
 
-**Endpoint:**
+**Código Angular Completo:**
+
+```typescript
+// register.component.ts
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
+
+@Component({
+  selector: 'app-register',
+  templateUrl: './register.component.html',
+  styleUrls: ['./register.component.scss']
+})
+export class RegisterComponent implements OnInit {
+  registerForm!: FormGroup;
+  loading = false;
+  submitted = false;
+  errorMessage: string | null = null;
+  successMessage: string | null = null;
+
+  constructor(
+    private formBuilder: FormBuilder,
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    this.initializeForm();
+  }
+
+  private initializeForm(): void {
+    this.registerForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      username: [
+        '',
+        [
+          Validators.required,
+          Validators.minLength(3),
+          Validators.pattern(/^[a-zA-Z0-9-]+$/)
+        ]
+      ],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      passwordConfirm: ['', Validators.required]
+    }, {
+      validators: this.passwordMatchValidator
+    });
+  }
+
+  private passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.get('password');
+    const passwordConfirm = control.get('passwordConfirm');
+
+    if (!password || !passwordConfirm) {
+      return null;
+    }
+
+    return password.value === passwordConfirm.value ? null : { passwordMismatch: true };
+  }
+
+  get f() {
+    return this.registerForm.controls;
+  }
+
+  onSubmit(): void {
+    this.submitted = true;
+    this.errorMessage = null;
+
+    if (this.registerForm.invalid) {
+      return;
+    }
+
+    this.loading = true;
+    const { email, username, password } = this.registerForm.value;
+
+    this.authService.register(email, username, password).subscribe({
+      next: (response) => {
+        this.loading = false;
+        this.successMessage = `Verifica tu correo en ${email}`;
+        
+        // Mostrar pantalla de verificación
+        setTimeout(() => {
+          this.router.navigate(['/auth/verify-email'], {
+            queryParams: { email }
+          });
+        }, 2000);
+      },
+      error: (error) => {
+        this.loading = false;
+        
+        if (error.status === 409) {
+          this.errorMessage = error.error?.message || 'Email o usuario ya existen';
+        } else if (error.status === 400) {
+          this.errorMessage = error.error?.message || 'Validación fallida';
+        } else {
+          this.errorMessage = 'Error al registrarse. Intenta más tarde.';
+        }
+      }
+    });
+  }
+}
 ```
-POST /auth/register
+
+```html
+<!-- register.component.html -->
+<div class="register-container">
+  <div class="register-card">
+    <h1>🎮 Crear Cuenta en Valgame</h1>
+    
+    <ng-container *ngIf="successMessage">
+      <div class="alert alert-success">
+        ✅ {{ successMessage }}
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="errorMessage">
+      <div class="alert alert-error">
+        ❌ {{ errorMessage }}
+      </div>
+    </ng-container>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" novalidate>
+      <!-- Email -->
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="form-control"
+          [class.is-invalid]="submitted && f['email'].errors"
+          placeholder="tu@email.com"
+        />
+        <div *ngIf="submitted && f['email'].errors" class="error-text">
+          <span *ngIf="f['email'].errors['required']">Email es requerido</span>
+          <span *ngIf="f['email'].errors['email']">Email inválido</span>
+        </div>
+      </div>
+
+      <!-- Username -->
+      <div class="form-group">
+        <label for="username">Usuario</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          class="form-control"
+          [class.is-invalid]="submitted && f['username'].errors"
+          placeholder="tu-usuario"
+        />
+        <div *ngIf="submitted && f['username'].errors" class="error-text">
+          <span *ngIf="f['username'].errors['required']">Usuario es requerido</span>
+          <span *ngIf="f['username'].errors['minlength']">Mínimo 3 caracteres</span>
+          <span *ngIf="f['username'].errors['pattern']">Solo alfanuméricos y guión</span>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="form-control"
+          [class.is-invalid]="submitted && f['password'].errors"
+          placeholder="Mínimo 6 caracteres"
+        />
+        <div *ngIf="submitted && f['password'].errors" class="error-text">
+          <span *ngIf="f['password'].errors['required']">Contraseña es requerida</span>
+          <span *ngIf="f['password'].errors['minlength']">Mínimo 6 caracteres</span>
+        </div>
+      </div>
+
+      <!-- Password Confirm -->
+      <div class="form-group">
+        <label for="passwordConfirm">Confirmar Contraseña</label>
+        <input
+          id="passwordConfirm"
+          type="password"
+          formControlName="passwordConfirm"
+          class="form-control"
+          [class.is-invalid]="submitted && (f['passwordConfirm'].errors || registerForm.errors)"
+          placeholder="Confirma tu contraseña"
+        />
+        <div *ngIf="submitted && registerForm.errors?.['passwordMismatch']" class="error-text">
+          Las contraseñas no coinciden
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        [disabled]="loading"
+      >
+        <ng-container *ngIf="!loading">🚀 Registrarse</ng-container>
+        <ng-container *ngIf="loading">
+          <span class="spinner-border spinner-border-sm mr-2"></span>Registrando...
+        </ng-container>
+      </button>
+    </form>
+
+    <p class="text-center mt-3">
+      ¿Ya tienes cuenta? <a href="/auth/login">Iniciar Sesión</a>
+    </p>
+  </div>
+</div>
+```
+
+**Endpoint Backend:**
+```
+POST /api/auth/register
 Content-Type: application/json
 
 {
@@ -112,36 +565,34 @@ Content-Type: application/json
 }
 ```
 
-**Errores Comunes:**
-- **400 Bad Request:** Validación fallida (email inválido, username muy corto, etc.)
-- **409 Conflict:** Email o username ya existen
-- **500 Internal Server Error:** Fallo al enviar email (usuario creado, pero reintenta más tarde)
-
-**Lógica Backend:**
-1. Valida email único y username único
-2. Hash de password con bcrypt
-3. Crea usuario con `isVerified=false`
-4. Genera `verificationToken` (válido 1 hora)
-5. Envía email con link: `FRONTEND_URL/verify/<token>` (configurable)
-
-**Código Angular Ejemplo:**
-```typescript
-register(email: string, username: string, password: string) {
-  return this.http.post('/auth/register', 
-    { email, username, password },
-    { withCredentials: true }
-  );
+**Respuesta Error (409):**
+```json
+{
+  "ok": false,
+  "error": "Email ya registrado",
+  "code": "EMAIL_EXISTS"
 }
 ```
 
-**Flujo UX Posterior:**
-- Si éxito → mostrar pantalla "Verifica tu correo" con:
-  - Mensaje: "Hemos enviado un link de verificación a {email}"
-  - Botón "Reenviar verificación" (si no llegó el email)
-  - Timer: "Link válido por 1 hora"
-  - Nota: revisar SPAM
+**Manejo de Errores en Frontend:**
 
----
+| Código HTTP | Mensaje | Acción |
+|-------------|---------|--------|
+| **201** | Éxito | Ir a "Verifica tu correo" |
+| **400** | Validación fallida | Mostrar errores en campos (campo específico) |
+| **409** | Email/Username existe | "Este email ya está registrado" |
+| **429** | Rate limit excedido | "Demasiados intentos. Intenta en 5 minutos" |
+| **500** | Error servidor | "Error al registrar. Intenta más tarde" |
+
+**WebSocket Events:**
+- Ninguno en esta fase
+
+**Notas Técnicas:**
+- Almacenar email temporalmente en sessionStorage si necesitas mostrar en siguiente pantalla
+- El backend envía email de verificación automáticamente
+- No guardar password en localStorage por seguridad
+- Implementar reCAPTCHA v3 (opcional pero recomendado para prod)---
+
 
 ### 3. Reenvío de Verificación
 
@@ -173,32 +624,402 @@ Content-Type: application/json
 
 ---
 
+
 ### 4. Verificación (Link de Correo)
 
-**Endpoint:**
+**Componentes Requeridos:**
+- `VerifyEmailComponent` (página principal)
+- `VerifyingComponent` (estado de espera)
+- `VerificationSuccessComponent` (confirmación)
+
+**Servicios Requeridos:**
+- `AuthService.verifyEmail()`
+- `AuthService.resendVerificationEmail()`
+
+**Flujo de Verificación:**
+
+1. **Usuario accede a link del email:** `https://valgame.com/verify/TOKEN`
+2. **Frontend extrae token de URL**
+3. **Frontend envía GET al backend:** `GET /api/auth/verify/TOKEN`
+4. **Backend valida token y activa usuario**
+5. **Backend entrega automáticamente "Paquete Pionero"**
+6. **Frontend muestra confirmación con items recibidos**
+
+**Componentes Necesarios:**
+- VerifyEmailComponent para manejar el flujo de verificación
+- Manejo de estados: pending, loading, success, error
+- Visualización del Paquete Pionero (VAL, Boletos, EVO, Items)
+- Opción para reenviar email si es necesario
+
+**Endpoint Backend:**
+
 ```
-GET /auth/verify/:token
+GET /api/auth/verify/:token
 ```
 
-**Comportamiento:**
-- Si token **inválido/expirado** → HTML con mensaje de error y link para reenviar
-- Si token **válido** → 
-  1. Marca usuario como `isVerified=true`
-  2. Entrega paquete pionero (recursos iniciales)
-  3. Devuelve HTML con resumen de recompensas
-  4. Redirecciona a login o landing con mensaje de éxito
+**Respuesta Exitosa (200):**
+```json
+{
+  "ok": true,
+  "message": "Email verificado exitosamente",
+  "user": {
+    "id": "user_id_here",
+    "username": "player1",
+    "email": "user@example.com",
+    "isVerified": true
+  },
+  "pioneerPackage": {
+    "val": 100,
+    "boletos": 10,
+    "evo": 2,
+    "items": [
+      { "name": "Poción de Vida", "quantity": 3 },
+      { "name": "Espada de Principiante", "quantity": 1 }
+    ]
+  }
+}
+```
 
-**Nota:** Actualmente devuelve HTML desde el servidor. Si prefieres SPA puro, cambia el link del email a `FRONTEND_URL/verify/<token>` y deja que la SPA llame al API.
+**Respuesta Error (400):**
+```json
+{
+  "ok": false,
+  "error": "Token inválido o expirado",
+  "code": "INVALID_TOKEN"
+}
+```
+
+**Manejo de Errores:**
+
+| Código HTTP | Acción |
+|-------------|--------|
+| **200** | Mostrar paquete pionero y redirigir a dashboard |
+| **400** | Ofrecer reenvío o nuevo registro |
+| **409** | Redirigir a login |
+| **429** | Mostrar cooldown de reenvío |
+| **500** | Mensaje genérico + soporte |
+
+**WebSocket Events:** Ninguno en esta fase
+
+**Notas Técnicas:**
+- El paquete pionero se entrega **automáticamente** al verificar email
+- El token tiene validez de **1 hora**
+- Máximo **3 reenvíos por hora** (rate limit)
+- Se recomienda guardar email en sessionStorage para facilitar reenvío
 
 ---
 
 ### 5. Login (Inicio de Sesión)
 
+**Componentes Requeridos:**
+- `LoginComponent` (página principal)
+- `LoginFormComponent` (formulario reutilizable)
+- `AuthService` (lógica de autenticación)
+- `AuthGuard` (proteger rutas autenticadas)
+- `HttpInterceptor` (adjuntar JWT a requests)
+
+**Servicios Requeridos:**
+- `AuthService.login()`
+- `AuthService.getCurrentUser()`
+- `AuthService.logout()`
+
 **Campos:** `email`, `password`
 
-**Endpoint:**
+**Validaciones Locales (Frontend):**
+- Email: formato válido
+- Password: no vacío, mínimo 6 caracteres
+
+**Código Angular Completo:**
+
+```typescript
+// login.component.ts
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
+
+@Component({
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.scss']
+})
+export class LoginComponent implements OnInit {
+  loginForm!: FormGroup;
+  loading = false;
+  submitted = false;
+  errorMessage: string | null = null;
+  returnUrl: string = '/dashboard';
+
+  constructor(
+    private formBuilder: FormBuilder,
+    private authService: AuthService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
+
+  ngOnInit(): void {
+    this.initializeForm();
+    
+    // Obtener URL de retorno si existe
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+    
+    // Si ya está autenticado, redirigir
+    if (this.authService.isAuthenticated()) {
+      this.router.navigate([this.returnUrl]);
+    }
+  }
+
+  private initializeForm(): void {
+    this.loginForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      rememberMe: [false]
+    });
+  }
+
+  get f() {
+    return this.loginForm.controls;
+  }
+
+  onSubmit(): void {
+    this.submitted = true;
+    this.errorMessage = null;
+
+    if (this.loginForm.invalid) {
+      return;
+    }
+
+    this.loading = true;
+    const { email, password, rememberMe } = this.loginForm.value;
+
+    this.authService.login(email, password).subscribe({
+      next: (response) => {
+        this.loading = false;
+        
+        // Guardar preferencia "Recuérdame"
+        if (rememberMe) {
+          localStorage.setItem('rememberEmail', email);
+        }
+
+        // Redirigir al dashboard o URL de retorno
+        this.router.navigate([this.returnUrl]);
+      },
+      error: (error) => {
+        this.loading = false;
+
+        if (error.status === 401) {
+          this.errorMessage = 'Email o contraseña incorrectos';
+        } else if (error.status === 403) {
+          this.errorMessage = 'Tu cuenta no ha sido verificada. Verifica tu email primero.';
+        } else if (error.status === 429) {
+          this.errorMessage = 'Demasiados intentos fallidos. Intenta más tarde.';
+        } else {
+          this.errorMessage = 'Error al iniciar sesión. Intenta más tarde.';
+        }
+      }
+    });
+  }
+
+  goToRegister(): void {
+    this.router.navigate(['/auth/register']);
+  }
+
+  goToForgotPassword(): void {
+    this.router.navigate(['/auth/forgot-password']);
+  }
+}
 ```
-POST /auth/login
+
+```html
+<!-- login.component.html -->
+<div class="login-container">
+  <div class="login-card">
+    <h1>🎮 Iniciar Sesión en Valgame</h1>
+
+    <ng-container *ngIf="errorMessage">
+      <div class="alert alert-error">
+        ❌ {{ errorMessage }}
+      </div>
+    </ng-container>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+      <!-- Email -->
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="form-control"
+          [class.is-invalid]="submitted && f['email'].errors"
+          placeholder="tu@email.com"
+          autocomplete="email"
+        />
+        <div *ngIf="submitted && f['email'].errors" class="error-text">
+          <span *ngIf="f['email'].errors['required']">Email es requerido</span>
+          <span *ngIf="f['email'].errors['email']">Email inválido</span>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="form-control"
+          [class.is-invalid]="submitted && f['password'].errors"
+          placeholder="Tu contraseña"
+          autocomplete="current-password"
+        />
+        <div *ngIf="submitted && f['password'].errors" class="error-text">
+          <span *ngIf="f['password'].errors['required']">Contraseña es requerida</span>
+          <span *ngIf="f['password'].errors['minlength']">Mínimo 6 caracteres</span>
+        </div>
+      </div>
+
+      <!-- Remember Me & Forgot Password -->
+      <div class="form-row">
+        <div class="form-check">
+          <input
+            id="rememberMe"
+            type="checkbox"
+            formControlName="rememberMe"
+            class="form-check-input"
+          />
+          <label for="rememberMe" class="form-check-label">Recuérdame</label>
+        </div>
+        <a href="/auth/forgot-password" class="text-link">¿Olvidaste tu contraseña?</a>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        class="btn btn-primary btn-block"
+        [disabled]="loading"
+      >
+        <ng-container *ngIf="!loading">🚀 Iniciar Sesión</ng-container>
+        <ng-container *ngIf="loading">
+          <span class="spinner-border spinner-border-sm mr-2"></span>Iniciando...
+        </ng-container>
+      </button>
+    </form>
+
+    <p class="text-center mt-3">
+      ¿No tienes cuenta? <a href="/auth/register">Registrarse</a>
+    </p>
+  </div>
+</div>
+```
+
+```typescript
+// auth.service.ts - Métodos de Login
+export class AuthService {
+  private currentUser$ = new BehaviorSubject<User | null>(null);
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+
+  constructor(private http: HttpClient) {
+    this.checkAuthentication();
+  }
+
+  login(email: string, password: string): Observable<any> {
+    return this.http.post('/api/auth/login',
+      { email, password },
+      { withCredentials: true }
+    ).pipe(
+      tap((response) => {
+        this.currentUser$.next(response.user);
+        this.isAuthenticatedSubject.next(true);
+      })
+    );
+  }
+
+  logout(): Observable<any> {
+    return this.http.post('/api/auth/logout', {}, 
+      { withCredentials: true }
+    ).pipe(
+      tap(() => {
+        this.currentUser$.next(null);
+        this.isAuthenticatedSubject.next(false);
+      })
+    );
+  }
+
+  getCurrentUser(): Observable<User> {
+    return this.currentUser$.asObservable();
+  }
+
+  isAuthenticated(): boolean {
+    return this.isAuthenticatedSubject.value;
+  }
+
+  private checkAuthentication(): void {
+    // Verificar si hay token en cookie (automático con withCredentials)
+    // O intentar obtener usuario actual del backend
+    this.http.get('/api/auth/me', { withCredentials: true }).subscribe({
+      next: (user) => {
+        this.currentUser$.next(user);
+        this.isAuthenticatedSubject.next(true);
+      },
+      error: () => {
+        this.currentUser$.next(null);
+        this.isAuthenticatedSubject.next(false);
+      }
+    });
+  }
+}
+```
+
+```typescript
+// auth.guard.ts
+import { Injectable } from '@angular/core';
+import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from '@angular/router';
+import { AuthService } from '../services/auth.service';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthGuard implements CanActivate {
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
+    if (this.authService.isAuthenticated()) {
+      return true;
+    }
+
+    // No autenticado, redirigir a login con URL de retorno
+    this.router.navigate(['/auth/login'], { 
+      queryParams: { returnUrl: state.url } 
+    });
+    return false;
+  }
+}
+```
+
+```typescript
+// auth.interceptor.ts - Adjuntar JWT a cada request
+import { Injectable } from '@angular/core';
+import { HttpInterceptor, HttpRequest, HttpHandler, HttpEvent } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+@Injectable()
+export class AuthInterceptor implements HttpInterceptor {
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    // Usar withCredentials=true en auth.service para enviar cookies automáticamente
+    // No necesitamos agregar header Authorization porque usamos httpOnly cookies
+    return next.handle(req);
+  }
+}
+```
+
+**Endpoint Backend:**
+
+```
+POST /api/auth/login
 Content-Type: application/json
 
 {
@@ -207,75 +1028,152 @@ Content-Type: application/json
 }
 ```
 
-**Importante:** Usar `{ withCredentials: true }` para aceptar cookie httpOnly
-
 **Respuesta Exitosa (200):**
 ```json
 {
   "ok": true,
+  "message": "Sesión iniciada",
   "user": {
     "id": "64ab...",
     "email": "user@example.com",
     "username": "player1",
     "isVerified": true,
     "val": 100,
-    "evo": 0,
-    "boletos": 0
+    "evo": 2,
+    "boletos": 10
   }
 }
 ```
 
-**Nota:** Cookie httpOnly se envía en header `Set-Cookie: token=<JWT>; HttpOnly; Secure; SameSite=Strict`
+**Respuesta Error (401):**
+```json
+{
+  "ok": false,
+  "error": "Credenciales inválidas",
+  "code": "INVALID_CREDENTIALS"
+}
+```
 
-**Errores:**
-- **401 Unauthorized:** Credenciales inválidas
-- **403 Forbidden:** Cuenta no verificada (mostrar CTA para reenviar verificación)
-- **429 Too Many Requests:** Demasiados intentos fallidos (esperar o mostrar captcha)
+**Respuesta Error (403):**
+```json
+{
+  "ok": false,
+  "error": "Tu cuenta no ha sido verificada",
+  "code": "NOT_VERIFIED",
+  "message": "Verifica tu email antes de iniciar sesión"
+}
+```
 
-**Lógica Backend:**
-1. Verifica credenciales (bcrypt compare)
-2. Verifica `isVerified=true` (salvo TEST_MODE)
-3. Genera JWT y lo coloca en cookie httpOnly
-4. Devuelve datos del usuario
+**Manejo de Errores:**
 
-**Código Angular Ejemplo:**
+| Código HTTP | Mensaje | Acción |
+|-------------|---------|--------|
+| **200** | Éxito | Guardar usuario y redirigir a dashboard |
+| **401** | Credenciales inválidas | Mostrar error genérico |
+| **403** | Cuenta no verificada | Mostrar mensaje + link a reenvío |
+| **429** | Rate limit excedido | Mostrar mensaje de espera |
+| **500** | Error servidor | Mensaje genérico + soporte |
+
+**WebSocket Events:**
+- Conectar socket.io con JWT automáticamente tras login
+
+**Rutas Protegidas:**
 ```typescript
-login(email: string, password: string) {
-  return this.http.post('/auth/login',
-    { email, password },
-    { withCredentials: true }
-  );
-}
-
-// Después de login exitoso, cargar datos del usuario
-this.authService.login(email, password).subscribe(
-  (response) => {
-    this.currentUser = response.user;
-    this.navigateTo('/dashboard');
+// app-routing.module.ts
+const routes: Routes = [
+  {
+    path: 'dashboard',
+    component: DashboardComponent,
+    canActivate: [AuthGuard]  // Proteger con AuthGuard
   },
-  (error) => {
-    if (error.status === 403) {
-      this.showMessage('Verifica tu email primero');
-    }
-  }
-);
+  {
+    path: 'marketplace',
+    component: MarketplaceComponent,
+    canActivate: [AuthGuard]
+  },
+  // ... más rutas protegidas
+];
 ```
+
+**Notas Técnicas:**
+- Cookie httpOnly se envía automáticamente con `withCredentials: true`
+- No necesitas agregar header Authorization manualmente
+- El header Set-Cookie tiene flags: HttpOnly, Secure, SameSite=Strict
+- Si hay fallo de CORS, revisa que frontend URL esté en `FRONTEND_ORIGIN` del backend
+- Implementar "Recuérdame" guardando email en localStorage (opcional)
 
 ---
 
 ### 6. Recuperar Contraseña
 
-**Flujo de dos pasos:**
+**Flujo de Dos Pasos:**
 1. Usuario solicita recuperación con email
 2. Backend envía link con token temporal
-3. Usuario abre link, ingresa nueva contraseña
+3. Usuario abre link y ingresa nueva contraseña
 4. Backend valida y actualiza contraseña
 
-**Paso 1: Solicitar Recuperación**
+**Componentes Requeridos:**
+- `ForgotPasswordComponent` (solicitar email)
+- `ResetPasswordComponent` (ingresar nueva contraseña)
+- `AuthService` (solicitar reset y confirmar nueva contraseña)
 
-**Endpoint:**
+**PASO 1: Solicitar Recuperación**
+
+```typescript
+// forgot-password.component.ts
+import { Component } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AuthService } from '../../../core/services/auth.service';
+
+@Component({
+  selector: 'app-forgot-password',
+  templateUrl: './forgot-password.component.html'
+})
+export class ForgotPasswordComponent {
+  form!: FormGroup;
+  loading = false;
+  submitted = false;
+  successMessage: string | null = null;
+  errorMessage: string | null = null;
+
+  constructor(
+    private formBuilder: FormBuilder,
+    private authService: AuthService
+  ) {
+    this.form = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]]
+    });
+  }
+
+  get f() {
+    return this.form.controls;
+  }
+
+  onSubmit(): void {
+    this.submitted = true;
+    if (this.form.invalid) return;
+
+    this.loading = true;
+    const { email } = this.form.value;
+
+    this.authService.forgotPassword(email).subscribe({
+      next: () => {
+        this.loading = false;
+        this.successMessage = 'Si el email existe, recibirás instrucciones de recuperación';
+      },
+      error: (error) => {
+        this.loading = false;
+        this.errorMessage = 'Error al solicitar recuperación. Intenta más tarde.';
+      }
+    });
+  }
+}
 ```
-POST /auth/forgot-password
+
+**Endpoint Backend - Paso 1:**
+
+```
+POST /api/auth/forgot-password
 Content-Type: application/json
 
 { "email": "user@example.com" }
@@ -283,49 +1181,175 @@ Content-Type: application/json
 
 **Respuesta (200):**
 ```json
-{ "ok": true, "message": "Si el email existe, recibirás instrucciones" }
-```
-
-**Nota:** Respuesta genérica (no revela si el email existe para evitar enumeración de usuarios)
-
-**Lógica Backend:**
-- Si email existe: genera `resetPasswordToken` (válido 1 hora) y envía email
-- Si email no existe: responde igual (seguridad)
-
-**Paso 2: Reset Contraseña**
-
-**Endpoint:**
-```
-POST /auth/reset-password/:token
-Content-Type: application/json
-
-{
-  "password": "newPassword123",
-  "confirmPassword": "newPassword123"
+{ 
+  "ok": true, 
+  "message": "Si el email existe, recibirás instrucciones" 
 }
 ```
 
-**Respuesta (200):**
-```json
-{ "ok": true, "message": "Contraseña actualizada. Inicia sesión." }
+**PASO 2: Reset Contraseña**
+
+```typescript
+// reset-password.component.ts
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
+
+@Component({
+  selector: 'app-reset-password',
+  templateUrl: './reset-password.component.html'
+})
+export class ResetPasswordComponent implements OnInit {
+  form!: FormGroup;
+  loading = false;
+  submitted = false;
+  token: string = '';
+  email: string = '';
+  errorMessage: string | null = null;
+  successMessage: string | null = null;
+  tokenValid = true;
+
+  constructor(
+    private formBuilder: FormBuilder,
+    private authService: AuthService,
+    private route: ActivatedRoute,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    // Obtener token de URL
+    this.route.params.subscribe(params => {
+      this.token = params['token'];
+      if (!this.token) {
+        this.tokenValid = false;
+      }
+    });
+
+    this.route.queryParams.subscribe(queryParams => {
+      this.email = queryParams['email'];
+    });
+
+    this.initializeForm();
+  }
+
+  private initializeForm(): void {
+    this.form = this.formBuilder.group({
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      passwordConfirm: ['', Validators.required]
+    }, {
+      validators: this.passwordMatchValidator
+    });
+  }
+
+  private passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+    const password = control.get('password');
+    const passwordConfirm = control.get('passwordConfirm');
+
+    if (!password || !passwordConfirm) {
+      return null;
+    }
+
+    return password.value === passwordConfirm.value ? null : { passwordMismatch: true };
+  }
+
+  get f() {
+    return this.form.controls;
+  }
+
+  onSubmit(): void {
+    this.submitted = true;
+    this.errorMessage = null;
+
+    if (this.form.invalid || !this.token) {
+      return;
+    }
+
+    this.loading = true;
+    const { password } = this.form.value;
+
+    this.authService.resetPassword(this.token, password).subscribe({
+      next: () => {
+        this.loading = false;
+        this.successMessage = '✅ Contraseña actualizada exitosamente';
+        
+        setTimeout(() => {
+          this.router.navigate(['/auth/login']);
+        }, 2000);
+      },
+      error: (error) => {
+        this.loading = false;
+        
+        if (error.status === 400) {
+          this.errorMessage = 'Token inválido o expirado';
+          this.tokenValid = false;
+        } else {
+          this.errorMessage = 'Error al actualizar contraseña. Intenta más tarde.';
+        }
+      }
+    });
+  }
+}
 ```
 
-**Errores:**
-- **400 Bad Request:** Passwords no coinciden, token inválido/expirado, password muy débil
-- **401 Unauthorized:** Token no válido
+**Endpoint Backend - Paso 2:**
 
-**Lógica Backend:**
-1. Valida token temporal
-2. Valida que passwords coincidan y sean fuertes
-3. Hash de nueva contraseña
-4. Limpia `resetPasswordToken`
-5. Opcionalmente: invalida todas las sesiones anteriores (logout global)
+```
+POST /api/auth/reset-password
+Content-Type: application/json
 
-**UI Recomendada:**
-- Pantalla `ForgotPasswordComponent`: input email, botón "Enviar"
-- Pantalla `ResetPasswordComponent` (ruta `/reset-password/:token`): inputs password y confirmPassword, botón "Actualizar"
+{
+  "token": "reset_token_here",
+  "password": "newpassword123"
+}
+```
 
----
+**Respuesta Exitosa (200):**
+```json
+{
+  "ok": true,
+  "message": "Contraseña actualizada exitosamente"
+}
+```
+
+**Respuesta Error (400):**
+```json
+{
+  "ok": false,
+  "error": "Token inválido o expirado",
+  "code": "INVALID_RESET_TOKEN"
+}
+```
+
+**Validaciones del Backend:**
+- Email existe
+- Token no expirado (válido 1 hora)
+- Token no ha sido usado antes (idempotencia)
+- Contraseña cumple requisitos mínimos
+
+**Manejo de Errores:**
+
+| Código HTTP | Error | Acción |
+|-------------|-------|--------|
+| **200** (Paso 1) | N/A | Mostrar mensaje genérico (no revelar si email existe) |
+| **200** (Paso 2) | N/A | Mostrar éxito y redirigir a login |
+| **400** | Token inválido | Mostrar error y link a nueva solicitud |
+| **429** | Rate limit | "Demasiados intentos. Espera 15 minutos" |
+| **500** | Error servidor | Mensaje genérico |
+
+**Seguridad:**
+- Token válido solo 1 hora
+- Respuesta genérica en Paso 1 (no revela si email existe)
+- Tokens de un solo uso (no reutilizar después de cambiar contraseña)
+- Rate limit: máximo 3 solicitudes por email por hora
+- Enviar email de confirmación después de cambiar contraseña
+
+**WebSocket Events:** Ninguno en esta fase
+
+**Notas Técnicas:**
+- El email del reset no necesita verificación adicional (ya fue verificado en registro)
+- Después de resetear, usuario debe iniciar sesión nuevamente
+- Se recomienda enviar email notificando cambio de contraseña
 
 ### 7. Logout
 
@@ -362,6 +1386,7 @@ logout() {
 
 ---
 
+
 ### Resumen Endpoints Autenticación
 
 | Método | Endpoint | Descripción |
@@ -373,6 +1398,87 @@ logout() {
 | `POST` | `/auth/logout` | Cerrar sesión |
 | `POST` | `/auth/forgot-password` | Solicitar recuperación |
 | `POST` | `/auth/reset-password/:token` | Actualizar contraseña |
+
+---
+
+
+## 📊 Resumen de Servicios por Módulo
+
+Esta tabla muestra qué servicios Angular se requieren en cada módulo:
+
+| Módulo | Servicios Requeridos | Componentes Clave | WebSocket |
+|--------|-------------------|------------------|-----------|
+| **Autenticación** | AuthService, AuthGuard, HttpInterceptor | RegisterComponent, LoginComponent, VerifyEmailComponent, ForgotPasswordComponent, ResetPasswordComponent | No |
+| **Perfil/Dashboard** | AuthService, UserService, InventoryService, RealtimeService | DashboardComponent, ProfileComponent, ResourcesComponent | Sí - `user:updated`, `inventory:updated` |
+| **Inventario** | InventoryService, ItemService, RealtimeService | InventoryComponent, EquipmentComponent, ConsumableComponent | Sí - `inventory:updated` |
+| **Tienda/Paquetes** | PackageService, PurchaseService, StripeService, Web3Service, RealtimeService | PackageStoreComponent, PackageOpenComponent, PaymentComponent | Sí - `package:opened`, `inventory:updated` |
+| **Marketplace** | MarketplaceService, InventoryService, ItemService, RealtimeService | MarketplaceComponent, ListingCreateComponent, ListingBuyComponent, MyListingsComponent | Sí - `marketplace:updated`, `listing:sold`, `listing:expired` |
+| **Mazmorras/Combate** | CombatService, DungeonService, CharacterService, RealtimeService | DungeonComponent, CombatComponent, CharacterSelectionComponent, VictoryComponent, DefeatComponent | Sí - `combat:update`, `combat:end` |
+| **Rankings** | RankingService, CharacterService | RankingsComponent, LeaderboardComponent, SeasonComponent | No (pero pueden actualizarse cada cierto tiempo) |
+
+### Estructura de Servicios Core
+
+```typescript
+// core/services/index.ts - Exportar todos los servicios
+
+// Autenticación
+export { AuthService } from './auth.service';
+export { AuthGuard } from './auth.guard';
+export { AuthInterceptor } from './auth.interceptor';
+
+// Usuario
+export { UserService } from './user.service';
+export { InventoryService } from './inventory.service';
+export { ItemService } from './item.service';
+
+// Tiempo Real
+export { RealtimeService } from './realtime.service';
+
+// Compras
+export { PackageService } from './package.service';
+export { PurchaseService } from './purchase.service';
+export { StripeService } from './stripe.service';
+export { Web3Service } from './web3.service';
+
+// Marketplace
+export { MarketplaceService } from './marketplace.service';
+
+// Juego
+export { CombatService } from './combat.service';
+export { DungeonService } from './dungeon.service';
+export { CharacterService } from './character.service';
+export { RankingService } from './ranking.service';
+```
+
+### Inyección de Dependencias Global
+
+```typescript
+// app.config.ts o en los módulos
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { AuthInterceptor } from './core/services/auth.interceptor';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideHttpClient(
+      withInterceptors([
+        // Adjuntar JWT automáticamente a requests
+      ])
+    ),
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    },
+    // Servicios
+    AuthService,
+    AuthGuard,
+    UserService,
+    InventoryService,
+    RealtimeService,
+    // ... más servicios
+  ]
+};
+```
 
 ---
 
@@ -429,6 +1535,7 @@ GET /api/users/dashboard
 
 ---
 
+
 ### 2. Obtener Perfil Completo
 
 **Endpoint:**
@@ -473,6 +1580,7 @@ GET /api/users/me
 
 ---
 
+
 ### 3. Edición de Perfil
 
 **Endpoint:**
@@ -500,6 +1608,7 @@ Content-Type: application/json
 
 ---
 
+
 ### 4. Obtener Recursos (Ligero)
 
 **Endpoint:**
@@ -521,6 +1630,7 @@ GET /api/users/resources
 
 ---
 
+
 ### 5. Marcar Tutorial Completado
 
 **Endpoint:**
@@ -536,6 +1646,7 @@ PUT /api/users/tutorial/complete
 **Nota:** Flag para no mostrar tutorial nuevamente
 
 ---
+
 
 ## Inventario y Equipamiento (Personajes, Items, Consumibles)
 
@@ -554,9 +1665,10 @@ PUT /api/users/tutorial/complete
 **Consumibles:**
 - Pociones, buff, etc.
 - Se usan en combate o fuera
-- Tienen usos limitados
+- Tienen usos limitadas
 
 ---
+
 
 ### 2. Personajes: Obtener y Gestionar
 
@@ -596,6 +1708,7 @@ GET /api/user-characters/:characterId
 
 ---
 
+
 ### 3. Consumibles: Usar
 
 **Endpoint:**
@@ -622,6 +1735,7 @@ Content-Type: application/json
 ```
 
 ---
+
 
 ### 4. Personaje: Revive
 
@@ -652,6 +1766,7 @@ Content-Type: application/json
 
 ---
 
+
 ### 5. Personaje: Heal (Curar sin Revive)
 
 **Endpoint:**
@@ -672,6 +1787,7 @@ Content-Type: application/json
 ```
 
 ---
+
 
 ### 6. Personaje: Evolve (Evolucionar Etapa)
 
@@ -702,6 +1818,7 @@ Content-Type: application/json
 - **400 Bad Request:** Requisitos no cumplidos (nivel, etapa previa)
 
 ---
+
 
 ### 7. Equipamiento: Equipar/Desequipar
 
@@ -737,6 +1854,7 @@ Content-Type: application/json
 
 ---
 
+
 ### 8. Stats de Personaje
 
 **Endpoint:**
@@ -762,6 +1880,7 @@ GET /api/characters/:characterId/stats
 ```
 
 ---
+
 
 ## Paquetes y Tienda (Compra, Apertura, Asignación)
 
@@ -798,6 +1917,7 @@ GET /api/packages
 ```
 
 ---
+
 
 ### 2. Comprar Paquete
 
@@ -843,6 +1963,7 @@ Content-Type: application/json
 
 ---
 
+
 ### 3. Listar Paquetes del Usuario
 
 **Endpoint:**
@@ -867,6 +1988,7 @@ GET /api/user-packages/:userId
 ```
 
 ---
+
 
 ### 4. Abrir Paquete
 
@@ -913,6 +2035,7 @@ POST /api/user-packages/:id/open
 
 ---
 
+
 ### 5. Eventos WebSocket Asociados
 
 **Evento emitido tras apertura exitosa:**
@@ -936,6 +2059,7 @@ user:<userId>:inventory-updated
 **Frontend:** Suscribirse a este evento para actualizar UI en tiempo real sin polling
 
 ---
+
 
 ## Marketplace (Compra y Venta P2P)
 
@@ -979,6 +2103,7 @@ GET /api/marketplace
 
 ---
 
+
 ### 2. Mis Listings (Lo que estoy Vendiendo)
 
 **Endpoint:**
@@ -1003,6 +2128,7 @@ GET /api/marketplace/listings/my
 ```
 
 ---
+
 
 ### 3. Crear Listing (Vender)
 
@@ -1029,41 +2155,102 @@ Content-Type: application/json
 
 ---
 
+
 ### 4. Comprar del Marketplace
-
-**Endpoint:**
+**Endpoint (autenticado):**
 ```
-POST /api/marketplace/:listingId/buy
+POST /api/user-packages/agregar
+Content-Type: application/json
+
+{ "paqueteId": "pack_1" }
 ```
 
-**Respuesta (200):**
+**Comportamiento (backend):**
+  - Valida que el `Package` exista y lee su `precio_val`.
+  - Verifica límites (máximo de paquetes por usuario).
+  - Realiza una actualización atómica (`findOneAndUpdate`) que decrementa `user.val` solo si el usuario tiene saldo suficiente.
+  - Crea un `UserPackage` (paquete comprado, estado "cerrado").
+  - Registra la compra en `PurchaseLog`.
+  - Emite evento WebSocket de notificación: `RealtimeService.notifyInventoryUpdate(userId, { action: 'purchase', ... })` con `userPackage` y `val` actualizado.
+
+**Respuesta exitosa (200):**
 ```json
 {
+  "success": true,
   "ok": true,
-  "transaccionId": "trans_001",
-  "itemRecibido": { "id": "char_456", "nombre": "Valornian Épico" },
-  "valUsado": 50,
-  "nuevoBalance": 80
+  "userPackage": { "_id": "up_abc123", "paqueteId": "pack_1", "estado": "cerrado" },
+  "valRemaining": 4500,
+  "precioPagado": 500
 }
 ```
 
-**Errores:**
-- **402 Payment Required:** VAL insuficiente
-- **404 Not Found:** Listing no existe
-- **409 Conflict:** Listing ya fue vendido
+**Errores comunes:**
+  - **400 Bad Request:** Datos faltantes o VAL insuficiente (respuesta incluye `required` con valor necesario).
+  - **404 Not Found:** Paquete no existe.
+  - **400 Limit Reached:** Límite de paquetes alcanzado.
 
----
+**Frontend (recomendado):**
+  1. Llamar `POST /api/user-packages/agregar` desde el cliente autenticado.
+  2. Si la respuesta es exitosa, actualizar inmediatamente la lista "Mis paquetes" (o subscribirse al WebSocket). El servidor ya devolvió `userPackage` y `valRemaining`.
+  3. Mostrar el nuevo paquete en UI con estado `cerrado` y botón "Abrir".
 
-### 5. Transacciones Históricas
+B) Compra mediante proveedor externo (Stripe/fiat/crypto)
 
-**Endpoint:**
+- **Endpoint inicial (crea checkout):**
 ```
-GET /api/marketplace-transactions/my-purchases
+POST /api/payments/checkout
+Content-Type: application/json
+
+{ "userId": "64ab...", "paqueteId": "pack_1", "valorUSDT": 4.99 }
 ```
 
-**Respuesta (200):**
+- **Respuesta (checkout):**
 ```json
 {
+  "externalPaymentId": "MOCK-1600000000000",
+  "provider": "mock",
+  "amount": 4.99,
+  "currency": "USDT",
+  "checkoutUrl": "https://checkout.mock/p/MOCK-..."
+}
+```
+
+- **Flujo:**
+  1. El frontend redirige al usuario al `checkoutUrl` del proveedor.
+  2. El proveedor realiza la transacción y llama al webhook del backend en `/api/payments/webhook`.
+  3. El backend procesa el webhook (`paymentService.handleWebhook`) de forma idempotente.
+     - Si `status === 'succeeded'` el servicio puede:
+       - Acreditar VAL al usuario (`user.val += valRecibido`).
+       - Crear un `Purchase` y, si aplica, crear un `UserPackage` (paquete asignado).
+  4. Después del webhook exitoso, el frontend puede detectar la compra:
+     - Escuchando WebSocket para eventos de `notifyInventoryUpdate`.
+     - O consultando `GET /api/user-packages/:userId` o `GET /api/users/me`.
+
+- **Notas técnicas:**
+  - El webhook valida firma HMAC si `PAYMENT_WEBHOOK_SECRET` está configurado; el endpoint requiere raw body.
+  - `createCheckout` en esta implementación es un mock; integrar con el proveedor real requiere adaptar `payment.service`.
+
+Ambos flujos terminan (cuando se completan) con la existencia de un `UserPackage` en la colección del usuario, listo para ser abierto por `POST /api/user-packages/:id/open`.
+
+### Entrega del Paquete Pionero (al verificar el registro)
+
+- **Contexto:** Al verificar un nuevo usuario mediante el enlace de verificación, el backend ejecuta el flujo de onboarding que, si corresponde, entrega el *Paquete Pionero* (personaje base + recursos iniciales).
+
+- **Comportamiento (backend):**
+  - El servicio `deliverPioneerPackage(user)` aplica la entrega de forma atómica y **solo una vez** (campo `receivedPioneerPackage` en el usuario evita duplicados).
+  - Los contenidos típicos entregados incluyen: un personaje pionero en `user.personajes`, VAL inicial (e.g. 100), boletos, energía, EVO tokens, consumibles (pociones) y un arma/Equipo básico si está disponible.
+  - La operación guarda el usuario y devuelve un resumen de `rewards` con los elementos y cantidades entregadas.
+
+- **Cómo lo detecta el frontend:**
+  - Si la verificación se realiza vía llamada API (`GET /auth/verify/:token` con `Accept: application/json` o `?format=json`), el endpoint responde con un JSON que incluye `rewards` cuando la entrega fue efectiva. Recomendado para SPAs: usar esa respuesta para disparar animaciones/UX inmediatas.
+  - Si la verificación se hace abriendo el enlace en el navegador (flux de email), el backend también emite un evento en tiempo real: `RealtimeService.notifyInventoryUpdate(userId, { action: 'pioneer_package', rewards, personajes, equipamiento, val })`. El frontend conectado por WebSocket debe escuchar `pioneer_package` o `inventory_update` para actualizar la UI automáticamente.
+  - Como fallback, el frontend puede consultar `GET /api/users/me` o listar `GET /api/user-packages` después de la verificación para confirmar cambios en inventario y personajes.
+
+- **Recomendación para la UI:**
+  1. Para verificaciones iniciadas desde la app (SPA): llamar `GET /auth/verify/:token?format=json` y mostrar la `rewards` devuelta para animaciones.
+  2. Para verificaciones por email (navegador): si la app está conectada por WebSocket, escuchar `pioneer_package` para mostrar la pantalla de celebración; si no, pedir al usuario que vuelva a la app y refrescar su perfil (`GET /api/users/me`).
+
+- **Idempotencia:** El backend marca `receivedPioneerPackage` en el documento `User`, por lo que la entrega ocurre una sola vez incluso si la verificación se reintenta.
   "compras": [
     {
       "id": "trans_001",
@@ -1077,6 +2264,7 @@ GET /api/marketplace-transactions/my-purchases
 ```
 
 ---
+
 
 ## Mazmorras y Combate (Flujo de Juego)
 
@@ -1111,6 +2299,7 @@ GET /api/dungeons
 ```
 
 ---
+
 
 ### 2. Iniciar Mazmorra
 
@@ -1155,6 +2344,7 @@ O alternativamente:
 
 ---
 
+
 ### 3. Pantalla de Victoria
 
 **Datos a mostrar:**
@@ -1180,6 +2370,7 @@ user:<userId>:dungeon-completed
 
 ---
 
+
 ### 4. Pantalla de Derrota
 
 **Datos a mostrar:**
@@ -1189,6 +2380,7 @@ user:<userId>:dungeon-completed
 - Nota: si no tienes VAL o no quieres revivir, personajes quedan muertos y requieren revive manual
 
 ---
+
 
 ## Rankings (Leaderboards y Competencia)
 
@@ -1233,6 +2425,7 @@ GET /api/rankings
 
 ---
 
+
 ### 2. Mi Posición en el Ranking
 
 **Endpoint:**
@@ -1264,6 +2457,7 @@ GET /api/rankings/me
 
 ---
 
+
 ### 3. Rankings por Período
 
 **Endpoint:**
@@ -1277,6 +2471,7 @@ Parámetro `:period` puede ser `daily`, `weekly`, `monthly`, `all`
 
 ---
 
+
 ### UI Recomendada
 
 - Pestaña "Global" → muestra top 100
@@ -1286,6 +2481,7 @@ Parámetro `:period` puede ser `daily`, `weekly`, `monthly`, `all`
 - Mostrar "↑" o "↓" para cambios de posición
 
 ---
+
 
 ## Referencia Técnica (Endpoints, WebSocket, Errores)
 
@@ -1332,6 +2528,7 @@ Parámetro `:period` puede ser `daily`, `weekly`, `monthly`, `all`
 
 ---
 
+
 ### 2. Eventos WebSocket (Real-time)
 
 **Conexión y Suscripción:**
@@ -1369,6 +2566,7 @@ socket.on('user:user_123:character-updated', (data) => {
 | `user:<userId>:notifications` | `{ type: "notification", title, message }` | Notificaciones generales |
 
 ---
+
 
 ### 3. Manejo de Errores y Códigos HTTP
 
@@ -1411,6 +2609,7 @@ openPackage(packageId: string, retries = 0) {
 
 ---
 
+
 ### 4. Rate Limits y Recomendaciones
 
 **Rate Limiters Activos:**
@@ -1449,6 +2648,7 @@ private async retryWithBackoff(fn: () => Observable<any>, maxRetries = 3) {
 
 ---
 
+
 ### 5. Seguridad: Cookies y CORS
 
 **Configuración Requerida:**
@@ -1476,6 +2676,7 @@ this.http.post('/api/user-packages/123/open', {}, options);
 - Headers: Content-Type, Authorization
 
 ---
+
 
 ### 6. Ejemplos JSON Concretos
 
@@ -1619,6 +2820,7 @@ Set-Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; Sam
 
 ---
 
+
 ## Apéndice (Schemas, Scripts, Checklist)
 
 ### 1. Checklist Final para Implementar el Frontend
@@ -1687,6 +2889,7 @@ Set-Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly; Secure; Sam
 
 ---
 
+
 ### 2. Configuración Recomendada (Angular)
 
 **HttpClient Interceptor para Credentials:**
@@ -1742,6 +2945,7 @@ export class ErrorInterceptor implements HttpInterceptor {
 
 ---
 
+
 ### 3. Variables de Entorno (.env)
 
 ```env
@@ -1764,6 +2968,7 @@ LOG_LEVEL=debug
 
 ---
 
+
 ### 4. Buenas Prácticas
 
 1. **Validaciones Locales**: siempre validar antes de enviar al servidor
@@ -1779,6 +2984,7 @@ LOG_LEVEL=debug
 
 ---
 
+
 ### 5. Recursos Adicionales
 
 - **MongoDB Schemas**: ver `schemas/` carpeta en repo
@@ -1788,12 +2994,14 @@ LOG_LEVEL=debug
 
 ---
 
+
 **Última Actualización:** 24 de noviembre de 2025 - 11:35:49
 **Líneas Totales:** 1793
 **Versión:** 2.0 Reorganizada Completa
 **Próximo Paso:** Backend implementa WebSocket events sugeridos y alias endpoints. Frontend comienza implementación Fase 1.
 
 ---
+
 
 ## ✅ Checklist de Completud del Documento
 
@@ -1813,3 +3021,80 @@ LOG_LEVEL=debug
 - ✅ Manejo de errores con códigos HTTP
 - ✅ Rate limits documentados
 - ✅ Eventos WebSocket detallados
+## ��� FASES DE IMPLEMENTACIÓN (Marcar Progreso)
+
+### FASE 0: SETUP INICIAL
+- [ ] Setup Angular + librerías (HttpClient, SocketIO-client, RxJS)
+- [ ] Configurar interceptors HTTP y guard de autenticación
+- [ ] Setup variables de entorno (.env)
+- [ ] Conectar a WebSocket del backend
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 1: AUTENTICACIÓN
+- [ ] Landing → Registro → Verificación Email → Login
+- [ ] Logout y sesión persistente
+- [ ] Recuperación de contraseña
+- [ ] Middleware de protección (guard rutas)
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 2: DASHBOARD Y PERFIL
+- [ ] Dashboard post-login (recursos, personajes destacados)
+- [ ] Pantalla Perfil (edición, recursos, stats)
+- [ ] Marcar tutorial completado
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 3: INVENTARIO (Personajes y Items)
+- [ ] Listar personajes con stats
+- [ ] Equipar/desequipar items
+- [ ] Heal, Revive, Evolve personajes
+- [ ] Ver consumibles
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 4: PAQUETES Y TIENDA
+- [ ] Listar paquetes disponibles
+- [ ] Comprar paquete (**POST /api/purchase** alias o **/api/user-packages/agregar**)
+- [ ] Abrir paquete (**POST /api/open-package/:id** alias o **/api/user-packages/:id/open**)
+- [ ] Ver historial de paquetes abiertos
+- [ ] WebSocket listener para inventory-updated
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 5: MARKETPLACE
+- [ ] Listar productos a venta
+- [ ] Ver mis listings (lo que estoy vendiendo)
+- [ ] Crear listing (vender item propio)
+- [ ] Comprar del marketplace
+- [ ] Historial de transacciones
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 6: MAZMORRAS Y COMBATE
+- [ ] Listar mazmorras disponibles
+- [ ] Iniciar mazmorra (seleccionar personajes)
+- [ ] Pantalla de combate (acciones, efectos visuales)
+- [ ] Pantalla Victoria (rewards, recolectar)
+- [ ] Pantalla Derrota (retry, salir)
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 7: RANKINGS
+- [ ] Rankings globales (all-time, mes, semana)
+- [ ] Mi posición personal
+- [ ] Mostrar top 10/50/100 por período
+- [ ] Actualización vía WebSocket (opcional)
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 8: INTEGRACIONES Y POLISH
+- [ ] Offline support (guardar estado local)
+- [ ] Animaciones y transiciones
+- [ ] Notificaciones push (opcional)
+- [ ] Performance: lazy loading, code splitting
+- [ ] Testing: E2E mínimamente
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+### FASE 9: DEPLOYMENT Y QA
+- [ ] QA completo en staging
+- [ ] Deployment a producción
+- [ ] Monitoreo y logs
+- [ ] Documentación final de versión
+**Inicio:** _____ | **Fin:** _____ | **Status:** ⏳
+
+---
+

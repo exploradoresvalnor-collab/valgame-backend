@@ -90,3 +90,22 @@ router.delete('/listings/:id', async (req: Request, res: Response, next: NextFun
 });
 
 export default router;
+// ✅ NUEVA: Obtener listings del usuario actual
+router.get('/listings/my', async (req: Request, res: Response, next: NextFunction) => {
+
+  try {
+    if (!req.user) throw new ValidationError('Usuario no autenticado');
+
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+
+    const result = await MarketplaceService.getUserListings(req.user._id.toString(), { limit, offset });
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+});

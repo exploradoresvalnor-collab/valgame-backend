@@ -44,6 +44,7 @@ const Package_1 = __importDefault(require("../models/Package"));
 const Category_1 = __importDefault(require("../models/Category"));
 const BaseCharacter_1 = __importDefault(require("../models/BaseCharacter"));
 const PurchaseLog_1 = __importDefault(require("../models/PurchaseLog"));
+const realtime_service_1 = require("../services/realtime.service");
 const router = (0, express_1.Router)();
 // Agregar paquete a usuario (COMPRAR)
 router.post('/agregar', async (req, res) => {
@@ -102,6 +103,15 @@ router.post('/agregar', async (req, res) => {
                 packagePrice: precio
             }
         });
+        // Emitir evento WebSocket para notificar que se compró el paquete
+        const realtime = realtime_service_1.RealtimeService.getInstance();
+        realtime.notifyInventoryUpdate(userId, {
+            val: updatedUser.val,
+            valSpent: precio,
+            newPackage: nuevo,
+            action: 'purchase',
+            packageName: paquete.nombre || 'Unknown'
+        });
         return res.json({
             success: true,
             ok: true,
@@ -124,6 +134,12 @@ router.post('/quitar', async (req, res) => {
         const eliminado = await UserPackage_1.default.findOneAndDelete({ userId, paqueteId });
         if (!eliminado)
             return res.status(404).json({ error: 'No encontrado.' });
+        // Emitir evento WebSocket para notificar que se removió un paquete
+        const realtime = realtime_service_1.RealtimeService.getInstance();
+        realtime.notifyInventoryUpdate(userId, {
+            action: 'packageRemoved',
+            removedPackageId: paqueteId
+        });
         res.json({ ok: true, eliminado });
     }
     catch (error) {
@@ -349,10 +365,34 @@ router.post('/:id/open', async (req, res) => {
                 }
             }], { session });
         await session.commitTransaction();
+        // Emitir evento WebSocket para notificar actualización de inventario
+        try {
+            const realtime = realtime_service_1.RealtimeService.getInstance();
+            realtime.notifyInventoryUpdate(userId, {
+                personajes: user.personajes.length,
+                equipamiento: user.inventarioEquipamiento.length,
+                val: user.val,
+                newCharacters: assigned,
+                newItems: (pkg.items_reward || []).map((id) => new mongoose_1.Types.ObjectId(String(id))),
+                valGranted: pkg.val_reward || 0
+            });
+        }
+        catch (notifyErr) {
+            console.warn('[USER-PACKAGE-OPEN] Notification failed:', notifyErr?.message || notifyErr);
+        }
         res.json({ ok: true, assigned, summary: { charactersReceived: assigned.length, itemsReceived: itemsToAdd, valReceived: pkg.val_reward || 0, totalCharacters: user.personajes.length, totalItems: user.inventarioEquipamiento.length, valBalance: user.val } });
     }
     catch (err) {
-        await session.abortTransaction();
+        // Intentar abortar la transacción, pero silenciar cualquier
+        // error (p. ej. "Cannot call abortTransaction after calling commitTransaction").
+        try {
+            await session.abortTransaction().catch((_e) => {
+                // Silenciar errores de abort
+            });
+        }
+        catch (_e) {
+            // No hacer nada adicional
+        }
         console.error('[USER-PACKAGE-OPEN] Error:', err);
         res.status(500).json({ error: 'Error al abrir paquete' });
     }

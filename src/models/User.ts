@@ -99,6 +99,16 @@ export interface IUser extends Document {
     total_derrotas: number;
     mejor_racha: number;
   };
+
+  // Survival Oleadas
+  survivalPoints: number;
+  currentSurvivalSession?: Types.ObjectId;
+  survivalStats?: {
+    totalRuns: number;
+    maxWave: number;
+    totalPoints: number;
+    averageWave: number;
+  };
 }
 
 // --- SCHEMAS ---
@@ -208,6 +218,17 @@ const UserSchema = new Schema<IUser>({
         mejor_racha: { type: Number, default: 0, min: 0 }
       }, { _id: false }),
       default: () => ({ total_victorias: 0, total_derrotas: 0, mejor_racha: 0 })
+    },
+    survivalPoints: { type: Number, default: 0, min: 0 },
+    currentSurvivalSession: { type: Schema.Types.ObjectId, ref: 'SurvivalSession', default: null },
+    survivalStats: {
+      type: new Schema({
+        totalRuns: { type: Number, default: 0, min: 0 },
+        maxWave: { type: Number, default: 0, min: 0 },
+        totalPoints: { type: Number, default: 0, min: 0 },
+        averageWave: { type: Number, default: 0, min: 0 }
+      }, { _id: false }),
+      default: () => ({ totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 })
     }
   }, {
     timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },

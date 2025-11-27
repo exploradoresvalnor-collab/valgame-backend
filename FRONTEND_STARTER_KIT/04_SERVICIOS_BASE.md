@@ -592,3 +592,381 @@ export class DashboardComponent implements OnInit {
 ---
 
 **Siguiente paso:** Ve a `05_COMPONENTES_EJEMPLO.md`
+
+---
+
+# ��� SURVIVAL SERVICE - ANGULAR (v2.0)
+
+```typescript
+// survival.service.ts
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, BehaviorSubject } from 'rxjs';
+import { environment } from '../environments/environment';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class SurvivalService {
+  private apiUrl = `${environment.apiUrl}/api/survival`;
+  private currentSessionSubject = new BehaviorSubject<any>(null);
+  public currentSession$ = this.currentSessionSubject.asObservable();
+
+  constructor(private http: HttpClient) {}
+
+  /**
+   * 1. Iniciar una sesión de Survival
+   */
+  startSurvival(
+    characterId: string,
+    equipmentIds?: string[],
+    consumableIds?: string[]
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/start`, {
+      characterId,
+      equipmentIds,
+      consumableIds
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 2. Completar una oleada
+   */
+  completeWave(
+    sessionId: string,
+    enemiesDefeated: number,
+    damageDealt: number,
+    damageTaken: number
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${sessionId}/complete-wave`, {
+      enemiesDefeated,
+      damageDealt,
+      damageTaken
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 3. Usar consumible durante sesión
+   */
+  useConsumable(sessionId: string, consumableId: string): Observable<any> {
+    return this.http.post(
+      `${this.apiUrl}/${sessionId}/use-consumable`,
+      { consumableId },
+      { withCredentials: true }
+    );
+  }
+
+  /**
+   * 4. Recoger drop de enemigo
+   */
+  pickupDrop(sessionId: string, dropItemId: string): Observable<any> {
+    return this.http.post(
+      `${this.apiUrl}/${sessionId}/pickup-drop`,
+      { dropItemId },
+      { withCredentials: true }
+    );
+  }
+
+  /**
+   * 5. Finalizar sesión exitosamente
+   */
+  endSurvival(
+    sessionId: string,
+    finalWave: number,
+    totalEnemiesDefeated: number,
+    totalPoints: number,
+    duration: number
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${sessionId}/end`, {
+      finalWave,
+      totalEnemiesDefeated,
+      totalPoints,
+      duration
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 6. Reportar muerte/derrota
+   */
+  reportDeath(
+    sessionId: string,
+    waveDefeatedAt: number,
+    totalEnemiesDefeated: number,
+    totalPoints: number,
+    duration: number
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${sessionId}/report-death`, {
+      waveDefeatedAt,
+      totalEnemiesDefeated,
+      totalPoints,
+      duration
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 7. Canjear puntos por EXP
+   */
+  exchangeForExp(
+    characterId: string,
+    pointsToExchange: number
+  ): Observable<any> {
+    return this.http.post(`${this.apiUrl}/exchange-points/exp`, {
+      characterId,
+      pointsToExchange
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 8. Canjear puntos por VAL
+   */
+  exchangeForVal(pointsToExchange: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/exchange-points/val`, {
+      pointsToExchange
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 9. Canjear puntos por items
+   */
+  exchangeForItems(itemId: string, pointsToSpend: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/exchange-points/items`, {
+      itemId,
+      pointsToSpend
+    }, { withCredentials: true });
+  }
+
+  /**
+   * 10. Obtener leaderboard global
+   */
+  getLeaderboard(limit: number = 50, offset: number = 0): Observable<any> {
+    return this.http.get(`${this.apiUrl}/leaderboard`, {
+      params: { limit, offset },
+      withCredentials: true
+    });
+  }
+
+  /**
+   * 11. Obtener mis estadísticas
+   */
+  getMyStats(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/my-stats`, { withCredentials: true });
+  }
+
+  /**
+   * 12. Abandonar sesión actual
+   */
+  abandonSession(sessionId: string, reason: string = 'manual'): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${sessionId}/abandon`, {
+      reason
+    }, { withCredentials: true });
+  }
+
+  /**
+   * Actualizar sesión en tiempo real
+   */
+  setCurrentSession(session: any): void {
+    this.currentSessionSubject.next(session);
+  }
+
+  /**
+   * Obtener sesión actual
+   */
+  getCurrentSession(): Observable<any> {
+    return this.currentSession$;
+  }
+}
+```
+
+---
+
+## USO EJEMPLO EN COMPONENTE
+
+```typescript
+import { Component, OnInit } from '@angular/core';
+import { SurvivalService } from './services/survival.service';
+
+@Component({
+  selector: 'app-survival',
+  templateUrl: './survival.component.html',
+  styleUrls: ['./survival.component.scss']
+})
+export class SurvivalComponent implements OnInit {
+  currentSession: any;
+  myStats: any;
+  leaderboard: any[] = [];
+  loading = false;
+
+  constructor(private survivalService: SurvivalService) {}
+
+  ngOnInit(): void {
+    this.loadMyStats();
+    this.loadLeaderboard();
+  }
+
+  /**
+   * Iniciar nueva sesión de Survival
+   */
+  startNewSession(characterId: string): void {
+    this.loading = true;
+    this.survivalService.startSurvival(characterId).subscribe(
+      (response) => {
+        this.currentSession = response.session;
+        this.survivalService.setCurrentSession(response.session);
+        this.loading = false;
+        console.log('Sesión iniciada:', response.session);
+      },
+      (error) => {
+        this.loading = false;
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  /**
+   * Completar oleada
+   */
+  completeWave(enemiesDefeated: number, damageDealt: number, damageTaken: number): void {
+    this.survivalService.completeWave(
+      this.currentSession.sessionId,
+      enemiesDefeated,
+      damageDealt,
+      damageTaken
+    ).subscribe(
+      (response) => {
+        this.currentSession = response.run;
+        console.log('Oleada completada:', response);
+      },
+      (error) => {
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  /**
+   * Finalizar sesión (ganar)
+   */
+  finalizeSurvival(finalWave: number, totalEnemies: number, totalPoints: number, duration: number): void {
+    this.survivalService.endSurvival(
+      this.currentSession.sessionId,
+      finalWave,
+      totalEnemies,
+      totalPoints,
+      duration
+    ).subscribe(
+      (response) => {
+        console.log('Sesión completada:', response);
+        alert('¡Ganaste! Puntos: ' + response.rewards.survivalPoints);
+        this.loadMyStats();
+        this.loadLeaderboard();
+      },
+      (error) => {
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  /**
+   * Reportar muerte
+   */
+  reportDeath(waveDefeatedAt: number, totalEnemies: number, totalPoints: number, duration: number): void {
+    this.survivalService.reportDeath(
+      this.currentSession.sessionId,
+      waveDefeatedAt,
+      totalEnemies,
+      totalPoints,
+      duration
+    ).subscribe(
+      (response) => {
+        console.log('Muerte reportada:', response);
+        alert('Llegaste a oleada ' + waveDefeatedAt);
+        this.currentSession = null;
+      },
+      (error) => {
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  /**
+   * Canjear puntos por EXP
+   */
+  exchangeForExp(characterId: string, points: number): void {
+    this.survivalService.exchangeForExp(characterId, points).subscribe(
+      (response) => {
+        console.log('Intercambio completado:', response);
+        alert('Ganaste +' + response.exchange.expGained + ' EXP');
+        this.loadMyStats();
+      },
+      (error) => {
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  /**
+   * Obtener mis estadísticas
+   */
+  loadMyStats(): void {
+    this.survivalService.getMyStats().subscribe(
+      (response) => {
+        this.myStats = response.stats;
+        console.log('Mis stats:', this.myStats);
+      },
+      (error) => {
+        console.error('Error cargando stats:', error);
+      }
+    );
+  }
+
+  /**
+   * Obtener leaderboard
+   */
+  loadLeaderboard(): void {
+    this.survivalService.getLeaderboard(50, 0).subscribe(
+      (response) => {
+        this.leaderboard = response.leaderboard;
+        console.log('Leaderboard:', this.leaderboard);
+      },
+      (error) => {
+        console.error('Error cargando leaderboard:', error);
+      }
+    );
+  }
+
+  /**
+   * Usar consumible
+   */
+  useConsumable(consumableId: string): void {
+    this.survivalService.useConsumable(
+      this.currentSession.sessionId,
+      consumableId
+    ).subscribe(
+      (response) => {
+        console.log('Consumible usado:', response);
+        alert('Consumible usado: ' + response.consumable.name);
+      },
+      (error) => {
+        alert('Error: ' + error.error.error);
+      }
+    );
+  }
+
+  /**
+   * Abandonar sesión
+   */
+  abandonCurrentSession(): void {
+    if (confirm('¿Abandonar sesión actual?')) {
+      this.survivalService.abandonSession(this.currentSession.sessionId).subscribe(
+        (response) => {
+          console.log('Sesión abandonada:', response);
+          this.currentSession = null;
+          this.loadMyStats();
+        },
+        (error) => {
+          alert('Error: ' + error.error.error);
+        }
+      );
+    }
+  }
+}
+```

@@ -509,3 +509,152 @@ Para usar `@models/` en lugar de rutas relativas, agrega en `tsconfig.json`:
 ---
 
 **Siguiente paso:** Ve a `04_SERVICIOS_BASE.md`
+
+---
+
+# ��� MODELOS SURVIVAL (v2.0)
+
+## SurvivalSession
+
+```typescript
+interface SurvivalSession {
+  sessionId: string;
+  userId: string;
+  characterId: string;
+  currentWave: number;
+  totalPoints: number;
+  equipment: {
+    head: EquipmentSlot;
+    body: EquipmentSlot;
+    hands: EquipmentSlot;
+    feet: EquipmentSlot;
+  };
+  consumables: {
+    consumableId: string;
+    usesRemaining: number;
+  }[];
+  status: 'active' | 'completed' | 'abandoned' | 'failed';
+  createdAt: Date;
+  startedAt?: Date;
+  endedAt?: Date;
+}
+
+interface EquipmentSlot {
+  itemId: string;
+  name: string;
+  stats: {
+    ataque?: number;
+    defensa?: number;
+    [key: string]: number | undefined;
+  };
+}
+```
+
+## SurvivalRun
+
+```typescript
+interface SurvivalRun {
+  runId: string;
+  sessionId: string;
+  userId: string;
+  characterId: string;
+  finalWave: number;
+  totalEnemiesDefeated: number;
+  totalPoints: number;
+  duration: number; // segundos
+  status: 'victory' | 'defeat' | 'abandoned';
+  waveHistory: WaveRecord[];
+  rewardsObtained: {
+    survivalPoints: number;
+    exp: number;
+    val: number;
+    items: string[];
+  };
+  completedAt: Date;
+}
+
+interface WaveRecord {
+  wave: number;
+  enemiesDefeated: number;
+  damageDealt: number;
+  damageTaken: number;
+  pointsEarned: number;
+  timestamp: Date;
+}
+```
+
+## SurvivalLeaderboardEntry
+
+```typescript
+interface SurvivalLeaderboardEntry {
+  position: number;
+  userId: string;
+  userName: string;
+  characterId: string;
+  characterName: string;
+  totalPoints: number;
+  totalSessions: number;
+  averageWave: number;
+  highestWave: number;
+  lastSession: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+```
+
+## SurvivalStats
+
+```typescript
+interface SurvivalStats {
+  userId: string;
+  totalSessions: number;
+  totalPoints: number;
+  averageWave: number;
+  leaderboardRank: number;
+  bestRun: SurvivalRun | null;
+  personalRecords: {
+    highestWave: number;
+    mostPointsInSession: number;
+    fastestSessionWin: number; // segundos
+    longestSession: number; // segundos
+  };
+  sessionHistory: SurvivalRun[];
+  lastUpdated: Date;
+}
+```
+
+## User Updated (campos nuevos)
+
+```typescript
+interface User {
+  // ... campos existentes
+  
+  survivalPoints: number;  // Total acumulado
+  currentSurvivalSession?: {
+    sessionId: string;
+    characterId: string;
+    startedAt: Date;
+  };
+  survivalStats: {
+    totalSessions: number;
+    totalPoints: number;
+    highestWave: number;
+  };
+}
+```
+
+---
+
+## RESUMEN DE RELACIONES
+
+```
+User 1──────────∞ SurvivalRun
+     └────────∞ SurvivalLeaderboardEntry
+              └───∞ SurvivalStats
+
+Cómo leerlo:
+- Un usuario puede tener múltiples runs (sesiones)
+- Cada run registra su rendimiento
+- El leaderboard se actualiza con cada run
+- Las stats son un resumen agregado del usuario
+```

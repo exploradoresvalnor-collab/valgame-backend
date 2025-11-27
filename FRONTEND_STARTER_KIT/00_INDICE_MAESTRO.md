@@ -343,7 +343,65 @@ npm test tests/e2e/master-complete-flow.e2e.test.ts
 
 ---
 
-## 🔗 ENLACES ÚTILES
+## 📌 NUEVAS FUNCIONALIDADES (Noviembre 27, 2025)
+
+### ⚠️ Error Handling & Offline Support
+
+**Documentos Nuevos:**
+
+| Archivo | Descripción | Prioridad |
+|---------|-------------|-----------|
+| **28_COMPONENTE_OFFLINE_INDICATOR.md** | Componente Visual + Servicio para desconexiones | ⭐⭐⭐⭐⭐ |
+| **GUIA_MANEJO_ERRORES_OFFLINE.md** | Guía técnica completa de error handling | ⭐⭐⭐⭐ |
+| **RESUMEN_CAMBIOS_ERROR_HANDLING.md** | Resumen de cambios backend | ⭐⭐⭐ |
+
+**Qué incluye:**
+- ✅ Banner visual de desconexión
+- ✅ Reintentos automáticos con backoff exponencial
+- ✅ Monitoreo de conexión en tiempo real
+- ✅ Componente Angular completamente documentado
+- ✅ Servicio de monitoreo listo para copiar
+- ✅ 3 Endpoints de health check (/api/health, /ready, /live)
+
+**Configuración en app.component.html:**
+```html
+<!-- Top del template, antes de <router-outlet> -->
+<app-offline-indicator></app-offline-indicator>
+<router-outlet></router-outlet>
+```
+
+**Importar servicio en app.module.ts o app.component.ts:**
+```typescript
+import { OfflineIndicatorComponent } from './shared/components/offline-indicator/offline-indicator.component';
+import { ConnectionMonitorService } from './shared/services/connection-monitor.service';
+
+// En standalone o app.module.ts
+providers: [ConnectionMonitorService]
+imports: [OfflineIndicatorComponent]
+```
+
+---
+
+## 🔄 CHANGELOG - NOVIEMBRE 27, 2025
+
+### Backend (6 archivos nuevos/modificados)
+- ✅ `src/utils/errors.ts` - 3 nuevas clases de error (ConnectionError, OfflineError, TimeoutError)
+- ✅ `src/middlewares/errorHandler.ts` - Detección automática de errores de conexión
+- ✅ `src/middlewares/connectionMonitor.ts` - Monitoreo de conexión + health check
+- ✅ `src/utils/retryWithBackoff.ts` - Reintentos con backoff exponencial
+- ✅ `src/routes/health.routes.ts` - Endpoints /api/health, /ready, /live
+- ✅ `src/app.ts` - Registrados nuevos middlewares
+
+### Frontend (Componentes documentados)
+- ✅ `OfflineIndicatorComponent` - Banner rojo con animaciones y progreso
+- ✅ `ConnectionMonitorService` - Monitoreo de estado de conexión
+
+### Documentación (3 nuevos archivos)
+- ✅ `28_COMPONENTE_OFFLINE_INDICATOR.md` - Código completo ready-to-copy
+- ✅ `GUIA_MANEJO_ERRORES_OFFLINE.md` - Referencia técnica
+- ✅ `RESUMEN_CAMBIOS_ERROR_HANDLING.md` - Resumen ejecutivo
+
+---
 
 ### Repositorio
 - **GitHub:** https://github.com/exploradoresvalnor-collab/valgame-backend

@@ -42,41 +42,50 @@ const User_1 = require("../models/User");
 const TokenBlacklist_1 = require("../models/TokenBlacklist");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const crypto_1 = __importDefault(require("crypto")); // Módulo nativo para generar tokens seguros
-const mailer_1 = require("../config/mailer"); // Importamos nuestra nueva función
-const security_1 = require("../config/security"); // Importar configuración segura
+const crypto_1 = __importDefault(require("crypto"));
+const mailer_1 = require("../config/mailer");
+const security_1 = require("../config/security");
 const auth_1 = require("../middlewares/auth");
 const router = (0, express_1.Router)();
+// --- ZODY SCHEMAS ---
 const RegisterSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     username: zod_1.z.string().min(3),
     password: zod_1.z.string().min(6)
 });
-// --- RUTA DE REGISTRO (MODIFICADA) ---
+const LoginSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+    password: zod_1.z.string().min(6)
+});
+const ResendVerificationSchema = zod_1.z.object({
+    email: zod_1.z.string().email()
+});
+const ForgotPasswordSchema = zod_1.z.object({
+    email: zod_1.z.string().email()
+});
+const ResetPasswordSchema = zod_1.z.object({
+    password: zod_1.z.string().min(6)
+});
+// --- RUTA: POST /auth/register ---
 router.post('/register', async (req, res) => {
-    console.log('[REGISTER] 🎯 Endpoint /register llamado');
     try {
         const { email, username, password } = RegisterSchema.parse(req.body);
-        console.log(`[REGISTER] 📝 Datos recibidos: ${email}, ${username}`);
-        const exists = await User_1.User.findOne({ $or: [{ email }, { username }] });
+        const exists = await User_1.User.findOne({
+            $or: [{ email }, { username }]
+        });
         if (exists) {
-            // Si el usuario existe pero no está verificado, podríamos reenviar el correo
-            if (!exists.isVerified) {
-                // Aquí podrías añadir lógica para reenviar el correo si lo deseas
-            }
             return res.status(409).json({ error: 'Email o username ya existe' });
         }
         const passwordHash = await bcryptjs_1.default.hash(password, 10);
-        // Creamos una instancia del usuario para añadirle los tokens
+        // Crear instancia del usuario
         const user = new User_1.User({ email, username, passwordHash });
-        // Nota: la entrega del Paquete del Pionero se realizará al verificar el correo
-        // Generamos el token de verificación
+        // Generar token de verificación
         const verificationToken = crypto_1.default.randomBytes(32).toString('hex');
         user.verificationToken = verificationToken;
-        user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora de validez
-        await user.save(); // Guardamos el usuario con el token
+        user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+        await user.save();
         console.log(`[REGISTER] ✅ Usuario creado: ${username} (${email})`);
-        // Enviamos el correo de verificación
+        // Enviar correo de verificación
         console.log(`[REGISTER] 📧 Intentando enviar correo de verificación...`);
         try {
             await (0, mailer_1.sendVerificationEmail)(user.email, verificationToken);
@@ -84,7 +93,6 @@ router.post('/register', async (req, res) => {
         }
         catch (emailError) {
             console.error(`[REGISTER] ❌ ERROR al enviar correo:`, emailError.message);
-            // El usuario ya fue creado, pero informamos que hubo problema con el email
             return res.status(201).json({
                 message: 'Registro exitoso pero hubo un problema al enviar el correo de verificación. Por favor, contacta al soporte.',
                 warning: 'Email no enviado'
@@ -99,13 +107,13 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: e?.message || 'Bad Request' });
     }
 });
-// --- NUEVA RUTA DE VERIFICACIÓN ---
+// --- RUTA: GET /auth/verify/:token ---
 router.get('/verify/:token', async (req, res) => {
     try {
         const { token } = req.params;
         const user = await User_1.User.findOne({
             verificationToken: token,
-            verificationTokenExpires: { $gt: new Date() }, // Token válido y no expirado
+            verificationTokenExpires: { $gt: new Date() }
         });
         if (!user) {
             return res.status(400).send(`
@@ -132,36 +140,49 @@ router.get('/verify/:token', async (req, res) => {
   </div>
 </body>
 </html>
-            `);
+      `);
         }
-        // Verificamos al usuario y limpiamos los campos del token
+        // Verificar usuario y limpiar tokens
         user.isVerified = true;
         user.verificationToken = undefined;
         user.verificationTokenExpires = undefined;
         await user.save();
         console.log(`[VERIFY] ✅ Usuario verificado: ${user.username} (${user.email})`);
-        // Entregar el Paquete del Pionero (idempotente)
-        let packageResult = null;
+        // Entregar paquete del pionero al verificar
         try {
-            console.log('[VERIFY] 🎁 Intentando entregar Paquete del Pionero...');
             const { deliverPioneerPackage } = await Promise.resolve().then(() => __importStar(require('../services/onboarding.service')));
-            packageResult = await deliverPioneerPackage(user);
-            console.log('[VERIFY] ✅ Paquete del Pionero entregado exitosamente');
+            const result = await deliverPioneerPackage(user);
+            if (result.delivered) {
+                console.log(`[VERIFY] 🎉 Paquete del Pionero entregado a ${user.username}`);
+            }
+            else {
+                console.warn(`[VERIFY] ⚠️ No se pudo entregar paquete pionero: ${result.reason}`);
+            }
+            req.onboardingResult = result;
         }
-        catch (err) {
-            console.error('[VERIFY] ❌ Error al entregar paquete:', err.message);
-            // Continuar aunque falle el paquete
+        catch (onboardingError) {
+            console.error(`[VERIFY] ❌ Error al entregar paquete pionero:`, onboardingError);
+            req.onboardingResult = { delivered: false, reason: 'onboarding_error' };
         }
         // Detectar si es petición API (JSON) o browser (HTML)
         const accept = req.headers.accept || '';
         const isAPI = accept.includes('application/json') || req.query.format === 'json' || process.env.NODE_ENV === 'test';
         if (isAPI) {
             // Respuesta JSON para APIs/tests
-            return res.json({
+            const apiResponse = {
                 ok: true,
-                message: 'Usuario verificado exitosamente',
-                package: packageResult
-            });
+                message: 'Usuario verificado exitosamente'
+            };
+            const onboardingResult = req.onboardingResult;
+            if (onboardingResult) {
+                if (onboardingResult.delivered) {
+                    apiResponse.rewards = onboardingResult.rewards || null;
+                }
+                else {
+                    apiResponse.onboarding = { delivered: false, reason: onboardingResult.reason };
+                }
+            }
+            return res.json(apiResponse);
         }
         else {
             // Página HTML para browsers
@@ -194,30 +215,18 @@ router.get('/verify/:token', async (req, res) => {
     <div class="icon">🎉</div>
     <h1>¡Cuenta Verificada con Éxito!</h1>
     <p>¡Bienvenido a <strong>Valgame</strong>, aventurero <strong>${user.username}</strong>!</p>
-    
-    ${packageResult ? `
-    <div class="rewards">
-      <h3>🎁 Recompensas Recibidas:</h3>
-      <ul>
-        <li>✅ Paquete del Pionero desbloqueado</li>
-        <li>⚔️ Personaje inicial</li>
-        <li>💰 Recursos de inicio</li>
-        <li>🎮 Acceso completo al juego</li>
-      </ul>
-    </div>
-    ` : `
+
     <div class="rewards">
       <h3>✅ Tu cuenta está verificada</h3>
       <p>Ya puedes iniciar sesión y comenzar tu aventura.</p>
     </div>
-    `}
-    
+
     <p style="margin-top: 30px;">Ya puedes cerrar esta ventana e iniciar sesión en el juego.</p>
     <a href="#" class="btn">🎮 Ir al Juego</a>
   </div>
 </body>
 </html>
-          `);
+      `);
         }
     }
     catch (error) {
@@ -246,21 +255,17 @@ router.get('/verify/:token', async (req, res) => {
   </div>
 </body>
 </html>
-        `);
+    `);
     }
 });
-const LoginSchema = zod_1.z.object({
-    email: zod_1.z.string().email(),
-    password: zod_1.z.string().min(6)
-});
-// --- RUTA DE LOGIN (MODIFICADA CON httpOnly COOKIE) ---
+// --- RUTA: POST /auth/login ---
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = LoginSchema.parse(req.body);
         const user = await User_1.User.findOne({ email });
         if (!user)
             return res.status(401).json({ error: 'Credenciales inválidas' });
-        // AÑADIMOS LA COMPROBACIÓN (bypass en desarrollo si TEST_MODE está activo)
+        // Bypass de verificación en desarrollo/test
         const bypassVerification = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
         if (!user.isVerified && !bypassVerification) {
             return res.status(403).json({ error: 'Debes verificar tu cuenta antes de iniciar sesión.' });
@@ -269,21 +274,21 @@ router.post('/login', async (req, res) => {
         if (!ok)
             return res.status(401).json({ error: 'Credenciales inválidas' });
         const token = jsonwebtoken_1.default.sign({ id: user._id }, (0, security_1.getJWTSecret)(), { expiresIn: '7d' });
-        // 🔐 SEGURIDAD: Token en httpOnly cookie (NO accesible desde JavaScript)
+        // Token en httpOnly cookie
         res.cookie('token', token, {
-            httpOnly: true, // Protege contra XSS
-            secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-            sameSite: 'strict', // Protege contra CSRF
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
-        // Preparar respuesta con todos los datos del usuario
+        // Preparar datos del usuario
         const userData = {
             id: user._id,
             email: user.email,
             username: user.username,
             isVerified: user.isVerified,
             tutorialCompleted: user.tutorialCompleted,
-            // ✅ RECURSOS del usuario
+            // Recursos
             val: user.val ?? 0,
             boletos: user.boletos ?? 0,
             evo: user.evo ?? 0,
@@ -302,7 +307,7 @@ router.post('/login', async (req, res) => {
             personajeActivoId: user.personajeActivoId,
             receivedPioneerPackage: user.receivedPioneerPackage
         };
-        // En entorno de test, también devolvemos el token en el body para los tests
+        // En test, devolver token en body
         if (process.env.NODE_ENV === 'test') {
             return res.json({
                 message: 'Login exitoso',
@@ -310,7 +315,7 @@ router.post('/login', async (req, res) => {
                 user: userData
             });
         }
-        // En producción y desarrollo normal, devolver datos completos
+        // En producción/desarrollo, devolver datos completos
         return res.json({
             message: 'Login exitoso',
             user: userData
@@ -320,7 +325,7 @@ router.post('/login', async (req, res) => {
         return res.status(400).json({ error: e?.message || 'Bad Request' });
     }
 });
-// --- NUEVA RUTA DE LOGOUT (CON LIMPIEZA DE COOKIE) ---
+// --- RUTA: POST /auth/logout ---
 router.post('/logout', auth_1.auth, async (req, res) => {
     try {
         const header = req.header('Authorization') || '';
@@ -332,15 +337,15 @@ router.post('/logout', auth_1.auth, async (req, res) => {
         if (!token) {
             return res.status(400).json({ error: 'No se proporcionó token' });
         }
-        // Decodificar el token para obtener su fecha de expiración
+        // Decodificar token para obtener fecha de expiración
         const decoded = jsonwebtoken_1.default.verify(token, (0, security_1.getJWTSecret)());
-        const expiresAt = new Date(decoded.exp * 1000); // Convertir timestamp a Date
-        // Agregar el token a la blacklist
+        const expiresAt = new Date(decoded.exp * 1000);
+        // Agregar token a blacklist
         await TokenBlacklist_1.TokenBlacklist.create({
             token,
             expiresAt
         });
-        // 🔐 SEGURIDAD: Limpiar cookie httpOnly
+        // Limpiar cookie httpOnly
         res.clearCookie('token', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -353,22 +358,19 @@ router.post('/logout', auth_1.auth, async (req, res) => {
         return res.status(500).json({ error: 'Error al cerrar sesión' });
     }
 });
-// --- NUEVA RUTA: REENVIAR EMAIL DE VERIFICACIÓN ---
-const ResendVerificationSchema = zod_1.z.object({
-    email: zod_1.z.string().email()
-});
+// --- RUTA: POST /auth/resend-verification ---
 router.post('/resend-verification', async (req, res) => {
     try {
         const { email } = ResendVerificationSchema.parse(req.body);
         const user = await User_1.User.findOne({ email });
         if (!user) {
-            // Por seguridad, no revelar si el usuario existe o no
+            // Por seguridad, no revelar si el usuario existe
             return res.json({ message: 'Si el correo existe y no está verificado, se enviará un nuevo email de verificación.' });
         }
         if (user.isVerified) {
             return res.status(400).json({ error: 'La cuenta ya está verificada' });
         }
-        // Verificar si ya existe un token válido para evitar spam
+        // Verificar si existe token válido para evitar spam
         if (user.verificationTokenExpires && user.verificationTokenExpires > new Date()) {
             const minutesLeft = Math.ceil((user.verificationTokenExpires.getTime() - Date.now()) / 60000);
             return res.status(429).json({
@@ -378,7 +380,7 @@ router.post('/resend-verification', async (req, res) => {
         // Generar nuevo token
         const verificationToken = crypto_1.default.randomBytes(32).toString('hex');
         user.verificationToken = verificationToken;
-        user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+        user.verificationTokenExpires = new Date(Date.now() + 3600000);
         await user.save();
         // Enviar email
         await (0, mailer_1.sendVerificationEmail)(user.email, verificationToken);
@@ -389,27 +391,24 @@ router.post('/resend-verification', async (req, res) => {
         return res.status(400).json({ error: e?.message || 'Error al reenviar verificación' });
     }
 });
-// --- NUEVA RUTA: SOLICITAR RECUPERACIÓN DE CONTRASEÑA ---
-const ForgotPasswordSchema = zod_1.z.object({
-    email: zod_1.z.string().email()
-});
+// --- RUTA: POST /auth/forgot-password ---
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = ForgotPasswordSchema.parse(req.body);
         const user = await User_1.User.findOne({ email });
         if (!user) {
-            // Por seguridad, no revelar si el usuario existe o no
+            // Por seguridad, no revelar si el usuario existe
             return res.json({ message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.' });
         }
         // Generar token de recuperación
         const resetToken = crypto_1.default.randomBytes(32).toString('hex');
         user.resetPasswordToken = resetToken;
-        user.resetPasswordTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+        user.resetPasswordTokenExpires = new Date(Date.now() + 3600000);
         await user.save();
-        // Construir URL del frontend (ajusta según tu configuración)
+        // Construir URL del frontend
         const frontendURL = process.env.FRONTEND_URL || 'http://localhost:4200';
         const resetURL = `${frontendURL}/reset-password/${resetToken}`;
-        // Enviar email (necesitarás crear esta función en config/mailer.ts)
+        // Enviar email
         const { sendPasswordResetEmail } = await Promise.resolve().then(() => __importStar(require('../config/mailer')));
         await sendPasswordResetEmail(user.email, resetURL);
         return res.json({ message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.' });
@@ -419,17 +418,32 @@ router.post('/forgot-password', async (req, res) => {
         return res.status(400).json({ error: e?.message || 'Error al procesar solicitud' });
     }
 });
-// --- NUEVA RUTA: RESETEAR CONTRASEÑA CON TOKEN ---
-const ResetPasswordSchema = zod_1.z.object({
-    password: zod_1.z.string().min(6)
+// --- RUTA: GET /auth/reset-form/:token ---
+router.get('/reset-form/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const user = await User_1.User.findOne({
+            resetPasswordToken: token,
+            resetPasswordTokenExpires: { $gt: new Date() }
+        });
+        if (!user) {
+            return res.status(400).json({ error: 'Token de recuperación inválido o expirado' });
+        }
+        return res.json({ message: 'Token válido. Puedes proceder con el reset de contraseña.' });
+    }
+    catch (e) {
+        console.error('[RESET-FORM] Error:', e);
+        return res.status(500).json({ error: 'Error al validar token' });
+    }
 });
+// --- RUTA: POST /auth/reset-password/:token ---
 router.post('/reset-password/:token', async (req, res) => {
     try {
         const { token } = req.params;
         const { password } = ResetPasswordSchema.parse(req.body);
         const user = await User_1.User.findOne({
             resetPasswordToken: token,
-            resetPasswordTokenExpires: { $gt: new Date() } // Token válido y no expirado
+            resetPasswordTokenExpires: { $gt: new Date() }
         });
         if (!user) {
             return res.status(400).json({ error: 'Token de recuperación inválido o expirado' });

@@ -28,7 +28,8 @@
     "fix:onboarding:apply": "ts-node scripts/fix-onboarding-issues.ts --apply",
     "migrate:evo-cost": "ts-node scripts/migrate-add-evo-cost.ts",
     "fix:game-settings": "ts-node scripts/fix-game-settings-complete.ts",
-    "verify:game-settings": "ts-node scripts/verify-game-settings.ts"
+    "verify:game-settings": "ts-node scripts/verify-game-settings.ts",
+    "test:email": "ts-node scripts/test-email.ts"
   },
   "keywords": [],
   "author": "",

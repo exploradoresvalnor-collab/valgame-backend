@@ -11,10 +11,12 @@ import { auth as checkAuth } from './middlewares/auth';
 import { startPermadeathCron } from './services/permadeath.service';
 import { startMarketplaceExpirationCron } from './services/marketplace-expiration.service';
 import errorHandler from './middlewares/errorHandler';
+import { connectionMonitorMiddleware, detectConnectionErrors } from './middlewares/connectionMonitor';
 
 // Importa todas tus rutas
 import authRoutes from './routes/auth.routes';
 import paymentsRoutes from './routes/payments.routes';
+import healthRoutes from './routes/health.routes';
 import paymentService from './services/payment.service';
 import usersRoutes from './routes/users.routes';
 import userSettingsRoutes from './routes/userSettings.routes';
@@ -40,7 +42,7 @@ import rankingsRoutes from './routes/rankings.routes';
 import teamsRoutes from './routes/teams/teams.routes';
 import userCharactersRoutes from './routes/user-characters.routes';
 import chatRoutes from './routes/chat.routes';
-import aliasRoutes from './routes/alias.routes';
+import survivalRoutes from './routes/survival.routes';
 
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -62,6 +64,9 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), (re
 
 app.use(cookieParser()); // 🔐 Middleware para cookies httpOnly
 app.use(express.json()); // Permite al servidor entender JSON
+
+// --- Middlewares de Conexión y Monitoreo ---
+app.use(connectionMonitorMiddleware); // Monitorear estado de conexión
 
 // --- Configuración CORS Segura ---
 const frontendOrigin = process.env.FRONTEND_ORIGIN;
@@ -121,6 +126,7 @@ app.use('/api/', apiLimiter);
 app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear si el servidor está vivo
 app.use('/auth', authRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/health', healthRoutes); // Health check - sin autenticación
 app.use('/api/packages', packagesRoutes); // Cualquiera puede ver los paquetes de la tienda
 app.use('/api/base-characters', baseCharactersRoutes); // Cualquiera puede ver los personajes que existen
 app.use('/api/offers', offerRoutes); // Cualquiera puede ver las ofertas activas
@@ -153,7 +159,7 @@ app.use('/api/rankings', rankingsRoutes);
 app.use('/api/teams', teamsRoutes);
 app.use('/api/user-characters', userCharactersRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api', aliasRoutes);
+app.use('/api/survival', survivalRoutes);
 
 
 // --- Arranque del Servidor ---
@@ -214,6 +220,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Middleware global de manejo de errores (debe ir al final)
+app.use(detectConnectionErrors); // Detectar errores de conexión ANTES del errorHandler
 app.use(errorHandler);
 
 export default app;

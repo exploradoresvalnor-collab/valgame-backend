@@ -4,9 +4,10 @@ import { User } from '../models/User';
 import { TokenBlacklist } from '../models/TokenBlacklist';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto'; // Módulo nativo para generar tokens seguros
-import { sendVerificationEmail } from '../config/mailer'; // Importamos nuestra nueva función
-import { getJWTSecret, getSecurityInfo } from '../config/security'; // Importar configuración segura
+import crypto from 'crypto';
+import { sendVerificationEmail } from '../config/mailer';
+import { sendPasswordResetEmail } from '../config/mailer';
+import { getJWTSecret, getSecurityInfo } from '../config/security';
 import BaseCharacter from '../models/BaseCharacter';
 import { Consumable } from '../models/Consumable';
 import { Types } from 'mongoose';
@@ -14,79 +15,90 @@ import { auth } from '../middlewares/auth';
 
 const router = Router();
 
+// --- ZODY SCHEMAS ---
 const RegisterSchema = z.object({
   email: z.string().email(),
   username: z.string().min(3),
   password: z.string().min(6)
 });
 
-// --- RUTA DE REGISTRO (MODIFICADA) ---
+const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6)
+});
+
+const ResendVerificationSchema = z.object({
+  email: z.string().email()
+});
+
+const ForgotPasswordSchema = z.object({
+  email: z.string().email()
+});
+
+const ResetPasswordSchema = z.object({
+  password: z.string().min(6)
+});
+
+// --- RUTA: POST /auth/register ---
 router.post('/register', async (req, res) => {
-  console.log('[REGISTER] 🎯 Endpoint /register llamado');
   try {
     const { email, username, password } = RegisterSchema.parse(req.body);
-    console.log(`[REGISTER] 📝 Datos recibidos: ${email}, ${username}`);
 
-    const exists = await User.findOne({ $or: [{ email }, { username }] });
+    const exists = await User.findOne({
+      $or: [{ email }, { username }]
+    });
+
     if (exists) {
-        // Si el usuario existe pero no está verificado, podríamos reenviar el correo
-        if (!exists.isVerified) {
-            // Aquí podrías añadir lógica para reenviar el correo si lo deseas
-        }
-        return res.status(409).json({ error: 'Email o username ya existe' });
+      return res.status(409).json({ error: 'Email o username ya existe' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Creamos una instancia del usuario para añadirle los tokens
+    // Crear instancia del usuario
     const user = new User({ email, username, passwordHash });
 
-  // Nota: la entrega del Paquete del Pionero se realizará al verificar el correo
-
-    // Generamos el token de verificación
+    // Generar token de verificación
     const verificationToken = crypto.randomBytes(32).toString('hex');
     user.verificationToken = verificationToken;
-    user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora de validez
+    user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora
 
-    await user.save(); // Guardamos el usuario con el token
+    await user.save();
     console.log(`[REGISTER] ✅ Usuario creado: ${username} (${email})`);
 
-    // Enviamos el correo de verificación
+    // Enviar correo de verificación
     console.log(`[REGISTER] 📧 Intentando enviar correo de verificación...`);
     try {
       await sendVerificationEmail(user.email, verificationToken);
       console.log(`[REGISTER] ✅ Correo enviado exitosamente`);
     } catch (emailError: any) {
       console.error(`[REGISTER] ❌ ERROR al enviar correo:`, emailError.message);
-      // El usuario ya fue creado, pero informamos que hubo problema con el email
-      return res.status(201).json({ 
+      return res.status(201).json({
         message: 'Registro exitoso pero hubo un problema al enviar el correo de verificación. Por favor, contacta al soporte.',
         warning: 'Email no enviado'
       });
     }
 
-    return res.status(201).json({ 
-      message: 'Registro exitoso. Por favor, revisa tu correo para verificar tu cuenta.' 
+    return res.status(201).json({
+      message: 'Registro exitoso. Por favor, revisa tu correo para verificar tu cuenta.'
     });
-
   } catch (e: any) {
     console.error('[REGISTER] ❌ Error en registro:', e.message);
     return res.status(400).json({ error: e?.message || 'Bad Request' });
   }
 });
 
-// --- NUEVA RUTA DE VERIFICACIÓN ---
+// --- RUTA: GET /auth/verify/:token ---
 router.get('/verify/:token', async (req, res) => {
-    try {
-        const { token } = req.params;
+  try {
+    const { token } = req.params;
 
-        const user = await User.findOne({
-            verificationToken: token,
-            verificationTokenExpires: { $gt: new Date() }, // Token válido y no expirado
-        });
+    const user = await User.findOne({
+      verificationToken: token,
+      verificationTokenExpires: { $gt: new Date() }
+    });
 
-        if (!user) {
-            return res.status(400).send(`
+    if (!user) {
+      return res.status(400).send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -110,43 +122,54 @@ router.get('/verify/:token', async (req, res) => {
   </div>
 </body>
 </html>
-            `);
-        }
+      `);
+    }
 
-        // Verificamos al usuario y limpiamos los campos del token
-        user.isVerified = true;
-        user.verificationToken = undefined;
-        user.verificationTokenExpires = undefined;
-        await user.save();
+    // Verificar usuario y limpiar tokens
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
+    await user.save();
 
-        console.log(`[VERIFY] ✅ Usuario verificado: ${user.username} (${user.email})`);
+    console.log(`[VERIFY] ✅ Usuario verificado: ${user.username} (${user.email})`);
 
-        // Entregar el Paquete del Pionero (idempotente)
-        let packageResult = null;
-        try {
-          console.log('[VERIFY] 🎁 Intentando entregar Paquete del Pionero...');
-          const { deliverPioneerPackage } = await import('../services/onboarding.service');
-          packageResult = await deliverPioneerPackage(user as any);
-          console.log('[VERIFY] ✅ Paquete del Pionero entregado exitosamente');
-        } catch (err: any) {
-          console.error('[VERIFY] ❌ Error al entregar paquete:', err.message);
-          // Continuar aunque falle el paquete
-        }
+    // Entregar paquete del pionero al verificar
+    try {
+      const { deliverPioneerPackage } = await import('../services/onboarding.service');
+      const result = await deliverPioneerPackage(user);
+      if (result.delivered) {
+        console.log(`[VERIFY] 🎉 Paquete del Pionero entregado a ${user.username}`);
+      } else {
+        console.warn(`[VERIFY] ⚠️ No se pudo entregar paquete pionero: ${result.reason}`);
+      }
+      (req as any).onboardingResult = result;
+    } catch (onboardingError) {
+      console.error(`[VERIFY] ❌ Error al entregar paquete pionero:`, onboardingError);
+      (req as any).onboardingResult = { delivered: false, reason: 'onboarding_error' };
+    }
 
-        // Detectar si es petición API (JSON) o browser (HTML)
-        const accept = req.headers.accept || '';
-        const isAPI = accept.includes('application/json') || req.query.format === 'json' || process.env.NODE_ENV === 'test';
+    // Detectar si es petición API (JSON) o browser (HTML)
+    const accept = req.headers.accept || '';
+    const isAPI = accept.includes('application/json') || req.query.format === 'json' || process.env.NODE_ENV === 'test';
 
-        if (isAPI) {
-          // Respuesta JSON para APIs/tests
-          return res.json({
-            ok: true,
-            message: 'Usuario verificado exitosamente',
-            package: packageResult
-          });
+    if (isAPI) {
+      // Respuesta JSON para APIs/tests
+      const apiResponse: any = {
+        ok: true,
+        message: 'Usuario verificado exitosamente'
+      };
+      const onboardingResult = (req as any).onboardingResult;
+      if (onboardingResult) {
+        if (onboardingResult.delivered) {
+          apiResponse.rewards = onboardingResult.rewards || null;
         } else {
-          // Página HTML para browsers
-          return res.send(`
+          apiResponse.onboarding = { delivered: false, reason: onboardingResult.reason };
+        }
+      }
+      return res.json(apiResponse);
+    } else {
+      // Página HTML para browsers
+      return res.send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -175,35 +198,22 @@ router.get('/verify/:token', async (req, res) => {
     <div class="icon">🎉</div>
     <h1>¡Cuenta Verificada con Éxito!</h1>
     <p>¡Bienvenido a <strong>Valgame</strong>, aventurero <strong>${user.username}</strong>!</p>
-    
-    ${packageResult ? `
-    <div class="rewards">
-      <h3>🎁 Recompensas Recibidas:</h3>
-      <ul>
-        <li>✅ Paquete del Pionero desbloqueado</li>
-        <li>⚔️ Personaje inicial</li>
-        <li>💰 Recursos de inicio</li>
-        <li>🎮 Acceso completo al juego</li>
-      </ul>
-    </div>
-    ` : `
+
     <div class="rewards">
       <h3>✅ Tu cuenta está verificada</h3>
       <p>Ya puedes iniciar sesión y comenzar tu aventura.</p>
     </div>
-    `}
-    
+
     <p style="margin-top: 30px;">Ya puedes cerrar esta ventana e iniciar sesión en el juego.</p>
     <a href="#" class="btn">🎮 Ir al Juego</a>
   </div>
 </body>
 </html>
-          `);
-        }
-
-    } catch (error: any) {
-        console.error('[VERIFY] ❌ Error en verificación:', error.message);
-        return res.status(500).send(`
+      `);
+    }
+  } catch (error: any) {
+    console.error('[VERIFY] ❌ Error en verificación:', error.message);
+    return res.status(500).send(`
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -227,23 +237,19 @@ router.get('/verify/:token', async (req, res) => {
   </div>
 </body>
 </html>
-        `);
-    }
+    `);
+  }
 });
 
-const LoginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
-});
-
-// --- RUTA DE LOGIN (MODIFICADA CON httpOnly COOKIE) ---
+// --- RUTA: POST /auth/login ---
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = LoginSchema.parse(req.body);
+
     const user = await User.findOne({ email });
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // AÑADIMOS LA COMPROBACIÓN (bypass en desarrollo si TEST_MODE está activo)
+    // Bypass de verificación en desarrollo/test
     const bypassVerification = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
     if (!user.isVerified && !bypassVerification) {
       return res.status(403).json({ error: 'Debes verificar tu cuenta antes de iniciar sesión.' });
@@ -253,27 +259,27 @@ router.post('/login', async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const token = jwt.sign(
-      { id: user._id }, 
-      getJWTSecret(), 
+      { id: user._id },
+      getJWTSecret(),
       { expiresIn: '7d' }
     );
 
-    // 🔐 SEGURIDAD: Token en httpOnly cookie (NO accesible desde JavaScript)
+    // Token en httpOnly cookie
     res.cookie('token', token, {
-      httpOnly: true,           // Protege contra XSS
-      secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-      sameSite: 'strict',       // Protege contra CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000  // 7 días
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    // Preparar respuesta con todos los datos del usuario
+    // Preparar datos del usuario
     const userData = {
       id: user._id,
       email: user.email,
       username: user.username,
       isVerified: user.isVerified,
       tutorialCompleted: user.tutorialCompleted,
-      // ✅ RECURSOS del usuario
+      // Recursos
       val: user.val ?? 0,
       boletos: user.boletos ?? 0,
       evo: user.evo ?? 0,
@@ -293,7 +299,7 @@ router.post('/login', async (req, res) => {
       receivedPioneerPackage: user.receivedPioneerPackage
     };
 
-    // En entorno de test, también devolvemos el token en el body para los tests
+    // En test, devolver token en body
     if (process.env.NODE_ENV === 'test') {
       return res.json({
         message: 'Login exitoso',
@@ -301,9 +307,9 @@ router.post('/login', async (req, res) => {
         user: userData
       });
     }
-    
-    // En producción y desarrollo normal, devolver datos completos
-    return res.json({ 
+
+    // En producción/desarrollo, devolver datos completos
+    return res.json({
       message: 'Login exitoso',
       user: userData
     });
@@ -312,7 +318,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// --- NUEVA RUTA DE LOGOUT (CON LIMPIEZA DE COOKIE) ---
+// --- RUTA: POST /auth/logout ---
 router.post('/logout', auth, async (req, res) => {
   try {
     const header = req.header('Authorization') || '';
@@ -327,17 +333,17 @@ router.post('/logout', auth, async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionó token' });
     }
 
-    // Decodificar el token para obtener su fecha de expiración
+    // Decodificar token para obtener fecha de expiración
     const decoded = jwt.verify(token, getJWTSecret()) as any;
-    const expiresAt = new Date(decoded.exp * 1000); // Convertir timestamp a Date
+    const expiresAt = new Date(decoded.exp * 1000);
 
-    // Agregar el token a la blacklist
+    // Agregar token a blacklist
     await TokenBlacklist.create({
       token,
       expiresAt
     });
 
-    // 🔐 SEGURIDAD: Limpiar cookie httpOnly
+    // Limpiar cookie httpOnly
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -351,18 +357,14 @@ router.post('/logout', auth, async (req, res) => {
   }
 });
 
-// --- NUEVA RUTA: REENVIAR EMAIL DE VERIFICACIÓN ---
-const ResendVerificationSchema = z.object({
-  email: z.string().email()
-});
-
+// --- RUTA: POST /auth/resend-verification ---
 router.post('/resend-verification', async (req, res) => {
   try {
     const { email } = ResendVerificationSchema.parse(req.body);
 
     const user = await User.findOne({ email });
     if (!user) {
-      // Por seguridad, no revelar si el usuario existe o no
+      // Por seguridad, no revelar si el usuario existe
       return res.json({ message: 'Si el correo existe y no está verificado, se enviará un nuevo email de verificación.' });
     }
 
@@ -370,18 +372,18 @@ router.post('/resend-verification', async (req, res) => {
       return res.status(400).json({ error: 'La cuenta ya está verificada' });
     }
 
-    // Verificar si ya existe un token válido para evitar spam
+    // Verificar si existe token válido para evitar spam
     if (user.verificationTokenExpires && user.verificationTokenExpires > new Date()) {
       const minutesLeft = Math.ceil((user.verificationTokenExpires.getTime() - Date.now()) / 60000);
-      return res.status(429).json({ 
-        error: `Ya existe un email de verificación válido. Espera ${minutesLeft} minutos antes de solicitar otro.` 
+      return res.status(429).json({
+        error: `Ya existe un email de verificación válido. Espera ${minutesLeft} minutos antes de solicitar otro.`
       });
     }
 
     // Generar nuevo token
     const verificationToken = crypto.randomBytes(32).toString('hex');
     user.verificationToken = verificationToken;
-    user.verificationTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+    user.verificationTokenExpires = new Date(Date.now() + 3600000);
     await user.save();
 
     // Enviar email
@@ -394,32 +396,28 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-// --- NUEVA RUTA: SOLICITAR RECUPERACIÓN DE CONTRASEÑA ---
-const ForgotPasswordSchema = z.object({
-  email: z.string().email()
-});
-
+// --- RUTA: POST /auth/forgot-password ---
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = ForgotPasswordSchema.parse(req.body);
 
     const user = await User.findOne({ email });
     if (!user) {
-      // Por seguridad, no revelar si el usuario existe o no
+      // Por seguridad, no revelar si el usuario existe
       return res.json({ message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.' });
     }
 
     // Generar token de recuperación
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = resetToken;
-    user.resetPasswordTokenExpires = new Date(Date.now() + 3600000); // 1 hora
+    user.resetPasswordTokenExpires = new Date(Date.now() + 3600000);
     await user.save();
 
-    // Construir URL del frontend (ajusta según tu configuración)
+    // Construir URL del frontend
     const frontendURL = process.env.FRONTEND_URL || 'http://localhost:4200';
     const resetURL = `${frontendURL}/reset-password/${resetToken}`;
 
-    // Enviar email (necesitarás crear esta función en config/mailer.ts)
+    // Enviar email
     const { sendPasswordResetEmail } = await import('../config/mailer');
     await sendPasswordResetEmail(user.email, resetURL);
 
@@ -430,11 +428,28 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// --- NUEVA RUTA: RESETEAR CONTRASEÑA CON TOKEN ---
-const ResetPasswordSchema = z.object({
-  password: z.string().min(6)
+// --- RUTA: GET /auth/reset-form/:token ---
+router.get('/reset-form/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordTokenExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Token de recuperación inválido o expirado' });
+    }
+
+    return res.json({ message: 'Token válido. Puedes proceder con el reset de contraseña.' });
+  } catch (e: any) {
+    console.error('[RESET-FORM] Error:', e);
+    return res.status(500).json({ error: 'Error al validar token' });
+  }
 });
 
+// --- RUTA: POST /auth/reset-password/:token ---
 router.post('/reset-password/:token', async (req, res) => {
   try {
     const { token } = req.params;
@@ -442,7 +457,7 @@ router.post('/reset-password/:token', async (req, res) => {
 
     const user = await User.findOne({
       resetPasswordToken: token,
-      resetPasswordTokenExpires: { $gt: new Date() } // Token válido y no expirado
+      resetPasswordTokenExpires: { $gt: new Date() }
     });
 
     if (!user) {

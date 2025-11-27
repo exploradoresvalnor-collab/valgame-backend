@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getListings = exports.buyItem = exports.cancelListing = exports.listItem = void 0;
+exports.getUserListings = exports.getListings = exports.buyItem = exports.cancelListing = exports.listItem = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const Listing_1 = __importDefault(require("../models/Listing"));
 const User_1 = require("../models/User");
@@ -744,3 +744,38 @@ const getListings = async (filters) => {
     }
 };
 exports.getListings = getListings;
+// ✅ NUEVA: Obtener listings del usuario actual
+const getUserListings = async (userId, filters = {}) => {
+    try {
+        // Query para obtener listings del usuario (incluyendo expirados y cancelados para historial)
+        const query = { sellerId: userId };
+        // Paginación
+        const limit = Math.min(filters.limit || 20, 100);
+        const offset = Math.max(filters.offset || 0, 0);
+        const [listings, total] = await Promise.all([
+            Listing_1.default.find(query)
+                .sort({ fechaCreacion: -1 }) // Más recientes primero
+                .skip(offset)
+                .limit(limit)
+                .populate('sellerId', 'username'),
+            Listing_1.default.countDocuments(query)
+        ]);
+        return {
+            listings,
+            total,
+            hasMore: total > offset + limit,
+            pagination: {
+                limit,
+                offset,
+                total,
+                page: Math.floor(offset / limit) + 1,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
+    }
+    catch (error) {
+        console.error('Error al obtener listings del usuario:', error);
+        throw error;
+    }
+};
+exports.getUserListings = getUserListings;

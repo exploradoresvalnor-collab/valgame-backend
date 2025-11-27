@@ -25,7 +25,9 @@ FRONTEND_STARTER_KIT/
 ├── 15_GUIA_COMPLETA_AUTENTICACION_SESIONES.md ← ⭐ Cookies httpOnly
 ├── 16_GUIA_EQUIPAMIENTO_PERSONAJES.md ← ⭐ Equipar/Consumibles/XP
 ├── 17_RESUMEN_CAMBIOS_NOVIEMBRE_2025.md ← ⭐ Todos los cambios
-└── 18_GUIA_ULTRA_RAPIDA_EJEMPLOS_BASICOS.md ← ⭐⭐ EMPIEZA AQUÍ
+├── 18_GUIA_ULTRA_RAPIDA_EJEMPLOS_BASICOS.md ← ⭐⭐ EMPIEZA AQUÍ
+├── 23_GUIA_SURVIVAL_MODO_GAME.md    ← ⭐⭐ NUEVO: Survival completo
+└── 24_INTEGRACION_RPG_SURVIVAL.md   ← ⭐⭐ NUEVO: Cómo conviven RPG+Survival
 ```
 
 ---
@@ -54,10 +56,12 @@ FRONTEND_STARTER_KIT/
 2. ⭐ Lee RESUMEN DE CAMBIOS (17_RESUMEN_CAMBIOS_NOVIEMBRE_2025.md)
 3. ⭐ Lee AUTENTICACIÓN COMPLETA (15_GUIA_COMPLETA_AUTENTICACION_SESIONES.md)
 4. ⭐ Lee EQUIPAMIENTO COMPLETO (16_GUIA_EQUIPAMIENTO_PERSONAJES.md)
-5. Lee la referencia completa de API (00_BACKEND_API_REFERENCE.md)
-6. Copia los modelos TypeScript (03_MODELOS_TYPESCRIPT.md)
-7. Copia los servicios base (04_SERVICIOS_BASE.md)
-8. Implementa login/registro con cookies httpOnly
+5. ⭐⭐ Lee SURVIVAL NUEVO MODO (23_GUIA_SURVIVAL_MODO_GAME.md) ← NUEVO
+6. ⭐⭐ Lee INTEGRACIÓN RPG+SURVIVAL (24_INTEGRACION_RPG_SURVIVAL.md) ← NUEVO
+7. Lee la referencia completa de API (00_BACKEND_API_REFERENCE.md)
+8. Copia los modelos TypeScript (03_MODELOS_TYPESCRIPT.md)
+9. Copia los servicios base (04_SERVICIOS_BASE.md)
+10. Implementa login/registro con cookies httpOnly
 ```
 
 ### 3️⃣ TERCERO (ESTA SEMANA)
@@ -65,6 +69,7 @@ FRONTEND_STARTER_KIT/
 1. Copia componentes de ejemplo (05_COMPONENTES_EJEMPLO.md)
 2. Sigue el checklist (07_CHECKLIST_DESARROLLO.md)
 3. Consulta API cuando necesites (02_API_REFERENCE.md)
+4. Implementa componentes Survival (uso guía 23 e integración 24)
 ```
 
 ---
@@ -157,21 +162,59 @@ Desarrollar el frontend en Angular en **8-12 semanas**:
 
 ---
 
+## 🎮 NUEVO: MODO SURVIVAL (v2.0)
+
+**¡Novedad importante!** El backend ahora incluye un nuevo modo de juego llamado **SURVIVAL**.
+
+### ¿Qué es Survival?
+```
+- Modo de oleadas contra enemigos
+- Genera puntos canjeables por EXP/VAL/Items
+- Leaderboard global
+- Se integra perfectamente con RPG
+- Mismos personajes y equipamiento
+```
+
+### ¿Cómo funciona?
+```
+1. En RPG: Equipa 4 items (cabeza, cuerpo, manos, pies)
+2. En Survival: Entra con ese equipamiento automáticamente
+3. Completa oleadas y gana puntos
+4. Canjea puntos por EXP (sube nivel) o VAL (moneda)
+5. Compite en leaderboard global
+```
+
+### Recursos Nuevos
+```
+18-GUIA_ULTRA_RAPIDA_EJEMPLOS_BASICOS.md
+23_GUIA_SURVIVAL_MODO_GAME.md          ← ⭐⭐ EMPIEZA POR AQUÍ
+24_INTEGRACION_RPG_SURVIVAL.md         ← Cómo conviven RPG+Survival
+ANALISIS_EQUIPAMIENTO_RPG_VS_SURVIVAL.md ← Detalles técnicos
+```
+
+---
+
 ## 💡 TIPS IMPORTANTES
 
 1. **Lee los archivos en orden** (01, 02, 03, etc.)
-2. **Copia y pega el código** - está listo para usar
-3. **Consulta 02_API_REFERENCE.md** cuando necesites un endpoint
-4. **Sigue 07_CHECKLIST_DESARROLLO.md** para no perderte
-5. **Usa 08_COMANDOS_UTILES.md** como referencia rápida
+2. **Para Survival, comienza con** 23_GUIA_SURVIVAL_MODO_GAME.md
+3. **Entiende la integración** con 24_INTEGRACION_RPG_SURVIVAL.md
+4. **Para Error Handling, lee** 28_COMPONENTE_OFFLINE_INDICATOR.md
+5. **Copia y pega el código** - está listo para usar
+6. **Consulta 02_API_REFERENCE.md** cuando necesites un endpoint
+7. **Sigue 07_CHECKLIST_DESARROLLO.md** para no perderte
+8. **Usa 08_COMANDOS_UTILES.md** como referencia rápida
 
 ---
 
 ## 🆘 SI TIENES DUDAS
 
 1. Revisa el archivo correspondiente en esta carpeta
-2. Consulta los tests E2E del backend (`../tests/e2e/`)
-3. Revisa los modelos del backend (`../src/models/`)
+2. Para Survival: lee 23_GUIA_SURVIVAL_MODO_GAME.md
+3. Para integración RPG+Survival: lee 24_INTEGRACION_RPG_SURVIVAL.md
+4. Para desconexión de internet: lee 28_COMPONENTE_OFFLINE_INDICATOR.md
+5. Consulta los tests E2E del backend (`../tests/e2e/`)
+6. Revisa los modelos del backend (`../src/models/`)
 
 ---
 

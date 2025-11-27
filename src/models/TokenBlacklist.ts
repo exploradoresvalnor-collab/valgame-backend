@@ -25,6 +25,6 @@ const TokenBlacklistSchema = new Schema<ITokenBlacklist>({
 });
 
 // Índice TTL para que MongoDB elimine automáticamente los tokens expirados
-TokenBlacklistSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// TokenBlacklistSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const TokenBlacklist = model<ITokenBlacklist>('TokenBlacklist', TokenBlacklistSchema, 'token_blacklist');

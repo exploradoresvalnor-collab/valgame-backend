@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handleMongooseError = exports.NotAuthorizedError = exports.InsufficientFundsError = exports.DatabaseError = exports.RateLimitError = exports.ConflictError = exports.NotFoundError = exports.AuthorizationError = exports.AuthenticationError = exports.ValidationError = exports.AppError = void 0;
+exports.handleMongooseError = exports.TimeoutError = exports.OfflineError = exports.ConnectionError = exports.NotAuthorizedError = exports.InsufficientFundsError = exports.DatabaseError = exports.RateLimitError = exports.ConflictError = exports.NotFoundError = exports.AuthorizationError = exports.AuthenticationError = exports.ValidationError = exports.AppError = void 0;
 class AppError extends Error {
     constructor(message, statusCode) {
         super(message);
@@ -69,6 +69,29 @@ class NotAuthorizedError extends AppError {
     }
 }
 exports.NotAuthorizedError = NotAuthorizedError;
+class ConnectionError extends AppError {
+    constructor(message = 'Error de conexión', retryable = true, attemptCount = 0, maxAttempts = 3) {
+        super(message, 503);
+        this.retryable = retryable;
+        this.attemptCount = attemptCount;
+        this.maxAttempts = maxAttempts;
+    }
+}
+exports.ConnectionError = ConnectionError;
+class OfflineError extends AppError {
+    constructor(message = 'Sin conexión a internet. Por favor, verifica tu conexión y vuelve a intentarlo.', suggestedAction = 'retry') {
+        super(message, 503);
+        this.isOffline = true;
+        this.suggestedAction = suggestedAction;
+    }
+}
+exports.OfflineError = OfflineError;
+class TimeoutError extends AppError {
+    constructor(message = 'Tiempo de espera agotado') {
+        super(message, 504);
+    }
+}
+exports.TimeoutError = TimeoutError;
 // Función auxiliar para manejar errores de Mongoose
 const handleMongooseError = (error) => {
     if (error.name === 'ValidationError') {

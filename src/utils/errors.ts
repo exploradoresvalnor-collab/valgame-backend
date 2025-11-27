@@ -74,6 +74,43 @@ export class NotAuthorizedError extends AppError {
   }
 }
 
+export class ConnectionError extends AppError {
+  retryable: boolean;
+  attemptCount: number;
+  maxAttempts: number;
+
+  constructor(
+    message: string = 'Error de conexión',
+    retryable: boolean = true,
+    attemptCount: number = 0,
+    maxAttempts: number = 3
+  ) {
+    super(message, 503);
+    this.retryable = retryable;
+    this.attemptCount = attemptCount;
+    this.maxAttempts = maxAttempts;
+  }
+}
+
+export class OfflineError extends AppError {
+  isOffline: boolean = true;
+  suggestedAction: string;
+
+  constructor(
+    message: string = 'Sin conexión a internet. Por favor, verifica tu conexión y vuelve a intentarlo.',
+    suggestedAction: string = 'retry'
+  ) {
+    super(message, 503);
+    this.suggestedAction = suggestedAction;
+  }
+}
+
+export class TimeoutError extends AppError {
+  constructor(message: string = 'Tiempo de espera agotado') {
+    super(message, 504);
+  }
+}
+
 // Función auxiliar para manejar errores de Mongoose
 export const handleMongooseError = (error: any): AppError => {
   if (error.name === 'ValidationError') {

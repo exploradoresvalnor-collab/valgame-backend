@@ -15,9 +15,11 @@ const auth_1 = require("./middlewares/auth");
 const permadeath_service_1 = require("./services/permadeath.service");
 const marketplace_expiration_service_1 = require("./services/marketplace-expiration.service");
 const errorHandler_1 = __importDefault(require("./middlewares/errorHandler"));
+const connectionMonitor_1 = require("./middlewares/connectionMonitor");
 // Importa todas tus rutas
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const payments_routes_1 = __importDefault(require("./routes/payments.routes"));
+const health_routes_1 = __importDefault(require("./routes/health.routes"));
 const payment_service_1 = __importDefault(require("./services/payment.service"));
 const users_routes_1 = __importDefault(require("./routes/users.routes"));
 const userSettings_routes_1 = __importDefault(require("./routes/userSettings.routes"));
@@ -40,6 +42,10 @@ const dungeons_routes_1 = __importDefault(require("./routes/dungeons.routes"));
 const characters_routes_1 = __importDefault(require("./routes/characters.routes"));
 const shop_routes_1 = __importDefault(require("./routes/shop.routes"));
 const rankings_routes_1 = __importDefault(require("./routes/rankings.routes"));
+const teams_routes_1 = __importDefault(require("./routes/teams/teams.routes"));
+const user_characters_routes_1 = __importDefault(require("./routes/user-characters.routes"));
+const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
+const survival_routes_1 = __importDefault(require("./routes/survival.routes"));
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
     try {
@@ -58,6 +64,8 @@ app.use((0, helmet_1.default)()); // Añade cabeceras de seguridad
 app.post('/api/payments/webhook', express_1.default.raw({ type: 'application/json' }), (req, res) => payment_service_1.default.handleWebhook(req, res));
 app.use((0, cookie_parser_1.default)()); // 🔐 Middleware para cookies httpOnly
 app.use(express_1.default.json()); // Permite al servidor entender JSON
+// --- Middlewares de Conexión y Monitoreo ---
+app.use(connectionMonitor_1.connectionMonitorMiddleware); // Monitorear estado de conexión
 // --- Configuración CORS Segura ---
 const frontendOrigin = process.env.FRONTEND_ORIGIN;
 if (frontendOrigin) {
@@ -103,6 +111,7 @@ app.use('/api/', rateLimits_1.apiLimiter);
 app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear si el servidor está vivo
 app.use('/auth', auth_routes_1.default);
 app.use('/api/payments', payments_routes_1.default);
+app.use('/api/health', health_routes_1.default); // Health check - sin autenticación
 app.use('/api/packages', packages_routes_1.default); // Cualquiera puede ver los paquetes de la tienda
 app.use('/api/base-characters', baseCharacters_routes_1.default); // Cualquiera puede ver los personajes que existen
 app.use('/api/offers', offers_routes_1.default); // Cualquiera puede ver las ofertas activas
@@ -128,6 +137,10 @@ app.use('/api/player-stats', playerStats_routes_1.default);
 app.use('/api/characters', characters_routes_1.default);
 app.use('/api/shop', shop_routes_1.default);
 app.use('/api/rankings', rankings_routes_1.default);
+app.use('/api/teams', teams_routes_1.default);
+app.use('/api/user-characters', user_characters_routes_1.default);
+app.use('/api/chat', chat_routes_1.default);
+app.use('/api/survival', survival_routes_1.default);
 // --- Arranque del Servidor ---
 const PORT = Number(process.env.PORT || 8080);
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -182,5 +195,6 @@ else {
     console.log('[API] Modo test: no se inicia conexión automática a MongoDB ni servidor HTTP.');
 }
 // Middleware global de manejo de errores (debe ir al final)
+app.use(connectionMonitor_1.detectConnectionErrors); // Detectar errores de conexión ANTES del errorHandler
 app.use(errorHandler_1.default);
 exports.default = app;
