@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
-import { Listing } from '../models/Listing';
-import { Item } from '../models/Item';
+import User from '../models/User';
+import Listing from '../models/Listing';
+import Item from '../models/Item';
 import { Types } from 'mongoose';
 
 export const listItemInMarketplace = async (req: Request, res: Response): Promise<void> => {

@@ -4,146 +4,178 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.endCombat = exports.performDefend = exports.performAttack = exports.startDungeonCombat = void 0;
-const combat_service_1 = require("../services/combat.service");
-const User_1 = require("../models/User");
+const User_1 = __importDefault(require("../models/User"));
 const Dungeon_1 = __importDefault(require("../models/Dungeon"));
-const combatService = combat_service_1.CombatService.getInstance();
+const combat_service_1 = require("../services/combat.service");
 const startDungeonCombat = async (req, res) => {
     try {
+        const { userId } = req.user;
         const { dungeonId } = req.params;
-        const userId = req.userId;
         const { characterId } = req.body;
+        // Validate dungeon exists
         const dungeon = await Dungeon_1.default.findById(dungeonId);
         if (!dungeon) {
-            return res.status(404).json({ error: 'Dungeon no encontrado' });
+            res.status(404).json({ error: 'Dungeon not found' });
+            return;
         }
-        const user = await User_1.User.findById(userId);
+        // Validate user and character
+        const user = await User_1.default.findById(userId);
         if (!user) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.status(404).json({ error: 'User not found' });
+            return;
         }
-        const character = user.personajes.find((p) => p._id?.toString() === characterId);
+        const character = user.personajes.id(characterId);
         if (!character) {
-            return res.status(404).json({ error: 'Personaje no encontrado' });
+            res.status(404).json({ error: 'Character not found' });
+            return;
         }
-        if (character.nivel < dungeon.nivel_requerido_minimo) {
-            return res.status(400).json({ error: `Nivel insuficiente. Se requiere nivel ${dungeon.nivel_requerido_minimo}` });
+        // Validate prerequisites
+        if (character.nivel < dungeon.nivelRequerido) {
+            res.status(400).json({ error: 'Character level too low' });
+            return;
         }
         if (character.saludActual <= 0) {
-            return res.status(400).json({ error: 'El personaje está muerto' });
+            res.status(400).json({ error: 'Character dead' });
+            return;
         }
-        const combatState = await combatService.startCombat([userId]);
+        // Start combat
+        const combatService = combat_service_1.CombatService.getInstance();
+        const combateId = combatService.startCombat([userId]);
         res.status(201).json({
             exito: true,
             combate: {
-                id: combatState.id,
-                estado: combatState.status,
-                turno: combatState.currentTurn
+                id: combateId,
+                estado: 'activo',
+                turno: 1,
+                dungeon: { id: dungeon._id, nombre: dungeon.nombre },
+                personaje: { id: character._id, personajeId: character.personajeId },
+                enemigo: { tipo: 'default', nivel: dungeon.nivelRequerido }
             }
         });
     }
     catch (error) {
-        res.status(500).json({ error: error.message || 'Error al iniciar combate' });
+        res.status(500).json({ error: error.message });
     }
 };
 exports.startDungeonCombat = startDungeonCombat;
 const performAttack = async (req, res) => {
     try {
-        const userId = req.userId;
-        const { combateId, characterId, target } = req.body;
+        const { userId } = req.user;
+        const { combateId, characterId } = req.body;
+        // Validate inputs
         if (!combateId || !characterId) {
-            return res.status(400).json({ error: 'combateId y characterId son requeridos' });
+            res.status(400).json({ error: 'Missing combateId or characterId' });
+            return;
         }
-        const user = await User_1.User.findById(userId);
+        // Get user and character
+        const user = await User_1.default.findById(userId);
         if (!user) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.status(404).json({ error: 'User not found' });
+            return;
         }
-        const character = user.personajes.find((p) => p._id?.toString() === characterId);
+        const character = user.personajes.id(characterId);
         if (!character) {
-            return res.status(404).json({ error: 'Personaje no encontrado' });
+            res.status(404).json({ error: 'Character not found' });
+            return;
         }
-        const ataque = character.stats?.atk || 10;
+        // Calculate damage: base ATK + 25% crit chance
+        const dano = character.stats?.atk || 0;
         const critico = Math.random() < 0.25;
-        const dano = critico ? Math.floor(ataque * 1.5) : ataque;
-        res.json({
+        const danofinal = critico ? dano * 1.5 : dano;
+        res.status(200).json({
             exito: true,
             ataque: {
                 personaje: character.personajeId,
-                dano,
+                dano: danofinal,
                 critico,
-                tipo: critico ? 'crítico' : 'normal'
+                tipo: 'fisico',
+                timestamp: new Date()
             }
         });
     }
     catch (error) {
-        res.status(500).json({ error: error.message || 'Error al realizar ataque' });
+        res.status(500).json({ error: error.message });
     }
 };
 exports.performAttack = performAttack;
 const performDefend = async (req, res) => {
     try {
-        const userId = req.userId;
+        const { userId } = req.user;
         const { combateId, characterId } = req.body;
-        if (!combateId || !characterId) {
-            return res.status(400).json({ error: 'combateId y characterId son requeridos' });
-        }
-        const user = await User_1.User.findById(userId);
+        // Get user and character
+        const user = await User_1.default.findById(userId);
         if (!user) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.status(404).json({ error: 'User not found' });
+            return;
         }
-        const character = user.personajes.find((p) => p._id?.toString() === characterId);
+        const character = user.personajes.id(characterId);
         if (!character) {
-            return res.status(404).json({ error: 'Personaje no encontrado' });
+            res.status(404).json({ error: 'Character not found' });
+            return;
         }
-        const defensaBoost = Math.floor((character.stats?.defensa || 5) * 0.5);
-        res.json({
+        // Calculate defense bonus
+        const reduccionDano = (character.stats?.defensa || 0) * 0.5;
+        res.status(200).json({
             exito: true,
             defensa: {
                 personaje: character.personajeId,
-                reduccionDano: defensaBoost,
-                estado: 'en_defensa'
+                reduccionDano,
+                estado: 'escudo_activo',
+                duracionTurnos: 1
             }
         });
     }
     catch (error) {
-        res.status(500).json({ error: error.message || 'Error al defender' });
+        res.status(500).json({ error: error.message });
     }
 };
 exports.performDefend = performDefend;
 const endCombat = async (req, res) => {
     try {
-        const userId = req.userId;
+        const { userId } = req.user;
         const { combateId, characterId, resultado } = req.body;
-        if (!combateId || !characterId) {
-            return res.status(400).json({ error: 'combateId y characterId son requeridos' });
+        // Validate inputs
+        if (!combateId || !characterId || !resultado) {
+            res.status(400).json({ error: 'Missing required fields' });
+            return;
         }
-        const user = await User_1.User.findById(userId);
+        // Get user and character
+        const user = await User_1.default.findById(userId);
         if (!user) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
+            res.status(404).json({ error: 'User not found' });
+            return;
         }
-        const character = user.personajes.find((p) => p._id?.toString() === characterId);
+        const character = user.personajes.id(characterId);
         if (!character) {
-            return res.status(404).json({ error: 'Personaje no encontrado' });
+            res.status(404).json({ error: 'Character not found' });
+            return;
         }
-        const expGanada = resultado === 'victoria' ? 100 : 25;
+        // Calculate rewards
+        const experienciaCombate = resultado === 'victoria' ? 100 : 25;
         const valGanado = resultado === 'victoria' ? 50 : 10;
-        character.experiencia = (character.experiencia || 0) + expGanada;
+        // Update character
+        character.experiencia = (character.experiencia || 0) + experienciaCombate;
         user.val = (user.val || 0) + valGanado;
         await user.save();
-        res.json({
+        res.status(200).json({
             exito: true,
             combate: {
                 id: combateId,
                 resultado,
-                personaje: character.personajeId
+                duracionTurnos: 5
             },
             recompensas: {
-                experiencia: expGanada,
+                experiencia: experienciaCombate,
                 val: valGanado
+            },
+            estadisticas: {
+                experienciaTotal: character.experiencia,
+                valTotal: user.val
             }
         });
     }
     catch (error) {
-        res.status(500).json({ error: error.message || 'Error al finalizar combate' });
+        res.status(500).json({ error: error.message });
     }
 };
 exports.endCombat = endCombat;

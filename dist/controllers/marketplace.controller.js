@@ -1,9 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cancelMarketplaceListing = exports.buyItemFromMarketplace = exports.listItemInMarketplace = void 0;
-const User_1 = require("../models/User");
-const Listing_1 = require("../models/Listing");
-const Item_1 = require("../models/Item");
+const User_1 = __importDefault(require("../models/User"));
+const Listing_1 = __importDefault(require("../models/Listing"));
+const Item_1 = __importDefault(require("../models/Item"));
 const mongoose_1 = require("mongoose");
 const listItemInMarketplace = async (req, res) => {
     try {
@@ -14,7 +17,7 @@ const listItemInMarketplace = async (req, res) => {
             return;
         }
         // Validate user exists
-        const user = await User_1.User.findById(userId);
+        const user = await User_1.default.findById(userId);
         if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;
@@ -27,7 +30,7 @@ const listItemInMarketplace = async (req, res) => {
             return;
         }
         // Create listing
-        const listing = new Listing_1.Listing({
+        const listing = new Listing_1.default({
             itemId: itemIdObj,
             sellerId: new mongoose_1.Types.ObjectId(userId),
             precio,
@@ -57,7 +60,7 @@ const buyItemFromMarketplace = async (req, res) => {
         const { userId } = req.user;
         const { listingId } = req.params;
         // Validate listing exists
-        const listing = await Listing_1.Listing.findById(listingId);
+        const listing = await Listing_1.default.findById(listingId);
         if (!listing) {
             res.status(404).json({ error: 'Listing not found' });
             return;
@@ -67,13 +70,13 @@ const buyItemFromMarketplace = async (req, res) => {
             return;
         }
         // Get buyer
-        const buyer = await User_1.User.findById(userId);
+        const buyer = await User_1.default.findById(userId);
         if (!buyer) {
             res.status(404).json({ error: 'Buyer not found' });
             return;
         }
         // Get seller
-        const seller = await User_1.User.findById(listing.sellerId);
+        const seller = await User_1.default.findById(listing.sellerId);
         if (!seller) {
             res.status(404).json({ error: 'Seller not found' });
             return;
@@ -84,7 +87,7 @@ const buyItemFromMarketplace = async (req, res) => {
             return;
         }
         // Validate item exists
-        const item = await Item_1.Item.findById(listing.itemId);
+        const item = await Item_1.default.findById(listing.itemId);
         if (!item) {
             res.status(404).json({ error: 'Item not found' });
             return;
@@ -128,7 +131,7 @@ const cancelMarketplaceListing = async (req, res) => {
         const { userId } = req.user;
         const { listingId } = req.params;
         // Get listing
-        const listing = await Listing_1.Listing.findById(listingId);
+        const listing = await Listing_1.default.findById(listingId);
         if (!listing) {
             res.status(404).json({ error: 'Listing not found' });
             return;
@@ -143,7 +146,7 @@ const cancelMarketplaceListing = async (req, res) => {
             return;
         }
         // Get seller
-        const seller = await User_1.User.findById(userId);
+        const seller = await User_1.default.findById(userId);
         if (!seller) {
             res.status(404).json({ error: 'Seller not found' });
             return;
