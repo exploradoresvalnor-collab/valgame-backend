@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { useConsumable, reviveCharacter, healCharacter, evolveCharacter, addExperience } from '../controllers/characters.controller';
 import { equipItem, unequipItem, getCharacterStats } from '../controllers/equipment.controller';
+import { levelUpCharacter } from '../controllers/characters.controller';
 import { auth } from '../middlewares/auth';
 import { validateBody, validateParams } from '../middlewares/validate';
 import { 
@@ -111,4 +112,10 @@ router.get(
   getCharacterStats
 );
 
+router.put(
+  "/:characterId/level-up",
+  auth,
+  validateParams(CharacterIdParamSchema),
+  levelUpCharacter
+);
 export default router;

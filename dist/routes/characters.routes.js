@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const characters_controller_1 = require("../controllers/characters.controller");
 const equipment_controller_1 = require("../controllers/equipment.controller");
+const characters_controller_2 = require("../controllers/characters.controller");
 const auth_1 = require("../middlewares/auth");
 const validate_1 = require("../middlewares/validate");
 const character_schemas_1 = require("../validations/character.schemas");
@@ -84,4 +85,5 @@ router.post('/:characterId/unequip', auth_1.auth, (0, validate_1.validateParams)
 // Ruta para obtener stats detallados de un personaje
 // Requiere autenticación y validación
 router.get('/:characterId/stats', auth_1.auth, (0, validate_1.validateParams)(character_schemas_1.CharacterIdParamSchema), equipment_controller_1.getCharacterStats);
+router.put("/:characterId/level-up", auth_1.auth, (0, validate_1.validateParams)(character_schemas_1.CharacterIdParamSchema), characters_controller_2.levelUpCharacter);
 exports.default = router;
