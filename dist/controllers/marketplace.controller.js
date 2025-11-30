@@ -4,9 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cancelMarketplaceListing = exports.buyItemFromMarketplace = exports.listItemInMarketplace = void 0;
-const User_1 = __importDefault(require("../models/User"));
+const User_1 = require("../models/User");
 const Listing_1 = __importDefault(require("../models/Listing"));
-const Item_1 = __importDefault(require("../models/Item"));
+const Item_1 = require("../models/Item");
 const mongoose_1 = require("mongoose");
 const listItemInMarketplace = async (req, res) => {
     try {
@@ -17,14 +17,14 @@ const listItemInMarketplace = async (req, res) => {
             return;
         }
         // Validate user exists
-        const user = await User_1.default.findById(userId);
+        const user = await User_1.User.findById(userId);
         if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;
         }
         // Check if user owns the item
         const itemIdObj = new mongoose_1.Types.ObjectId(itemId);
-        const itemIndex = user.inventarioEquipamiento.findIndex(id => id.toString() === itemIdObj.toString());
+        const itemIndex = user.inventarioEquipamiento.findIndex((id) => id.toString() === itemIdObj.toString());
         if (itemIndex === -1) {
             res.status(403).json({ error: 'Item not in user inventory' });
             return;
@@ -70,13 +70,13 @@ const buyItemFromMarketplace = async (req, res) => {
             return;
         }
         // Get buyer
-        const buyer = await User_1.default.findById(userId);
+        const buyer = await User_1.User.findById(userId);
         if (!buyer) {
             res.status(404).json({ error: 'Buyer not found' });
             return;
         }
         // Get seller
-        const seller = await User_1.default.findById(listing.sellerId);
+        const seller = await User_1.User.findById(listing.sellerId);
         if (!seller) {
             res.status(404).json({ error: 'Seller not found' });
             return;
@@ -87,7 +87,7 @@ const buyItemFromMarketplace = async (req, res) => {
             return;
         }
         // Validate item exists
-        const item = await Item_1.default.findById(listing.itemId);
+        const item = await Item_1.Item.findById(listing.itemId);
         if (!item) {
             res.status(404).json({ error: 'Item not found' });
             return;
@@ -100,7 +100,7 @@ const buyItemFromMarketplace = async (req, res) => {
         seller.val += montoVendedor;
         // Transfer item
         const itemIdObj = new mongoose_1.Types.ObjectId(listing.itemId.toString());
-        const sellerItemIndex = seller.inventarioEquipamiento.findIndex(id => id.toString() === itemIdObj.toString());
+        const sellerItemIndex = seller.inventarioEquipamiento.findIndex((id) => id.toString() === itemIdObj.toString());
         if (sellerItemIndex !== -1) {
             seller.inventarioEquipamiento.splice(sellerItemIndex, 1);
         }
@@ -146,7 +146,7 @@ const cancelMarketplaceListing = async (req, res) => {
             return;
         }
         // Get seller
-        const seller = await User_1.default.findById(userId);
+        const seller = await User_1.User.findById(userId);
         if (!seller) {
             res.status(404).json({ error: 'Seller not found' });
             return;

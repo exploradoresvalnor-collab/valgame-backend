@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+import { User } from '../models/User';
 import Listing from '../models/Listing';
-import Item from '../models/Item';
+import { Item } from '../models/Item';
 import { Types } from 'mongoose';
 
 export const listItemInMarketplace = async (req: Request, res: Response): Promise<void> => {
@@ -23,7 +23,7 @@ export const listItemInMarketplace = async (req: Request, res: Response): Promis
 
     // Check if user owns the item
     const itemIdObj = new Types.ObjectId(itemId);
-    const itemIndex = user.inventarioEquipamiento.findIndex(id => id.toString() === itemIdObj.toString());
+    const itemIndex = user.inventarioEquipamiento.findIndex((id: any) => id.toString() === itemIdObj.toString());  
     if (itemIndex === -1) {
       res.status(403).json({ error: 'Item not in user inventory' });
       return;
@@ -110,7 +110,7 @@ export const buyItemFromMarketplace = async (req: Request, res: Response): Promi
 
     // Transfer item
     const itemIdObj = new Types.ObjectId(listing.itemId.toString());
-    const sellerItemIndex = seller.inventarioEquipamiento.findIndex(id => id.toString() === itemIdObj.toString());
+    const sellerItemIndex = seller.inventarioEquipamiento.findIndex((id: any) => id.toString() === itemIdObj.toString());
     if (sellerItemIndex !== -1) {
       seller.inventarioEquipamiento.splice(sellerItemIndex, 1);
     }

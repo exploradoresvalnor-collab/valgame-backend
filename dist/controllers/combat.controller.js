@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.endCombat = exports.performDefend = exports.performAttack = exports.startDungeonCombat = void 0;
-const User_1 = __importDefault(require("../models/User"));
+const User_1 = require("../models/User");
 const Dungeon_1 = __importDefault(require("../models/Dungeon"));
 const combat_service_1 = require("../services/combat.service");
 const startDungeonCombat = async (req, res) => {
@@ -19,7 +19,7 @@ const startDungeonCombat = async (req, res) => {
             return;
         }
         // Validate user and character
-        const user = await User_1.default.findById(userId);
+        const user = await User_1.User.findById(userId);
         if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;
@@ -30,7 +30,7 @@ const startDungeonCombat = async (req, res) => {
             return;
         }
         // Validate prerequisites
-        if (character.nivel < dungeon.nivelRequerido) {
+        if (character.nivel < dungeon.nivel) {
             res.status(400).json({ error: 'Character level too low' });
             return;
         }
@@ -49,7 +49,7 @@ const startDungeonCombat = async (req, res) => {
                 turno: 1,
                 dungeon: { id: dungeon._id, nombre: dungeon.nombre },
                 personaje: { id: character._id, personajeId: character.personajeId },
-                enemigo: { tipo: 'default', nivel: dungeon.nivelRequerido }
+                enemigo: { tipo: 'default', nivel: dungeon.nivel || 1 }
             }
         });
     }
@@ -68,7 +68,7 @@ const performAttack = async (req, res) => {
             return;
         }
         // Get user and character
-        const user = await User_1.default.findById(userId);
+        const user = await User_1.User.findById(userId);
         if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;
@@ -103,7 +103,7 @@ const performDefend = async (req, res) => {
         const { userId } = req.user;
         const { combateId, characterId } = req.body;
         // Get user and character
-        const user = await User_1.default.findById(userId);
+        const user = await User_1.User.findById(userId);
         if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;
@@ -140,7 +140,7 @@ const endCombat = async (req, res) => {
             return;
         }
         // Get user and character
-        const user = await User_1.default.findById(userId);
+        const user = await User_1.User.findById(userId);
         if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;

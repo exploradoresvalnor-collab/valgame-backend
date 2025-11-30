@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+import { User } from '../models/User';
 import Dungeon from '../models/Dungeon';
 import { CombatService } from '../services/combat.service';
 
@@ -30,7 +30,7 @@ export const startDungeonCombat = async (req: Request, res: Response): Promise<v
     }
 
     // Validate prerequisites
-    if (character.nivel < dungeon.nivelRequerido) {
+    if (character.nivel < (dungeon as any).nivel) {
       res.status(400).json({ error: 'Character level too low' });
       return;
     }
@@ -52,7 +52,7 @@ export const startDungeonCombat = async (req: Request, res: Response): Promise<v
         turno: 1,
         dungeon: { id: dungeon._id, nombre: dungeon.nombre },
         personaje: { id: character._id, personajeId: character.personajeId },
-        enemigo: { tipo: 'default', nivel: dungeon.nivelRequerido }
+        enemigo: { tipo: 'default', nivel: (dungeon as any).nivel || 1 }
       }
     });
   } catch (error: any) {
