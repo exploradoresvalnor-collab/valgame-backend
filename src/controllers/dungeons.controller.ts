@@ -471,3 +471,58 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
+
+// Función para obtener detalles de una mazmorra específica
+export const getDungeonDetails = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Validar que el ID sea válido
+    if (!id) {
+      return res.status(400).json({ error: 'ID de mazmorra requerido.' });
+    }
+
+    // Buscar la mazmorra
+    const dungeon = await Dungeon.findById(id);
+
+    if (!dungeon) {
+      return res.status(404).json({ error: 'Mazmorra no encontrada.' });
+    }
+
+    // Retornar detalles completos
+    res.json({
+      id: dungeon._id,
+      nombre: dungeon.nombre,
+      descripcion: dungeon.descripcion,
+      nivel_requerido_minimo: dungeon.nivel_requerido_minimo || 1,
+      stats: {
+        vida: dungeon.stats.vida,
+        ataque: dungeon.stats.ataque,
+        defensa: dungeon.stats.defensa
+      },
+      probabilidades: {
+        fallo_ataque_jugador: dungeon.probabilidades.fallo_ataque_jugador,
+        fallo_ataque_propio: dungeon.probabilidades.fallo_ataque_propio
+      },
+      recompensas: {
+        expBase: dungeon.recompensas.expBase,
+        valBase: dungeon.recompensas.valBase,
+        dropTable: dungeon.recompensas.dropTable ? dungeon.recompensas.dropTable.length : 0
+      },
+      nivel_sistema: {
+        multiplicador_stats_por_nivel: dungeon.nivel_sistema.multiplicador_stats_por_nivel,
+        multiplicador_val_por_nivel: dungeon.nivel_sistema.multiplicador_val_por_nivel,
+        multiplicador_xp_por_nivel: dungeon.nivel_sistema.multiplicador_xp_por_nivel,
+        multiplicador_drop_por_nivel: dungeon.nivel_sistema.multiplicador_drop_por_nivel,
+        nivel_maximo_recomendado: dungeon.nivel_sistema.nivel_maximo_recomendado
+      },
+      personajes_exclusivos: dungeon.personajes_exclusivos || [],
+      items_exclusivos: dungeon.items_exclusivos || [],
+      nivel_minimo_para_exclusivos: dungeon.nivel_minimo_para_exclusivos || 1
+    });
+
+  } catch (error) {
+    console.error('Error al obtener detalles de mazmorra:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+};

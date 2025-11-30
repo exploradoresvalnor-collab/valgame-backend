@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const Dungeon_1 = __importDefault(require("../models/Dungeon"));
 const User_1 = require("../models/User");
-const dungeons_controller_1 = require("../controllers/dungeons.controller"); // 1. Importa la función del controlador de combate
+const dungeons_controller_1 = require("../controllers/dungeons.controller"); // 1. Importa las funciones del controlador
 const auth_1 = require("../middlewares/auth"); // 2. Importa el middleware de autenticación
 const router = (0, express_1.Router)();
 // GET /api/dungeons - Obtener la lista de mazmorras (Ruta Pública)
@@ -19,6 +19,9 @@ router.get('/', async (_req, res) => {
         res.status(500).json({ message: 'Error fetching dungeons' });
     }
 });
+// GET /api/dungeons/:id - Obtener detalles de una mazmorra (Ruta Pública)
+// IMPORTANTE: Debe ir ANTES de las rutas con :dungeonId para evitar conflictos
+router.get('/:id', dungeons_controller_1.getDungeonDetails);
 // --- 👇 RUTA NUEVA PARA INICIAR EL COMBATE (LA PELEA) 👇 ---
 // POST /api/dungeons/:dungeonId/start (Ruta Protegida)
 router.post('/:dungeonId/start', auth_1.auth, dungeons_controller_1.startDungeon);

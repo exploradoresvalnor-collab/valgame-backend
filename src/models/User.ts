@@ -109,6 +109,12 @@ export interface IUser extends Document {
     totalPoints: number;
     averageWave: number;
   };
+
+  // Logros desbloqueados
+  logros_desbloqueados?: Array<{
+    achievementId: Types.ObjectId;
+    fechaDesbloqueo: Date;
+  }>;
 }
 
 // --- SCHEMAS ---
@@ -229,7 +235,14 @@ const UserSchema = new Schema<IUser>({
         averageWave: { type: Number, default: 0, min: 0 }
       }, { _id: false }),
       default: () => ({ totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 })
-    }
+    },
+    // Logros desbloqueados del usuario
+    logros_desbloqueados: [
+      {
+        achievementId: { type: Schema.Types.ObjectId, ref: 'Achievement', required: true },
+        fechaDesbloqueo: { type: Date, default: Date.now }
+      }
+    ]
   }, {
     timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },
     versionKey: false

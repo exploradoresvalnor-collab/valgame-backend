@@ -14,7 +14,7 @@ const SurvivalLeaderboardSchema = new mongoose_1.Schema({
     topRunId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'SurvivalRun' },
     topRunWave: { type: Number, default: 0, min: 0 },
     topRunPoints: { type: Number, default: 0, min: 0 },
-    rankingPosition: { type: Number, index: true },
+    rankingPosition: { type: Number },
     seasonRankingPosition: { type: Number },
     pointsAvailable: { type: Number, default: 0, min: 0 },
     lastRunAt: { type: Date },

@@ -20,6 +20,30 @@ const verifyToken = async (token) => {
 };
 exports.verifyToken = verifyToken;
 async function auth(req, res, next) {
+    // 🔓 RUTAS PÚBLICAS (No requieren autenticación)
+    const publicRoutes = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/verify',
+        '/auth/resend-verification',
+        '/auth/forgot-password',
+        '/auth/reset-form',
+        '/auth/reset-password',
+        '/api/health',
+        '/api/packages',
+        '/api/base-characters',
+        '/api/offers',
+        '/api/game-settings',
+        '/api/equipment',
+        '/api/consumables',
+        '/api/dungeons'
+    ];
+    // Verificar si la ruta actual es pública
+    const currentPath = req.path;
+    const isPublicRoute = publicRoutes.some(route => currentPath === route || currentPath.startsWith(route + '/'));
+    if (isPublicRoute) {
+        return next(); // Saltar autenticación para rutas públicas
+    }
     const header = req.header('Authorization') || '';
     let token = header.replace(/^Bearer\s+/i, '').trim();
     // 🔐 SEGURIDAD: Intentar obtener token de httpOnly cookie si no está en header

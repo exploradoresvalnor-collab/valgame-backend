@@ -6,6 +6,7 @@ const rankings_controller_1 = require("../controllers/rankings.controller");
 const router = (0, express_1.Router)();
 // Rutas públicas
 router.get('/', rankings_controller_1.getGlobalRanking); // GET /api/rankings?limit=100&periodo=global
+router.get('/leaderboard/:category', rankings_controller_1.getLeaderboardByCategory); // GET /api/rankings/leaderboard/level?page=0&limit=20
 router.get('/period/:periodo', rankings_controller_1.getRankingByPeriod); // GET /api/rankings/period/2025-W45
 router.get('/stats', rankings_controller_1.getRankingStats); // GET /api/rankings/stats?periodo=global
 // Rutas protegidas (requieren autenticación)

@@ -427,13 +427,134 @@ router.get('/reset-form/:token', async (req, res) => {
             resetPasswordTokenExpires: { $gt: new Date() }
         });
         if (!user) {
-            return res.status(400).json({ error: 'Token de recuperación inválido o expirado' });
+            return res.status(400).type('text/html').send(`
+        <html><body style="font-family:Arial;text-align:center;padding:50px">
+          <h1>❌ Enlace Expirado</h1>
+          <p>El link para recuperar contraseña ha expirado o es inválido.</p>
+          <p>Los enlaces expiran después de 1 hora.</p>
+        </body></html>
+      `);
         }
-        return res.json({ message: 'Token válido. Puedes proceder con el reset de contraseña.' });
+        // Retornar formulario HTML bonito
+        return res.type('text/html').send(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cambiar Contraseña</title>
+        <style>
+          body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+          .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 400px; }
+          h1 { color: #333; margin-bottom: 10px; }
+          .subtitle { color: #666; margin-bottom: 30px; }
+          .form-group { margin-bottom: 20px; }
+          label { display: block; color: #333; font-weight: 600; margin-bottom: 8px; }
+          input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 16px; }
+          input:focus { outline: none; border-color: #667eea; }
+          button { width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+          button:hover { transform: translateY(-2px); }
+          .message { padding: 12px; border-radius: 6px; margin-bottom: 15px; display: none; }
+          .success { background: #d4edda; color: #155724; }
+          .error { background: #f8d7da; color: #721c24; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🔐 Cambiar Contraseña</h1>
+          <p class="subtitle">Ingresa tu nueva contraseña</p>
+          <div id="msg" class="message"></div>
+          <form id="form">
+            <div class="form-group">
+              <label>Nueva Contraseña</label>
+              <input type="password" id="pwd" placeholder="Mínimo 6 caracteres" required>
+            </div>
+            <div class="form-group">
+              <label>Confirmar Contraseña</label>
+              <input type="password" id="confirm" placeholder="Repite tu contraseña" required>
+            </div>
+            <button type="submit">Cambiar Contraseña</button>
+          </form>
+        </div>
+        <script>
+          const form = document.getElementById('form');
+          const msg = document.getElementById('msg');
+          const pwd = document.getElementById('pwd');
+          const confirm = document.getElementById('confirm');
+
+          form.onsubmit = async (e) => {
+            e.preventDefault();
+            if (pwd.value !== confirm.value) {
+              showMsg('Las contraseñas no coinciden', 'error');
+              return;
+            }
+            if (pwd.value.length < 6) {
+              showMsg('Mínimo 6 caracteres', 'error');
+              return;
+            }
+            try {
+              const res = await fetch('/auth/reset-password/${token}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pwd.value })
+              });
+              const data = await res.json();
+              if (res.ok) {
+                showMsg('✅ Contraseña cambiada exitosamente', 'success');
+                setTimeout(() => window.location.href = '/', 2000);
+              } else {
+                showMsg(data.error || 'Error al cambiar', 'error');
+              }
+            } catch (e) {
+              showMsg('Error de conexión', 'error');
+            }
+          };
+
+          function showMsg(txt, type) {
+            msg.textContent = txt;
+            msg.className = 'message ' + type;
+            msg.style.display = 'block';
+          }
+        </script>
+      </body>
+      </html>
+    `);
     }
     catch (e) {
         console.error('[RESET-FORM] Error:', e);
         return res.status(500).json({ error: 'Error al validar token' });
+    }
+});
+// --- RUTA: GET /auth/reset-password/validate/:token ---
+// Valida token sin cambiar contraseña (para frontend)
+router.get('/reset-password/validate/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        const user = await User_1.User.findOne({
+            resetPasswordToken: token,
+            resetPasswordTokenExpires: { $gt: new Date() }
+        });
+        if (!user) {
+            return res.status(400).json({
+                ok: false,
+                error: 'Token inválido o expirado',
+                code: 'INVALID_TOKEN'
+            });
+        }
+        const expiresAt = user.resetPasswordTokenExpires;
+        const expiresIn = Math.floor((expiresAt.getTime() - new Date().getTime()) / 1000);
+        return res.json({
+            ok: true,
+            email: user.email,
+            expiresIn: Math.max(0, expiresIn)
+        });
+    }
+    catch (e) {
+        console.error('[VALIDATE-RESET-TOKEN] Error:', e);
+        return res.status(400).json({
+            ok: false,
+            error: e?.message || 'Error al validar token'
+        });
     }
 });
 // --- RUTA: POST /auth/reset-password/:token ---

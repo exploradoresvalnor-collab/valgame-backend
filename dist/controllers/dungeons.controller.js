@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startDungeon = void 0;
+exports.getDungeonDetails = exports.startDungeon = void 0;
 const User_1 = require("../models/User");
 const Dungeon_1 = __importDefault(require("../models/Dungeon"));
 const GameSetting_1 = __importDefault(require("../models/GameSetting"));
@@ -398,3 +398,54 @@ const startDungeon = async (req, res) => {
     }
 };
 exports.startDungeon = startDungeon;
+// Función para obtener detalles de una mazmorra específica
+const getDungeonDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Validar que el ID sea válido
+        if (!id) {
+            return res.status(400).json({ error: 'ID de mazmorra requerido.' });
+        }
+        // Buscar la mazmorra
+        const dungeon = await Dungeon_1.default.findById(id);
+        if (!dungeon) {
+            return res.status(404).json({ error: 'Mazmorra no encontrada.' });
+        }
+        // Retornar detalles completos
+        res.json({
+            id: dungeon._id,
+            nombre: dungeon.nombre,
+            descripcion: dungeon.descripcion,
+            nivel_requerido_minimo: dungeon.nivel_requerido_minimo || 1,
+            stats: {
+                vida: dungeon.stats.vida,
+                ataque: dungeon.stats.ataque,
+                defensa: dungeon.stats.defensa
+            },
+            probabilidades: {
+                fallo_ataque_jugador: dungeon.probabilidades.fallo_ataque_jugador,
+                fallo_ataque_propio: dungeon.probabilidades.fallo_ataque_propio
+            },
+            recompensas: {
+                expBase: dungeon.recompensas.expBase,
+                valBase: dungeon.recompensas.valBase,
+                dropTable: dungeon.recompensas.dropTable ? dungeon.recompensas.dropTable.length : 0
+            },
+            nivel_sistema: {
+                multiplicador_stats_por_nivel: dungeon.nivel_sistema.multiplicador_stats_por_nivel,
+                multiplicador_val_por_nivel: dungeon.nivel_sistema.multiplicador_val_por_nivel,
+                multiplicador_xp_por_nivel: dungeon.nivel_sistema.multiplicador_xp_por_nivel,
+                multiplicador_drop_por_nivel: dungeon.nivel_sistema.multiplicador_drop_por_nivel,
+                nivel_maximo_recomendado: dungeon.nivel_sistema.nivel_maximo_recomendado
+            },
+            personajes_exclusivos: dungeon.personajes_exclusivos || [],
+            items_exclusivos: dungeon.items_exclusivos || [],
+            nivel_minimo_para_exclusivos: dungeon.nivel_minimo_para_exclusivos || 1
+        });
+    }
+    catch (error) {
+        console.error('Error al obtener detalles de mazmorra:', error);
+        res.status(500).json({ error: 'Error interno del servidor.' });
+    }
+};
+exports.getDungeonDetails = getDungeonDetails;

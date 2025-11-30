@@ -12,6 +12,7 @@ const Item_1 = require("../models/Item");
 const UserPackage_1 = __importDefault(require("../models/UserPackage")); // Importación correcta
 const Package_1 = __importDefault(require("../models/Package")); // Importación correcta
 const energy_service_1 = __importDefault(require("../services/energy.service"));
+const users_controller_1 = require("../controllers/users.controller");
 const router = (0, express_1.Router)();
 // --- Rutas que ya tenías ---
 // Lista usuarios (solo para probar)
@@ -19,6 +20,9 @@ router.get('/', auth_1.auth, async (_req, res) => {
     const users = await User_1.User.find().select('-passwordHash');
     res.json(users);
 });
+// GET /api/user/profile/:userId - Obtener perfil público de usuario (SIN autenticación)
+// Debe ir ANTES de /me para evitar conflicto de rutas
+router.get('/profile/:userId', users_controller_1.getUserProfile);
 // Datos del usuario autenticado
 router.get('/me', auth_1.auth, async (req, res) => {
     if (!req.userId)

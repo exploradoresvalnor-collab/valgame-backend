@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Dungeon from '../models/Dungeon';
 import { User } from '../models/User';
-import { startDungeon } from '../controllers/dungeons.controller'; // 1. Importa la función del controlador de combate
+import { startDungeon, getDungeonDetails } from '../controllers/dungeons.controller'; // 1. Importa las funciones del controlador
 import { auth } from '../middlewares/auth'; // 2. Importa el middleware de autenticación
 
 const router = Router();
@@ -15,6 +15,10 @@ router.get('/', async (_req, res) => {
     res.status(500).json({ message: 'Error fetching dungeons' });
   }
 });
+
+// GET /api/dungeons/:id - Obtener detalles de una mazmorra (Ruta Pública)
+// IMPORTANTE: Debe ir ANTES de las rutas con :dungeonId para evitar conflictos
+router.get('/:id', getDungeonDetails);
 
 // --- 👇 RUTA NUEVA PARA INICIAR EL COMBATE (LA PELEA) 👇 ---
 // POST /api/dungeons/:dungeonId/start (Ruta Protegida)

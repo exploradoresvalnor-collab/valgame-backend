@@ -10,8 +10,15 @@ import { validateSecurityConfig } from './config/security'; // Importar validaci
 import { auth as checkAuth } from './middlewares/auth';
 import { startPermadeathCron } from './services/permadeath.service';
 import { startMarketplaceExpirationCron } from './services/marketplace-expiration.service';
-import errorHandler from './middlewares/errorHandler';
-import { connectionMonitorMiddleware, detectConnectionErrors } from './middlewares/connectionMonitor';
+import { errorHandler } from './middlewares/errorHandler';
+import { connectionMonitorMiddleware, detectConnectionErrors } from './middlewares/connectionMonitor';      
+import {
+  authLimiter,
+  gameplayLimiter,
+  slowGameplayLimiter,
+  marketplaceLimiter,
+  apiLimiter
+} from './middlewares/rateLimits';
 
 // Importa todas tus rutas
 import authRoutes from './routes/auth.routes';
@@ -39,6 +46,7 @@ import dungeonRoutes from './routes/dungeons.routes';
 import characterRoutes from './routes/characters.routes';
 import shopRoutes from './routes/shop.routes';
 import rankingsRoutes from './routes/rankings.routes';
+import achievementsRoutes from './routes/achievements.routes';
 import teamsRoutes from './routes/teams/teams.routes';
 import userCharactersRoutes from './routes/user-characters.routes';
 import chatRoutes from './routes/chat.routes';
@@ -66,42 +74,15 @@ app.use(cookieParser()); // 🔐 Middleware para cookies httpOnly
 app.use(express.json()); // Permite al servidor entender JSON
 
 // --- Middlewares de Conexión y Monitoreo ---
-app.use(connectionMonitorMiddleware); // Monitorear estado de conexión
+// ⚠️ DESHABILITADO: Causa falsos positivos que bloquean emails
+// app.use(connectionMonitorMiddleware); // Monitorear estado de conexión
 
-// --- Configuración CORS Segura ---
-const frontendOrigin = process.env.FRONTEND_ORIGIN;
-if (frontendOrigin) {
-  // Modo producción: dominios específicos
-  const allowedOrigins = frontendOrigin.split(',').map(origin => origin.trim());
-  app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true
-  }));
-  console.log('✅ CORS configurado para dominios específicos:', allowedOrigins);
-} else {
-  // Modo desarrollo: permitir todos (con advertencia)
-  console.warn('[CORS] ⚠️ MODO DESARROLLO: Aceptando solicitudes de todos los orígenes');
-  app.use(cors({ 
-    origin: true,
-    credentials: true 
-  }));
-}
-
-
-// Importar rate limiters
-import { 
-  authLimiter, 
-  gameplayLimiter, 
-  slowGameplayLimiter,
-  marketplaceLimiter, 
-  apiLimiter 
-} from './middlewares/rateLimits';
+// --- Configuración CORS: Permitir todas las conexiones ---
+console.warn('[CORS] ⚠️ PERMITIENDO TODAS LAS CONEXIONES DESDE CUALQUIER ORIGEN');
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 
 // Aplica los rate limiters según el tipo de ruta
 app.use('/auth/', authLimiter);
@@ -156,6 +137,7 @@ app.use('/api/player-stats', playerStatsRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/rankings', rankingsRoutes);
+app.use('/api/achievements', achievementsRoutes);
 app.use('/api/teams', teamsRoutes);
 app.use('/api/user-characters', userCharactersRoutes);
 app.use('/api/chat', chatRoutes);

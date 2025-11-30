@@ -8,6 +8,7 @@ import { Item } from '../models/Item';
 import UserPackage from '../models/UserPackage'; // Importación correcta
 import PackageModel from '../models/Package'; // Importación correcta
 import EnergyService from '../services/energy.service';
+import { getUserProfile } from '../controllers/users.controller';
 
 const router = Router();
 
@@ -18,6 +19,10 @@ router.get('/', auth, async (_req: Request, res: Response) => {
   const users = await User.find().select('-passwordHash');
   res.json(users);
 });
+
+// GET /api/user/profile/:userId - Obtener perfil público de usuario (SIN autenticación)
+// Debe ir ANTES de /me para evitar conflicto de rutas
+router.get('/profile/:userId', getUserProfile);
 
 // Datos del usuario autenticado
 router.get('/me', auth, async (req: Request, res: Response) => {

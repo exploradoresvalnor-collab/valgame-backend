@@ -113,7 +113,14 @@ const UserSchema = new mongoose_1.Schema({
             averageWave: { type: Number, default: 0, min: 0 }
         }, { _id: false }),
         default: () => ({ totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 })
-    }
+    },
+    // Logros desbloqueados del usuario
+    logros_desbloqueados: [
+        {
+            achievementId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Achievement', required: true },
+            fechaDesbloqueo: { type: Date, default: Date.now }
+        }
+    ]
 }, {
     timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },
     versionKey: false

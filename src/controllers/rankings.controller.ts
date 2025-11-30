@@ -170,9 +170,172 @@ export const getRankingStats = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[GET-RANKING-STATS] Error:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: 'Error al obtener estadísticas del ranking' 
+      error: 'Error al obtener estadísticas del ranking'
     });
+  }
+};
+
+// Función para obtener rankings por categoría
+export const getLeaderboardByCategory = async (req: Request, res: Response) => {
+  try {
+    const { category } = req.params;
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = page * limit;
+
+    // Validar categoría
+    const validCategories = ['level', 'wins', 'winrate', 'wealth'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        error: `Categoría inválida. Válidas: ${validCategories.join(', ')}`
+      });
+    }
+
+    // Importar User model
+    const { User } = require('../models/User');
+
+    // Construir pipeline de agregación según categoría
+    let sortField = {};
+    let projection: any = {
+      _id: 1,
+      nombre: 1,
+      dungeon_stats: 1,
+      dungeon_streak: 1,
+      valBalance: 1,
+      personajes: 1
+    };
+
+    switch (category) {
+      case 'level':
+        // Ordenar por nivel máximo de personajes
+        sortField = { 'maxNivel': -1 };
+        break;
+      case 'wins':
+        // Ordenar por total de victorias
+        sortField = { 'dungeon_stats.total_victorias': -1 };
+        break;
+      case 'winrate':
+        // Ordenar por winrate (victorias / (victorias + derrotas))
+        sortField = { 'winrate': -1 };
+        break;
+      case 'wealth':
+        // Ordenar por VAL acumulado
+        sortField = { 'valBalance': -1 };
+        break;
+    }
+
+    // Ejecutar agregación
+    const users = await User.aggregate([
+      // Stage 1: Obtener máximo nivel de personajes
+      {
+        $addFields: {
+          maxNivel: {
+            $cond: [
+              { $gt: [{ $size: '$personajes' }, 0] },
+              { $max: '$personajes.nivel' },
+              1
+            ]
+          }
+        }
+      },
+      // Stage 2: Calcular winrate
+      {
+        $addFields: {
+          totalCombates: {
+            $add: [
+              { $ifNull: ['$dungeon_stats.total_victorias', 0] },
+              { $ifNull: ['$dungeon_stats.total_derrotas', 0] }
+            ]
+          },
+          winrate: {
+            $cond: [
+              {
+                $gt: [
+                  {
+                    $add: [
+                      { $ifNull: ['$dungeon_stats.total_victorias', 0] },
+                      { $ifNull: ['$dungeon_stats.total_derrotas', 0] }
+                    ]
+                  },
+                  0
+                ]
+              },
+              {
+                $divide: [
+                  { $ifNull: ['$dungeon_stats.total_victorias', 0] },
+                  {
+                    $add: [
+                      { $ifNull: ['$dungeon_stats.total_victorias', 0] },
+                      { $ifNull: ['$dungeon_stats.total_derrotas', 0] }
+                    ]
+                  }
+                ]
+              },
+              0
+            ]
+          }
+        }
+      },
+      // Stage 3: Ordenar según categoría
+      { $sort: sortField },
+      // Stage 4: Contar total
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 1,
+                nombre: 1,
+                posicion: { $add: [skip, 1] }, // Posición en el ranking
+                stats: {
+                  nivel: '$maxNivel',
+                  victorias: { $ifNull: ['$dungeon_stats.total_victorias', 0] },
+                  derrotas: { $ifNull: ['$dungeon_stats.total_derrotas', 0] },
+                  racha: { $ifNull: ['$dungeon_streak', 0] },
+                  val: { $ifNull: ['$valBalance', 0] },
+                  winrate: {
+                    $multiply: [
+                      {
+                        $round: ['$winrate', 4]
+                      },
+                      100
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const total = users[0].metadata[0]?.total || 0;
+    const data = users[0].data;
+
+    // Agregar número de página y total de páginas
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      categoria: category,
+      pagina: page,
+      limite: limit,
+      total,
+      totalPages,
+      usuarios: data.map((user: any, index: number) => ({
+        posicion: page * limit + index + 1,
+        userId: user._id,
+        nombre: user.nombre,
+        stats: user.stats
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error al obtener leaderboard:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };

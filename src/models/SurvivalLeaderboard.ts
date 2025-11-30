@@ -46,7 +46,7 @@ const SurvivalLeaderboardSchema = new Schema<ISurvivalLeaderboard>({
   topRunWave: { type: Number, default: 0, min: 0 },
   topRunPoints: { type: Number, default: 0, min: 0 },
   
-  rankingPosition: { type: Number, index: true },
+  rankingPosition: { type: Number },
   seasonRankingPosition: { type: Number },
   
   pointsAvailable: { type: Number, default: 0, min: 0 },

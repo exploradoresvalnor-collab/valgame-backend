@@ -14,8 +14,9 @@ const security_1 = require("./config/security"); // Importar validación de segu
 const auth_1 = require("./middlewares/auth");
 const permadeath_service_1 = require("./services/permadeath.service");
 const marketplace_expiration_service_1 = require("./services/marketplace-expiration.service");
-const errorHandler_1 = __importDefault(require("./middlewares/errorHandler"));
+const errorHandler_1 = require("./middlewares/errorHandler");
 const connectionMonitor_1 = require("./middlewares/connectionMonitor");
+const rateLimits_1 = require("./middlewares/rateLimits");
 // Importa todas tus rutas
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const payments_routes_1 = __importDefault(require("./routes/payments.routes"));
@@ -42,6 +43,7 @@ const dungeons_routes_1 = __importDefault(require("./routes/dungeons.routes"));
 const characters_routes_1 = __importDefault(require("./routes/characters.routes"));
 const shop_routes_1 = __importDefault(require("./routes/shop.routes"));
 const rankings_routes_1 = __importDefault(require("./routes/rankings.routes"));
+const achievements_routes_1 = __importDefault(require("./routes/achievements.routes"));
 const teams_routes_1 = __importDefault(require("./routes/teams/teams.routes"));
 const user_characters_routes_1 = __importDefault(require("./routes/user-characters.routes"));
 const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
@@ -65,35 +67,14 @@ app.post('/api/payments/webhook', express_1.default.raw({ type: 'application/jso
 app.use((0, cookie_parser_1.default)()); // 🔐 Middleware para cookies httpOnly
 app.use(express_1.default.json()); // Permite al servidor entender JSON
 // --- Middlewares de Conexión y Monitoreo ---
-app.use(connectionMonitor_1.connectionMonitorMiddleware); // Monitorear estado de conexión
-// --- Configuración CORS Segura ---
-const frontendOrigin = process.env.FRONTEND_ORIGIN;
-if (frontendOrigin) {
-    // Modo producción: dominios específicos
-    const allowedOrigins = frontendOrigin.split(',').map(origin => origin.trim());
-    app.use((0, cors_1.default)({
-        origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
-                callback(null, true);
-            }
-            else {
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
-        credentials: true
-    }));
-    console.log('✅ CORS configurado para dominios específicos:', allowedOrigins);
-}
-else {
-    // Modo desarrollo: permitir todos (con advertencia)
-    console.warn('[CORS] ⚠️ MODO DESARROLLO: Aceptando solicitudes de todos los orígenes');
-    app.use((0, cors_1.default)({
-        origin: true,
-        credentials: true
-    }));
-}
-// Importar rate limiters
-const rateLimits_1 = require("./middlewares/rateLimits");
+// ⚠️ DESHABILITADO: Causa falsos positivos que bloquean emails
+// app.use(connectionMonitorMiddleware); // Monitorear estado de conexión
+// --- Configuración CORS: Permitir todas las conexiones ---
+console.warn('[CORS] ⚠️ PERMITIENDO TODAS LAS CONEXIONES DESDE CUALQUIER ORIGEN');
+app.use((0, cors_1.default)({
+    origin: true,
+    credentials: true
+}));
 // Aplica los rate limiters según el tipo de ruta
 app.use('/auth/', rateLimits_1.authLimiter);
 // Rate limits para acciones de juego rápidas
@@ -137,6 +118,7 @@ app.use('/api/player-stats', playerStats_routes_1.default);
 app.use('/api/characters', characters_routes_1.default);
 app.use('/api/shop', shop_routes_1.default);
 app.use('/api/rankings', rankings_routes_1.default);
+app.use('/api/achievements', achievements_routes_1.default);
 app.use('/api/teams', teams_routes_1.default);
 app.use('/api/user-characters', user_characters_routes_1.default);
 app.use('/api/chat', chat_routes_1.default);
@@ -196,5 +178,5 @@ else {
 }
 // Middleware global de manejo de errores (debe ir al final)
 app.use(connectionMonitor_1.detectConnectionErrors); // Detectar errores de conexión ANTES del errorHandler
-app.use(errorHandler_1.default);
+app.use(errorHandler_1.errorHandler);
 exports.default = app;
