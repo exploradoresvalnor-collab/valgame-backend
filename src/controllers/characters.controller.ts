@@ -436,3 +436,86 @@ export const evolveCharacter = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
+/**
+ * Subir de nivel un personaje
+ * PUT /api/characters/:characterId/level-up
+ */
+export const levelUpCharacter = async (req: any, res: any) => {
+  try {
+    const { characterId } = req.params;
+    const userId = req.userId;
+
+    // Obtener usuario
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Obtener personaje
+    const character = user.personajes.find((p: any) => p._id?.toString() === characterId);
+    if (!character) {
+      return res.status(404).json({ error: 'Personaje no encontrado' });
+    }
+
+    // Calcular experiencia requerida para siguiente nivel
+    const nivelActual = character.nivel || 1;
+    const expRequerida = (nivelActual + 1) * 100;
+    const expActual = character.experiencia || 0;
+
+    // Validar que hay suficiente experiencia
+    if (expActual < expRequerida) {
+      const faltante = expRequerida - expActual;
+      return res.status(400).json({ 
+        error: `No tienes suficiente experiencia. Faltan ${faltante} EXP`,
+        experienciaActual: expActual,
+        experienciaRequerida: expRequerida,
+        faltante
+      });
+    }
+
+    // Aumentar nivel
+    character.nivel = nivelActual + 1;
+    character.experiencia = 0;
+
+    // Aumentar estadísticas por nivel
+    const aumentoStats = {
+      vida: 10,
+      ataque: 2,
+      defensa: 1
+    };
+
+    if (character.stats) {
+      character.stats.vida = (character.stats.vida || 0) + aumentoStats.vida;
+      character.stats.atk = (character.stats.atk || 0) + aumentoStats.ataque;
+      character.stats.defensa = (character.stats.defensa || 0) + aumentoStats.defensa;
+    }
+
+    // Restaurar salud
+    character.saludMaxima = character.stats?.vida || 100;
+    character.saludActual = character.saludMaxima;
+
+    // Guardar cambios
+    await user.save();
+
+    res.json({
+      exito: true,
+      personaje: {
+        id: character._id,
+        nombre: character.personajeId,
+        nivelAnterior: nivelActual,
+        nivelNuevo: character.nivel,
+        stats: {
+          vida: character.stats?.vida || 0,
+          ataque: character.stats?.atk || 0,
+          defensa: character.stats?.defensa || 0
+        },
+        saludActual: character.saludActual,
+        saludMaxima: character.saludMaxima,
+        aumentos: aumentoStats
+      }
+    });
+  } catch (error: any) {
+    console.error('Error al subir de nivel:', error);
+    res.status(500).json({ error: error.message || 'Error al subir de nivel' });
+  }
+};

@@ -51,6 +51,8 @@ import teamsRoutes from './routes/teams/teams.routes';
 import userCharactersRoutes from './routes/user-characters.routes';
 import chatRoutes from './routes/chat.routes';
 import survivalRoutes from './routes/survival.routes';
+import combatRoutes from './routes/combat.routes';
+import marketplaceControlRoutes from './routes/marketplace.routes';
 
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
@@ -135,6 +137,8 @@ app.use('/api/level-requirements', levelRequirementsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/player-stats', playerStatsRoutes);
 app.use('/api/characters', characterRoutes);
+app.use('/api', combatRoutes);
+app.use('/api', marketplaceControlRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/rankings', rankingsRoutes);
 app.use('/api/achievements', achievementsRoutes);
