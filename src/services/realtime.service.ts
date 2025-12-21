@@ -94,25 +94,140 @@ export class RealtimeService {
   }
 
   // Métodos para enviar actualizaciones en tiempo real
+  // Emisión cruda (para nuevos eventos específicos) - opcional
+  public emitRaw(event: string, payload: any): void {
+    this.io.emit(event, payload);
+  }
+
+  // Helper para emitir a un usuario específico por su sala
+  public emitToUser(userId: string, event: string, payload: any): void {
+    this.io.to(`user:${userId}`).emit(event, payload);
+  }
 
   // Notificar cambios en el inventario
   public notifyInventoryUpdate(userId: string, inventory: any): void {
-    this.io.to(`user:${userId}`).emit('inventory:update', inventory);
+    this.emitToUser(userId, 'inventory:update', inventory);
   }
 
   // Notificar nueva recompensa o item obtenido
   public notifyReward(userId: string, reward: any): void {
-    this.io.to(`user:${userId}`).emit('reward:received', reward);
+    this.emitToUser(userId, 'reward:received', reward);
   }
 
   // Notificar cambios en el estado del personaje
   public notifyCharacterUpdate(userId: string, characterId: string, updates: any): void {
-    this.io.to(`user:${userId}`).emit('character:update', { characterId, ...updates });
+    this.emitToUser(userId, 'character:update', { characterId, ...updates });
+  }
+
+  // Nuevo: Notificar subida de nivel de personaje (normalizado)
+  public notifyCharacterLevelUp(
+    userId: string,
+    characterId: string,
+    newLevel: number,
+    levelsGained: number,
+    statsDelta?: { atk?: number; defensa?: number; vida?: number }
+  ): void {
+    this.emitToUser(userId, 'character:level-up', {
+      characterId,
+      level: newLevel,
+      levelsGained,
+      statsDelta: statsDelta || {},
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Nuevo: Notificar evolución de personaje
+  public notifyCharacterEvolved(
+    userId: string,
+    characterId: string,
+    etapaNueva: number
+  ): void {
+    this.emitToUser(userId, 'character:evolved', {
+      characterId,
+      etapa: etapaNueva,
+      timestamp: new Date().toISOString()
+    });
   }
 
   // Notificar eventos del marketplace
   public notifyMarketplaceUpdate(type: 'new'|'sold'|'cancelled'|'refresh', data: any): void {
     this.io.emit('marketplace:update', { type, data });
+  }
+
+  // Nuevos: eventos marketplace normalizados (manteniendo legacy update)
+  public notifyMarketplaceItemListed(listing: any): void {
+    const payload = { listing, timestamp: new Date().toISOString() };
+    this.emitRaw('marketplace:item:listed', payload);
+    this.notifyMarketplaceUpdate('new', payload);
+  }
+
+  public notifyMarketplaceItemSold(listingId: string, buyerId: string, priceVal: number): void {
+    const payload = { listingId, buyerId, priceVal, timestamp: new Date().toISOString() };
+    this.emitRaw('marketplace:item:sold', payload);
+    this.notifyMarketplaceUpdate('sold', payload);
+  }
+
+  public notifyMarketplaceItemCancelled(listingId: string, reason?: string): void {
+    const payload = { listingId, reason, timestamp: new Date().toISOString() };
+    this.emitRaw('marketplace:item:cancelled', payload);
+    this.notifyMarketplaceUpdate('cancelled', payload);
+  }
+
+  // Survival wave nueva
+  public notifySurvivalWaveNew(sessionId: string, waveNumber: number, enemiesRemaining: number): void {
+    this.io.emit('survival:wave:new', {
+      sessionId,
+      waveNumber,
+      enemiesRemaining,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Survival end
+  public notifySurvivalEnd(sessionId: string, totalWaves: number, durationMs: number, rewards: any): void {
+    this.io.emit('survival:end', {
+      sessionId,
+      totalWaves,
+      durationMs,
+      rewards,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Chat: mensaje global normalizado (+ mantener compatibilidad si aplica desde capa de chat)
+  public notifyChatMessageNew(message: { id?: string; senderId: string; senderName?: string; content: string; room?: 'global'|'party'|'private'; createdAt?: string }): void {
+    const payload = {
+      id: message.id,
+      senderId: message.senderId,
+      senderName: message.senderName,
+      content: message.content,
+      type: message.room || 'global',
+      createdAt: message.createdAt || new Date().toISOString()
+    };
+    this.emitRaw('chat:message:new', payload);
+  }
+
+  // Notificaciones: nueva y leída
+  public notifyNotificationNew(userId: string, notification: any): void {
+    this.emitToUser(userId, 'notification:new', {
+      notification,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  public notifyNotificationRead(userId: string, notificationId: string): void {
+    this.emitToUser(userId, 'notification:read', {
+      notificationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Pagos: estado (web2/web3)
+  public notifyPaymentStatus(userId: string, status: { id?: string; provider: 'stripe'|'blockchain'|'manual'; state: 'initiated'|'pending'|'confirmed'|'failed'|'refunded'; meta?: any }): void {
+    this.emitToUser(userId, 'payments:status', {
+      ...status,
+      timestamp: new Date().toISOString()
+    });
   }
 
   // Notificar eventos globales

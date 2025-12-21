@@ -21,6 +21,7 @@ const rateLimits_1 = require("./middlewares/rateLimits");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const payments_routes_1 = __importDefault(require("./routes/payments.routes"));
 const health_routes_1 = __importDefault(require("./routes/health.routes"));
+const version_routes_1 = __importDefault(require("./routes/version.routes"));
 const payment_service_1 = __importDefault(require("./services/payment.service"));
 const users_routes_1 = __importDefault(require("./routes/users.routes"));
 const userSettings_routes_1 = __importDefault(require("./routes/userSettings.routes"));
@@ -37,6 +38,8 @@ const playerStats_routes_1 = __importDefault(require("./routes/playerStats.route
 const offers_routes_1 = __importDefault(require("./routes/offers.routes"));
 const marketplace_routes_1 = __importDefault(require("./routes/marketplace.routes"));
 const marketplaceTransactions_routes_1 = __importDefault(require("./routes/marketplaceTransactions.routes"));
+const inventory_alias_routes_1 = __importDefault(require("./routes/inventory.alias.routes"));
+const feedback_routes_1 = __importDefault(require("./routes/feedback.routes"));
 const equipment_routes_1 = __importDefault(require("./routes/equipment.routes"));
 const consumables_routes_1 = __importDefault(require("./routes/consumables.routes"));
 const dungeons_routes_1 = __importDefault(require("./routes/dungeons.routes"));
@@ -77,6 +80,19 @@ app.use((0, cors_1.default)({
     origin: true,
     credentials: true
 }));
+// Montar rutas alias de prueba ANTES que el resto, sólo en tests/Jest
+if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const testAliasesRouter = require('./routes/_test-aliases.routes').default;
+        if (testAliasesRouter) {
+            app.use('/api', testAliasesRouter);
+        }
+    }
+    catch (_e) {
+        // ignorar si no existe
+    }
+}
 // Aplica los rate limiters según el tipo de ruta
 app.use('/auth/', rateLimits_1.authLimiter);
 // Rate limits para acciones de juego rápidas
@@ -95,6 +111,7 @@ app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear
 app.use('/auth', auth_routes_1.default);
 app.use('/api/payments', payments_routes_1.default);
 app.use('/api/health', health_routes_1.default); // Health check - sin autenticación
+app.use('/api/version', version_routes_1.default);
 app.use('/api/packages', packages_routes_1.default); // Cualquiera puede ver los paquetes de la tienda
 app.use('/api/base-characters', baseCharacters_routes_1.default); // Cualquiera puede ver los personajes que existen
 app.use('/api/offers', offers_routes_1.default); // Cualquiera puede ver las ofertas activas
@@ -110,6 +127,9 @@ app.use('/api/marketplace', marketplace_routes_1.default);
 app.use('/api/marketplace-transactions', marketplaceTransactions_routes_1.default);
 app.use('/api/users', users_routes_1.default);
 app.use('/api/user/settings', userSettings_routes_1.default);
+app.use('/api/users/settings', userSettings_routes_1.default); // alias plural
+app.use('/api/inventory', inventory_alias_routes_1.default);
+app.use('/api/feedback', feedback_routes_1.default);
 app.use('/api/notifications', notifications_routes_1.default);
 app.use('/api/categories', categories_routes_1.default);
 app.use('/api/items', items_routes_1.default);
@@ -184,3 +204,4 @@ else {
 app.use(connectionMonitor_1.detectConnectionErrors); // Detectar errores de conexión ANTES del errorHandler
 app.use(errorHandler_1.errorHandler);
 exports.default = app;
+// (fin app)

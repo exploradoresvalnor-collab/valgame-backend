@@ -1,0 +1,141 @@
+{
+  "apply": true,
+  "when": "2025-12-02T19:37:06.434Z",
+  "moved": [
+    {
+      "from": "ANALISIS_ENDPOINTS_COMPLETO.md",
+      "to": "docs\\99_archive\\ANALISIS_ENDPOINTS_COMPLETO.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "ANATOMIA_PROYECTO.md",
+      "to": "docs\\99_archive\\ANATOMIA_PROYECTO.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "AUDITORIA_COMPLETADA.md",
+      "to": "docs\\99_archive\\AUDITORIA_COMPLETADA.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "CONSOLIDACION_COMPLETADA.txt",
+      "to": "docs\\reportes\\CONSOLIDACION_COMPLETADA.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "CONSOLIDACION_LISTA.txt",
+      "to": "docs\\reportes\\CONSOLIDACION_LISTA.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "ENDPOINTS_STATUS.md",
+      "to": "docs\\99_archive\\ENDPOINTS_STATUS.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "ESTADO_FINAL.txt",
+      "to": "docs\\reportes\\ESTADO_FINAL.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "MAPA_PANTALLAS_Y_FLUJOS.md",
+      "to": "docs\\99_archive\\MAPA_PANTALLAS_Y_FLUJOS.md",
+      "reason": "archive"
+    },
+    {
+      "from": "NAVEGACION_RAPIDA.md",
+      "to": "docs\\99_archive\\NAVEGACION_RAPIDA.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "PLAN_IMPLEMENTACION_DETALLADO.md",
+      "to": "docs\\99_archive\\PLAN_IMPLEMENTACION_DETALLADO.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "QUICK_START_FIXES.md",
+      "to": "docs\\99_archive\\QUICK_START_FIXES.md",
+      "reason": "archive"
+    },
+    {
+      "from": "README_CONSOLIDACION.txt",
+      "to": "docs\\reportes\\README_CONSOLIDACION.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "README_FINAL.md",
+      "to": "docs\\99_archive\\README_FINAL.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "README_NEW.md",
+      "to": "docs\\99_archive\\README_NEW.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "RESUMEN_AUDITORIA_FINAL.txt",
+      "to": "docs\\reportes\\RESUMEN_AUDITORIA_FINAL.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "RESUMEN_COMPLETO_FINAL.txt",
+      "to": "docs\\reportes\\RESUMEN_COMPLETO_FINAL.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "RESUMEN_EJECUTIVO.md",
+      "to": "docs\\reportes\\RESUMEN_EJECUTIVO.md",
+      "reason": "reportes"
+    },
+    {
+      "from": "RESUMEN_EJECUTIVO_ES.txt",
+      "to": "docs\\reportes\\RESUMEN_EJECUTIVO_ES.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "RESUMEN_FINAL_VERIFICACION.md",
+      "to": "docs\\reportes\\RESUMEN_FINAL_VERIFICACION.md",
+      "reason": "reportes"
+    },
+    {
+      "from": "RESUMEN_VISUAL_FINAL.txt",
+      "to": "docs\\reportes\\RESUMEN_VISUAL_FINAL.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "TESTS_STATUS.txt",
+      "to": "docs\\reportes\\TESTS_STATUS.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "TRABAJO_COMPLETADO.txt",
+      "to": "docs\\reportes\\TRABAJO_COMPLETADO.txt",
+      "reason": "reportes"
+    },
+    {
+      "from": "VERIFICACION_FINAL_DOCUMENTACION.md",
+      "to": "docs\\reportes\\VERIFICACION_FINAL_DOCUMENTACION.md",
+      "reason": "reportes"
+    },
+    {
+      "from": "VERIFICACION_PANTALLAS_Y_FASES.md",
+      "to": "docs\\reportes\\VERIFICACION_PANTALLAS_Y_FASES.md",
+      "reason": "reportes"
+    },
+    {
+      "from": "_INDEX.md",
+      "to": "docs\\99_archive\\_INDEX.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "_INDEX_FINAL.md",
+      "to": "docs\\99_archive\\_INDEX_FINAL.md",
+      "reason": "archive-md"
+    },
+    {
+      "from": "_INDEX_NEW.md",
+      "to": "docs\\99_archive\\_INDEX_NEW.md",
+      "reason": "archive-md"
+    }
+  ]
+}

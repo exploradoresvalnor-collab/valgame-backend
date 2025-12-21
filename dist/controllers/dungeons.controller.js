@@ -11,6 +11,7 @@ const PlayerStat_1 = __importDefault(require("../models/PlayerStat")); // Import
 const Ranking_1 = require("../models/Ranking"); // Importa el modelo Ranking
 const LevelRequirement_1 = __importDefault(require("../models/LevelRequirement")); // Importar requisitos de nivel
 const character_service_1 = require("../services/character.service"); // Importar el nuevo servicio
+const realtime_service_1 = require("../services/realtime.service");
 const Item_1 = require("../models/Item");
 const dungeonProgression_1 = require("../utils/dungeonProgression");
 // La función principal que manejará el combate
@@ -197,6 +198,10 @@ const startDungeon = async (req, res) => {
             combatLog.push(`Experiencia base por victoria: ${baseExp}.`);
             combatLog.push(`VAL ganado: ${valGanado}.`);
             for (const char of combatTeam) {
+                const nivelAntes = char.nivel;
+                const atkAntes = char.stats.atk;
+                const defAntes = char.stats.defensa;
+                const vidaAntes = char.stats.vida;
                 let finalExp = baseExp;
                 const now = new Date();
                 let totalXpBonus = 0;
@@ -219,6 +224,19 @@ const startDungeon = async (req, res) => {
                 const levelUpResult = (0, character_service_1.handleLevelUp)(char, levelRequirements, gameSettings);
                 if (levelUpResult.leveledUp) {
                     combatLog.push(...levelUpResult.log);
+                    const nivelesGanados = char.nivel - nivelAntes;
+                    const statsDelta = {
+                        atk: char.stats.atk - atkAntes,
+                        defensa: char.stats.defensa - defAntes,
+                        vida: char.stats.vida - vidaAntes
+                    };
+                    try {
+                        const rt = realtime_service_1.RealtimeService.getInstance();
+                        rt.notifyCharacterLevelUp(user._id.toString(), char.personajeId, char.nivel, nivelesGanados, statsDelta);
+                    }
+                    catch (e) {
+                        // evitar romper el flujo si realtime no está inicializado en algún entorno
+                    }
                 }
             }
             // --- LÓGICA DE BOTÍN (LOOT) ACTUALIZADA ---

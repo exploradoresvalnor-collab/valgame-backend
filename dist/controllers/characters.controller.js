@@ -209,6 +209,7 @@ const healCharacter = async (req, res) => {
 };
 exports.healCharacter = healCharacter;
 const LevelHistory_1 = require("../models/LevelHistory");
+const Notification_1 = require("../models/Notification");
 const LevelRequirement_1 = __importDefault(require("../models/LevelRequirement"));
 const addExperience = async (req, res) => {
     const { characterId } = req.params;
@@ -228,8 +229,9 @@ const addExperience = async (req, res) => {
         if (!character) {
             return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
         }
-        // Obtener el nivel actual y la experiencia necesaria para el siguiente nivel
+        // Obtener el nivel actual y snapshot de stats antes de modificar
         const levelBefore = character.nivel;
+        const statsBefore = { ...character.stats };
         character.experiencia = (character.experiencia || 0) + amount;
         // Verificar si subió de nivel
         let leveledUp = false;
@@ -279,6 +281,15 @@ const addExperience = async (req, res) => {
                 stats: character.stats,
                 type: leveledUp ? 'LEVEL_UP' : 'EXP_GAIN'
             });
+            if (leveledUp) {
+                const nivelesGanados = character.nivel - levelBefore;
+                const statsDelta = {
+                    atk: (character.stats?.atk || 0) - (statsBefore?.atk || 0),
+                    defensa: (character.stats?.defensa || 0) - (statsBefore?.defensa || 0),
+                    vida: (character.stats?.vida || 0) - (statsBefore?.vida || 0)
+                };
+                realtimeService.notifyCharacterLevelUp(userId, characterId, character.nivel, nivelesGanados, statsDelta);
+            }
         }
         catch (err) {
             // En testing, el servicio de realtime puede no estar inicializado
@@ -350,7 +361,7 @@ const evolveCharacter = async (req, res) => {
         characterToEvolve.saludMaxima = nextEvolution.stats.vida; // Actualizar salud máxima
         characterToEvolve.saludActual = nextEvolution.stats.vida; // Curar completamente
         await user.save();
-        // Emitir evento WebSocket
+        // Emitir evento WebSocket y crear notificación
         try {
             const realtimeService = realtime_service_1.RealtimeService.getInstance();
             realtimeService.notifyCharacterUpdate(userId, characterId, {
@@ -360,6 +371,22 @@ const evolveCharacter = async (req, res) => {
                 saludActual: characterToEvolve.saludActual,
                 type: 'EVOLVE'
             });
+            // Nuevo evento normalizado
+            realtimeService.notifyCharacterEvolved(userId, characterId, characterToEvolve.etapa);
+            // Crear notificación de evolución
+            try {
+                const notif = await Notification_1.Notification.create({
+                    userId,
+                    title: 'Evolución completada',
+                    message: `¡${baseChar.nombre} ha evolucionado a ${nextEvolution.nombre}!`,
+                    type: 'character',
+                    isRead: false
+                });
+                realtimeService.notifyNotificationNew(userId, notif);
+            }
+            catch (e) {
+                console.warn('[evolveCharacter] No se pudo crear notificación:', e?.message || e);
+            }
         }
         catch (err) {
             if (process.env.NODE_ENV !== 'test') {

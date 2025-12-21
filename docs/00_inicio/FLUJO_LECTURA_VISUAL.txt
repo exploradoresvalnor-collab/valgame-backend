@@ -1,0 +1,261 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║               FLUJO DE LECTURA PARA EL DESARROLLADOR FRONTEND                ║
+║                          Valgame Backend v2.0                                ║
+║                                                                              ║
+║                        Total: 13 documentos, 2,095 líneas                   ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                            ��� EMPIEZA AQUÍ                                 ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+         ┌────────────────────────────────────────────────────────┐
+         │  ��� 00_COMIENZA_AQUI.md (265 líneas)                   │
+         │                                                        │
+         │  ✅ Flujo completo de lectura paso a paso              │
+         │  ✅ Quick Start: login funcional en 2 horas            │
+         │  ✅ Checklist de implementación                        │
+         │  ✅ Estrategias por perfil (Junior/Senior/Lead)        │
+         │  ✅ FAQ y troubleshooting                              │
+         │                                                        │
+         │  �� LEE ESTE PRIMERO ANTES QUE NADA                    │
+         └────────────────────────────────────────────────────────┘
+                                 │
+                                 │
+                                 ▼
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                      FASE 0: ORIENTACIÓN (15 min)                          ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    ┌─────────────────────────┐        ┌─────────────────────────────┐
+    │  1️⃣  README.md           │        │  2️⃣  CHECKLIST_INTEGRACION  │
+    │     (107 líneas)         │        │         (29 líneas)         │
+    │                          │        │                             │
+    │  ��� Mapa general         │        │  ✅ Plan de trabajo         │
+    │  ��� Estructura docs      │        │  ✅ Orden de features       │
+    │  ��� Archivos obsoletos   │        │  ✅ Dependencias            │
+    └─────────────────────────┘        └─────────────────────────────┘
+                    │                              │
+                    └──────────────┬───────────────┘
+                                   │
+                                   ▼
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                  FASE 1: SETUP TÉCNICO (4-6 horas)                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    ┌────────────────────────────────────────────────────────────────┐
+    │  3️⃣  03_SETUP_ANGULAR17_THREEJS.md (186 líneas) - CRÍTICO     │
+    │                                                                │
+    │  ⚙️  Angular 17 + Three.js + Socket.IO                         │
+    │  ⚙️  Estructura de carpetas                                    │
+    │  ⚙️  npm install + configuración                               │
+    │                                                                │
+    │  ��� Output: ng serve corriendo + Socket.IO conectado          │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+    ┌────────────────────────────────────────────────────────────────┐
+    │  4️⃣  AUTH_AND_FLOWS.md (127 líneas) - CRÍTICO                 │
+    │                                                                │
+    │  ��� JWT tokens en localStorage                                 │
+    │  ��� AuthGuard para rutas protegidas                            │
+    │  ��� Flujo: Registro → Email → Login                            │
+    │                                                                │
+    │  ��� Output: Login funcional + rutas protegidas                 │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+    ┌────────────────────────────────────────────────────────────────┐
+    │  5️⃣  ERRORS_AND_LIMITS.md (47 líneas) - REFERENCIA            │
+    │                                                                │
+    │  ⚠️  Códigos HTTP: 401, 403, 429, 5xx                         │
+    │  ⚠️  Rate limiting y backoff                                   │
+    │  ⚠️  ErrorInterceptor global                                   │
+    │                                                                │
+    │  ��� Output: Manejo consistente de errores                      │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃            FASE 2: REFERENCIAS (30 min - tener siempre abiertas)           ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    ┌─────────────────────────┐        ┌─────────────────────────────┐
+    │  6️⃣  ENDPOINTS_CATALOG   │        │  7️⃣  COMPATIBILITY_ALIASES  │
+    │     (203 líneas)         │        │         (58 líneas)         │
+    │                          │        │                             │
+    │  ��� 103 endpoints        │        │  ��� Canónicos vs alias      │
+    │  ��� Organizados x módulo │        │  ��� Usa siempre canónicos   │
+    │  ��� Tu "diccionario"     │        │  ��� Compatibilidad temp.    │
+    │                          │        │                             │
+    │  ��� Uso: Ctrl+F          │        │  ⚠️  Importante para        │
+    │     para buscar          │        │     Dungeons y Rankings     │
+    └─────────────────────────┘        └─────────────────────────────┘
+                    │                              │
+                    └──────────────┬───────────────┘
+                                   │
+                                   ▼
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                  FASE 3: REAL-TIME (2-3 horas)                             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    ┌────────────────────────────────────────────────────────────────┐
+    │  8️⃣  WEBSOCKET_LISTENERS_GUIDE.md (136 líneas) - CRÍTICO      │
+    │                                                                │
+    │  ��� Configurar Socket.IO client                                │
+    │  ��� Listeners globales                                         │
+    │  ��� Manejo de reconexión                                       │
+    │  ��� Autenticación con JWT                                      │
+    │                                                                │
+    │  ��� Output: WebSocketService funcional                         │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+    ┌────────────────────────────────────────────────────────────────┐
+    │  9️⃣  WEBSOCKET_EVENT_SPEC.md (213 líneas) - REFERENCIA        │
+    │                                                                │
+    │  ��� dungeon:*, survival:*, marketplace:*                       │
+    │  ��� rankings:update, payments:*                                │
+    │  ��� Payloads completos de cada evento                          │
+    │  ��� Cuándo se emite cada uno                                   │
+    │                                                                │
+    │  ��� Uso: Buscar evento específico cuando implementes listener  │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃            FASE 4: FEATURES POR MÓDULO (bajo demanda)                      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+    ┌────────────────────────────────────────────────────────────────┐
+    │  ��� 05_TIENDA_Y_PAQUETES.md (93 líneas)                        │
+    │                                                                │
+    │  ��� Onboarding con Paquete Pionero                             │
+    │  ��� Compra de paquetes (Stripe/Blockchain)                     │
+    │  ��� Acreditación y apertura                                    │
+    │  ��� WS: payments:success|failed                                │
+    │                                                                │
+    │  ⏱️  Tiempo: 1 día de implementación                           │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+    ┌────────────────────────────────────────────────────────────────┐
+    │  1️⃣1️⃣  06-Marketplace-P2P.md (349 líneas) - EL MÁS LARGO      │
+    │                                                                │
+    │  ��� Listar items en venta (filtros, paginación)                │
+    │  ��� Comprar/Vender (transacción atómica)                       │
+    │  ��� Historial completo (compras + ventas)                      │
+    │  ��� Tax del 5%, expiración automática                          │
+    │  ��� Ejemplos completos de código Angular                       │
+    │  ��� WS: marketplace:new|sold|cancelled                         │
+    │                                                                │
+    │  ⏱️  Tiempo: 2 días de implementación                          │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+    ┌────────────────────────────────────────────────────────────────┐
+    │  1️⃣2️⃣  11_COMBATE_Y_DUNGEONS.md (282 líneas)                  │
+    │                                                                │
+    │  ⚔️  Dungeons RPG (entrar, combatir, loot)                    │
+    │  ⚔️  Sistema de combate (attack, defend, habilidades)         │
+    │  ⚔️  Rankings y leaderboards                                   │
+    │  ⚔️  Roadmap: Sesiones reales (Copa) en futuro                │
+    │  ⚔️  WS: dungeon:entered|progress, rankings:update            │
+    │                                                                │
+    │  ⏱️  Tiempo: 2-3 días de implementación                        │
+    └────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                              ��� META FINAL                                   ║
+║                                                                              ║
+║  Al terminar este flujo tendrás:                                            ║
+║                                                                              ║
+║  ✅ Login/Registro funcional con JWT                                         ║
+║  ✅ WebSocket conectado y escuchando eventos real-time                       ║
+║  ✅ Onboarding con Paquete Pionero                                           ║
+║  ✅ Marketplace P2P con compra/venta de items                                ║
+║  ✅ Dungeons RPG con combate y rankings                                      ║
+║  ✅ Manejo consistente de errores y rate limits                              ║
+║                                                                              ║
+║  ⏱️  Tiempo total: 2-3 semanas (frontend completo funcional)                ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+                           ��� RESUMEN ESTADÍSTICO
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        DOCUMENTOS POR CATEGORÍA                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ��� Orientación (inicio, README, checklist)         3 docs   401 líneas │
+│  ⚙️  Setup Técnico (Angular, Auth, Errores)         3 docs   360 líneas │
+│  �� Referencias (Endpoints, Aliases)                2 docs   261 líneas │
+│  ��� WebSocket (Listeners, Spec)                     2 docs   349 líneas │
+│  ��� Features (Tienda, Marketplace, Dungeons)        3 docs   724 líneas │
+│                                                                          │
+│  ��� TOTAL                                          13 docs  2,095 líneas│
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        DOCUMENTOS CRÍTICOS                               │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Sin estos 4 documentos NO puedes avanzar:                              │
+│                                                                          │
+│  1. 00_COMIENZA_AQUI.md          → Tu guía maestra de lectura           │
+│  2. 03_SETUP_ANGULAR17_THREEJS.md → Setup técnico del proyecto          │
+│  3. AUTH_AND_FLOWS.md            → Autenticación JWT                    │
+│  4. WEBSOCKET_LISTENERS_GUIDE.md → Eventos en tiempo real               │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        TOP 3 MÁS LARGOS                                  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ��� 06-Marketplace-P2P.md              349 líneas (marketplace completo) │
+│  ��� 11_COMBATE_Y_DUNGEONS.md           282 líneas (dungeons + rankings)  │
+│  ��� 00_COMIENZA_AQUI.md                265 líneas (guía de lectura)      │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+                            ��� QUICK REFERENCE
+
+
+    ¿Primera vez?              → 00_COMIENZA_AQUI.md
+    ¿Buscar endpoint?          → ENDPOINTS_CATALOG.md (Ctrl+F)
+    ¿Endpoint no funciona?     → COMPATIBILITY_ALIASES.md (puede ser alias)
+    ¿Error HTTP desconocido?   → ERRORS_AND_LIMITS.md
+    ¿Evento WebSocket?         → WEBSOCKET_EVENT_SPEC.md
+    ¿Orden implementación?     → CHECKLIST_INTEGRACION.md
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+Última actualización: 2 de diciembre de 2025
+Estado: ✅ Documentación 100% completa y verificada
+Cobertura: 103 endpoints implementados y documentados

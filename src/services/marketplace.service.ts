@@ -239,6 +239,14 @@ export const listItem = async (
       try {
         const realtime = RealtimeService.getInstance();
         if (realtime && typeof realtime.notifyMarketplaceUpdate === 'function') {
+          // Nuevo evento específico + legacy
+          (realtime as any).emitRaw?.('marketplace:item:listed', {
+            listingId: createdListing._id?.toString(),
+            itemId: createdListing.itemId?.toString(),
+            sellerId: createdListing.sellerId?.toString(),
+            precio: createdListing.precio,
+            timestamp: new Date().toISOString()
+          });
           realtime.notifyMarketplaceUpdate('new', createdListing);
         }
       } catch (err) {
@@ -372,6 +380,13 @@ export const cancelListing = async (seller: IUser, listingId: string) => {
         try {
           const realtime = RealtimeService.getInstance();
           if (realtime && typeof realtime.notifyMarketplaceUpdate === 'function') {
+            (realtime as any).emitRaw?.('marketplace:item:cancelled', {
+              listingId: listing._id.toString(),
+              itemId: listing.itemId.toString(),
+              sellerId: listing.sellerId.toString(),
+              precio: listing.precio,
+              timestamp: new Date().toISOString()
+            });
             realtime.notifyMarketplaceUpdate('cancelled', listing);
           }
         } catch (err) {
@@ -527,6 +542,14 @@ export const buyItem = async (buyer: IUser, listingId: string) => {
       try {
         const realtimeService = RealtimeService.getInstance();
         if (realtimeService && typeof realtimeService.notifyMarketplaceUpdate === 'function') {
+          (realtimeService as any).emitRaw?.('marketplace:item:sold', {
+            listingId: listing._id.toString(),
+            itemId: listing.itemId.toString(),
+            buyerId: (listing.buyerId as unknown as Types.ObjectId)?.toString() || '',
+            sellerId: (listing.sellerId as Types.ObjectId).toString(),
+            precio: listing.precio,
+            timestamp: new Date().toISOString()
+          });
           realtimeService.notifyMarketplaceUpdate('sold', listing);
         }
         const buyerId = (listing.buyerId as unknown as Types.ObjectId)?.toString() || '';

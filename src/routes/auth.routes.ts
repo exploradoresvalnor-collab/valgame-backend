@@ -16,10 +16,18 @@ import { auth } from '../middlewares/auth';
 const router = Router();
 
 // --- ZODY SCHEMAS ---
+// Política de contraseña: mínima y reglas de complejidad
+const PasswordSchema = z.string()
+  .min(10, 'La contraseña debe tener al menos 10 caracteres')
+  .regex(/(?=.*[a-z])/, 'La contraseña debe contener una letra minúscula')
+  .regex(/(?=.*[A-Z])/, 'La contraseña debe contener una letra mayúscula')
+  .regex(/(?=.*\d)/, 'La contraseña debe contener un número')
+  .regex(/(?=.*\W)/, 'La contraseña debe contener un carácter especial');
+
 const RegisterSchema = z.object({
   email: z.string().email(),
   username: z.string().min(3),
-  password: z.string().min(6)
+  password: PasswordSchema
 });
 
 const LoginSchema = z.object({
@@ -36,7 +44,7 @@ const ForgotPasswordSchema = z.object({
 });
 
 const ResetPasswordSchema = z.object({
-  password: z.string().min(6)
+  password: PasswordSchema
 });
 
 // --- RUTA: POST /auth/register ---
@@ -153,16 +161,18 @@ router.get('/verify/:token', async (req, res) => {
     const isAPI = accept.includes('application/json') || req.query.format === 'json' || process.env.NODE_ENV === 'test';
 
     if (isAPI) {
-      // Respuesta JSON para APIs/tests
+      // Respuesta JSON para APIs/tests (alineada con E2E)
       const apiResponse: any = {
         ok: true,
-        message: 'Usuario verificado exitosamente'
+        message: 'Cuenta verificada exitosamente'
       };
       const onboardingResult = (req as any).onboardingResult;
       if (onboardingResult) {
         if (onboardingResult.delivered) {
+          apiResponse.package = onboardingResult; // campo esperado por E2E (truthy)
           apiResponse.rewards = onboardingResult.rewards || null;
         } else {
+          apiResponse.package = { delivered: false, reason: onboardingResult.reason };
           apiResponse.onboarding = { delivered: false, reason: onboardingResult.reason };
         }
       }

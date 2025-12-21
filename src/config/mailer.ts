@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 
 // --- FUNCI√ìN AS√çNCRONA PARA CREAR EL TRANSPORTER ---
 // Configura el servicio SMTP (Gmail en este caso)
@@ -56,7 +58,7 @@ const getHtmlTemplate = (verificationLink: string) => `
       overflow: hidden;
     }
     .header::before {
-      content: 'ÌæÆ';
+      content: 'ÔøΩÔøΩÔøΩ';
       position: absolute;
       font-size: 120px;
       opacity: 0.1;
@@ -200,14 +202,14 @@ const getHtmlTemplate = (verificationLink: string) => `
     </div>
 
     <div class="content">
-      <h2>¬°Bienvenido, Aventurero! Ìºü</h2>
+      <h2>¬°Bienvenido, Aventurero! ÔøΩÔøΩÔøΩ</h2>
       <p class="welcome-text">
         Nos alegra mucho que te unas a la comunidad de <strong>Valgame</strong>. 
         Solo necesitas verificar tu correo para activar tu cuenta y comenzar tu √©pica aventura.
       </p>
 
       <div class="rewards-box">
-        <h3>ÌæÅ Recompensas al Verificar:</h3>
+        <h3>ÔøΩÔøΩÔøΩ Recompensas al Verificar:</h3>
         <ul>
           <li>Paquete del Pionero exclusivo</li>
           <li>Personaje inicial legendario</li>
@@ -333,7 +335,7 @@ const getPasswordResetTemplate = (resetLink: string) => `
 <body>
   <div class="container">
     <div class="header">
-      <h1>Ì¥ê Recuperar Contrase√±a</h1>
+      <h1>ÔøΩÔøΩÔøΩ Recuperar Contrase√±a</h1>
     </div>
 
     <div class="content">
@@ -341,7 +343,7 @@ const getPasswordResetTemplate = (resetLink: string) => `
       <p>No te preocupes, es muy f√°cil resetearla. Haz clic en el bot√≥n de abajo para crear una nueva contrase√±a segura.</p>
 
       <div class="cta-section">
-        <a href="${resetLink}" class="button">Ì¥Ñ Cambiar Mi Contrase√±a</a>
+        <a href="${resetLink}" class="button">ÔøΩÔøΩÔøΩ Cambiar Mi Contrase√±a</a>
       </div>
 
       <p style="font-size: 13px; color: #888; margin: 20px 0;">O copia este enlace:</p>
@@ -366,25 +368,60 @@ const getPasswordResetTemplate = (resetLink: string) => `
 
 // --- FUNCI√ìN DE ENV√çO (VERIFICACI√ìN) ---
 export const sendVerificationEmail = async (email: string, token: string) => {
-  console.log('[MAILER] Ì∫Ä Iniciando env√≠o de correo de verificaci√≥n...');
-  console.log(`[MAILER] Ì≥ß Destinatario: ${email}`);
-  console.log(`[MAILER] Ì¥ë Token: ${token.substring(0, 10)}...`);
+  console.log('[MAILER] ÔøΩÔøΩÔøΩ Iniciando env√≠o de correo de verificaci√≥n...');
+  console.log(`[MAILER] ÔøΩÔøΩÔøΩ Destinatario: ${email}`);
+  console.log(`[MAILER] ÔøΩÔøΩÔøΩ Token: ${token.substring(0, 10)}...`);
 
   try {
     const transporter = await createTransporter();
-    const verificationLink = `http://localhost:${process.env.PORT || 8080}/auth/verify/${token}`;
-    console.log(`[MAILER] Ì¥ó Link generado: ${verificationLink}`);
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8080';
+    const verificationLink = `${backendUrl}/auth/verify/${token}`;
+    console.log(`[MAILER]   Link generado: ${verificationLink}`);
 
-    const info = await transporter.sendMail({
-      from: `"ÌæÆ Valgame" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    // Intentar leer plantilla y logo inline
+    const templatesDir = path.join(__dirname, 'mail_templates');
+    const templatePath = path.join(templatesDir, 'verification.html');
+    let html: string;
+    let attachments: Array<any> = [];
+
+    if (fs.existsSync(templatePath)) {
+      html = fs.readFileSync(templatePath, 'utf8');
+      html = html.replace(/{{VERIFICATION_LINK}}/g, verificationLink);
+
+      // Preferir logo webp con CID para compatibilidad y profesionalidad
+      const webpPath = path.join(__dirname, '..', 'public', 'assets', 'Logo_2.webp');
+      if (fs.existsSync(webpPath)) {
+        const logoCidHtml = `<div style="text-align:center;margin-bottom:18px;"><img src=\"cid:logo_2\" alt=\"Valgame\" style=\"max-width:160px;height:auto;\"></div>`;
+        html = html.replace(/{{LOGO_INLINE}}/g, logoCidHtml);
+        attachments.push({ filename: 'Logo_2.webp', path: webpPath, cid: 'logo_2' });
+      } else {
+        // Fallback a SVG inline si no hay webp
+        const svgPath = path.join(__dirname, '..', 'public', 'assets', 'valnor_logo.svg');
+        if (fs.existsSync(svgPath)) {
+          const svg = fs.readFileSync(svgPath, 'utf8');
+          const logoInline = `<div style=\"text-align:center;margin-bottom:18px;\">${svg}</div>`;
+          html = html.replace(/{{LOGO_INLINE}}/g, logoInline);
+        } else {
+          html = html.replace(/{{LOGO_INLINE}}/g, '');
+        }
+      }
+    } else {
+      html = getHtmlTemplate(verificationLink);
+    }
+
+    const mailOptions: any = {
+      from: `"ÔøΩÔøΩÔøΩ Valgame" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to: email,
       subject: '‚ú® Verifica tu cuenta de Valgame - ¬°Tu aventura te espera!',
-      html: getHtmlTemplate(verificationLink),
-    });
+      html
+    };
+    if (attachments.length) mailOptions.attachments = attachments;
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log(`[MAILER] ‚úÖ Correo de verificaci√≥n enviado exitosamente a: ${email}`);
-    console.log(`[MAILER] Ì≥® Message ID: ${info.messageId}`);
-    console.log(`[MAILER] Ì≥ã Response: ${info.response}`);
+    console.log(`[MAILER] ÔøΩÔøΩÔøΩ Message ID: ${info.messageId}`);
+    console.log(`[MAILER] ÔøΩÔøΩÔøΩ Response: ${info.response}`);
   } catch (error: any) {
     console.error('[MAILER] ‚ùå ERROR al enviar correo de verificaci√≥n:');
     console.error('[MAILER] Error completo:', error);
@@ -395,23 +432,54 @@ export const sendVerificationEmail = async (email: string, token: string) => {
 
 // --- FUNCI√ìN DE ENV√çO (RECUPERACI√ìN DE CONTRASE√ëA) ---
 export const sendPasswordResetEmail = async (email: string, resetURL: string) => {
-  console.log('[MAILER] Ì∫Ä Iniciando env√≠o de correo de recuperaci√≥n de contrase√±a...');
-  console.log(`[MAILER] Ì≥ß Destinatario: ${email}`);
+  console.log('[MAILER] ÔøΩÔøΩÔøΩ Iniciando env√≠o de correo de recuperaci√≥n de contrase√±a...');
+  console.log(`[MAILER] ÔøΩÔøΩÔøΩ Destinatario: ${email}`);
 
   try {
     const transporter = await createTransporter();
-    console.log(`[MAILER] Ì¥ó Link de recuperaci√≥n: ${resetURL}`);
+    console.log(`[MAILER] ÔøΩÔøΩÔøΩ Link de recuperaci√≥n: ${resetURL}`);
 
-    const info = await transporter.sendMail({
-      from: `"ÌæÆ Valgame" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    const templatesDir = path.join(__dirname, 'mail_templates');
+    const templatePath = path.join(templatesDir, 'reset.html');
+    let html: string;
+    let attachments: Array<any> = [];
+
+    if (fs.existsSync(templatePath)) {
+      html = fs.readFileSync(templatePath, 'utf8');
+      html = html.replace(/{{RESET_LINK}}/g, resetURL);
+
+      const webpPath = path.join(__dirname, '..', 'public', 'assets', 'Logo_2.webp');
+      if (fs.existsSync(webpPath)) {
+        const logoCidHtml = `<div style="text-align:center;margin-bottom:18px;"><img src=\"cid:logo_2\" alt=\"Valgame\" style=\"max-width:160px;height:auto;\"></div>`;
+        html = html.replace(/{{LOGO_INLINE}}/g, logoCidHtml);
+        attachments.push({ filename: 'Logo_2.webp', path: webpPath, cid: 'logo_2' });
+      } else {
+        const svgPath = path.join(__dirname, '..', 'public', 'assets', 'valnor_logo.svg');
+        if (fs.existsSync(svgPath)) {
+          const svg = fs.readFileSync(svgPath, 'utf8');
+          const logoInline = `<div style=\"text-align:center;margin-bottom:18px;\">${svg}</div>`;
+          html = html.replace(/{{LOGO_INLINE}}/g, logoInline);
+        } else {
+          html = html.replace(/{{LOGO_INLINE}}/g, '');
+        }
+      }
+    } else {
+      html = getPasswordResetTemplate(resetURL);
+    }
+
+    const mailOptions: any = {
+      from: `"ÔøΩÔøΩÔøΩ Valgame" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to: email,
-      subject: 'Ì¥ê Recupera tu contrase√±a de Valgame',
-      html: getPasswordResetTemplate(resetURL),
-    });
+      subject: 'ÔøΩÔøΩÔøΩ Recupera tu contrase√±a de Valgame',
+      html
+    };
+    if (attachments.length) mailOptions.attachments = attachments;
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log(`[MAILER] ‚úÖ Correo de recuperaci√≥n enviado exitosamente a: ${email}`);
-    console.log(`[MAILER] Ì≥® Message ID: ${info.messageId}`);
-    console.log(`[MAILER] Ì≥ã Response: ${info.response}`);
+    console.log(`[MAILER] ÔøΩÔøΩÔøΩ Message ID: ${info.messageId}`);
+    console.log(`[MAILER] ÔøΩÔøΩÔøΩ Response: ${info.response}`);
   } catch (error: any) {
     console.error('[MAILER] ‚ùå ERROR al enviar correo de recuperaci√≥n:');
     console.error('[MAILER] Error completo:', error);

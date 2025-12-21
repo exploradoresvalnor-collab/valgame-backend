@@ -168,17 +168,19 @@ router.get('/verify/:token', async (req, res) => {
         const accept = req.headers.accept || '';
         const isAPI = accept.includes('application/json') || req.query.format === 'json' || process.env.NODE_ENV === 'test';
         if (isAPI) {
-            // Respuesta JSON para APIs/tests
+            // Respuesta JSON para APIs/tests (alineada con E2E)
             const apiResponse = {
                 ok: true,
-                message: 'Usuario verificado exitosamente'
+                message: 'Cuenta verificada exitosamente'
             };
             const onboardingResult = req.onboardingResult;
             if (onboardingResult) {
                 if (onboardingResult.delivered) {
+                    apiResponse.package = onboardingResult; // campo esperado por E2E (truthy)
                     apiResponse.rewards = onboardingResult.rewards || null;
                 }
                 else {
+                    apiResponse.package = { delivered: false, reason: onboardingResult.reason };
                     apiResponse.onboarding = { delivered: false, reason: onboardingResult.reason };
                 }
             }

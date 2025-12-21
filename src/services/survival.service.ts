@@ -4,6 +4,7 @@ import { SurvivalLeaderboard, ISurvivalLeaderboard } from '../models/SurvivalLea
 import { User, IUser } from '../models/User';
 import { Item } from '../models/Item';
 import mongoose from 'mongoose';
+import { RealtimeService } from './realtime.service';
 import { SurvivalMilestonesService } from './survivalMilestones.service';
 
 export class SurvivalService {
@@ -127,6 +128,13 @@ export class SurvivalService {
       });
 
       await session.save();
+      // Emitir survival:wave:new (solo si la sesión sigue activa)
+      try {
+        const rt = RealtimeService.getInstance();
+        rt.notifySurvivalWaveNew(session._id.toString(), session.currentWave, 0);
+      } catch (e) {
+        console.warn('[Realtime] No emitido survival:wave:new', (e as any)?.message || e);
+      }
       return session;
     } catch (error: any) {
       throw new Error(`Failed to start survival: ${error.message}`);
@@ -175,6 +183,18 @@ export class SurvivalService {
       });
 
       await session.save();
+      // Emitir fin de sesión si la sesión ya no está activa
+        if (session.state !== 'active') {
+        try {
+          const rt = RealtimeService.getInstance();
+          const durationMs = session.startedAt ? (Date.now() - session.startedAt.getTime()) : 0;
+          rt.notifySurvivalEnd(session._id.toString(), session.currentWave - 1, durationMs, {
+            totalPoints: session.totalPointsAccumulated
+          });
+        } catch (e) {
+          console.warn('[Realtime] No emitido survival:end', (e as any)?.message || e);
+        }
+      }
       return session;
     } catch (error: any) {
       throw new Error(`Failed to complete wave: ${error.message}`);

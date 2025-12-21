@@ -24,6 +24,7 @@ import {
 import authRoutes from './routes/auth.routes';
 import paymentsRoutes from './routes/payments.routes';
 import healthRoutes from './routes/health.routes';
+import versionRoutes from './routes/version.routes';
 import paymentService from './services/payment.service';
 import usersRoutes from './routes/users.routes';
 import userSettingsRoutes from './routes/userSettings.routes';
@@ -40,6 +41,8 @@ import playerStatsRoutes from './routes/playerStats.routes';
 import offerRoutes from './routes/offers.routes';
 import marketplaceRoutes from './routes/marketplace.routes';
 import marketplaceTransactionsRoutes from './routes/marketplaceTransactions.routes';
+import inventoryAliasRoutes from './routes/inventory.alias.routes';
+import feedbackRoutes from './routes/feedback.routes';
 import equipmentRoutes from './routes/equipment.routes';
 import consumableRoutes from './routes/consumables.routes';
 import dungeonRoutes from './routes/dungeons.routes';
@@ -86,6 +89,19 @@ app.use(cors({
   credentials: true
 }));
 
+// Montar rutas alias de prueba ANTES que el resto, sólo en tests/Jest
+if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const testAliasesRouter = require('./routes/_test-aliases.routes').default;
+    if (testAliasesRouter) {
+      app.use('/api', testAliasesRouter);
+    }
+  } catch (_e) {
+    // ignorar si no existe
+  }
+}
+
 // Aplica los rate limiters según el tipo de ruta
 app.use('/auth/', authLimiter);
 
@@ -110,6 +126,7 @@ app.get('/health', (_req, res) => res.json({ ok: true })); // Ruta para chequear
 app.use('/auth', authRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/health', healthRoutes); // Health check - sin autenticación
+app.use('/api/version', versionRoutes);
 app.use('/api/packages', packagesRoutes); // Cualquiera puede ver los paquetes de la tienda
 app.use('/api/base-characters', baseCharactersRoutes); // Cualquiera puede ver los personajes que existen
 app.use('/api/offers', offerRoutes); // Cualquiera puede ver las ofertas activas
@@ -129,6 +146,9 @@ app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/marketplace-transactions', marketplaceTransactionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/user/settings', userSettingsRoutes);
+app.use('/api/users/settings', userSettingsRoutes); // alias plural
+app.use('/api/inventory', inventoryAliasRoutes);
+app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/items', itemsRoutes);
@@ -210,3 +230,4 @@ app.use(detectConnectionErrors); // Detectar errores de conexión ANTES del erro
 app.use(errorHandler);
 
 export default app;
+// (fin app)

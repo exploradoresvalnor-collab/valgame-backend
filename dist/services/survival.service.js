@@ -10,6 +10,7 @@ const SurvivalLeaderboard_1 = require("../models/SurvivalLeaderboard");
 const User_1 = require("../models/User");
 const Item_1 = require("../models/Item");
 const mongoose_1 = __importDefault(require("mongoose"));
+const realtime_service_1 = require("./realtime.service");
 const survivalMilestones_service_1 = require("./survivalMilestones.service");
 class SurvivalService {
     /**
@@ -120,6 +121,14 @@ class SurvivalService {
                 lastActionAt: new Date()
             });
             await session.save();
+            // Emitir survival:wave:new (solo si la sesión sigue activa)
+            try {
+                const rt = realtime_service_1.RealtimeService.getInstance();
+                rt.notifySurvivalWaveNew(session._id.toString(), session.currentWave, 0);
+            }
+            catch (e) {
+                console.warn('[Realtime] No emitido survival:wave:new', e?.message || e);
+            }
             return session;
         }
         catch (error) {
@@ -153,6 +162,19 @@ class SurvivalService {
                 serverTime: new Date()
             });
             await session.save();
+            // Emitir fin de sesión si la sesión ya no está activa
+            if (session.state !== 'active') {
+                try {
+                    const rt = realtime_service_1.RealtimeService.getInstance();
+                    const durationMs = session.startedAt ? (Date.now() - session.startedAt.getTime()) : 0;
+                    rt.notifySurvivalEnd(session._id.toString(), session.currentWave - 1, durationMs, {
+                        totalPoints: session.totalPointsAccumulated
+                    });
+                }
+                catch (e) {
+                    console.warn('[Realtime] No emitido survival:end', e?.message || e);
+                }
+            }
             return session;
         }
         catch (error) {

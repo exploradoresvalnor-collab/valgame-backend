@@ -6,6 +6,7 @@ import PlayerStat from '../models/PlayerStat'; // Importa el modelo PlayerStat
 import { Ranking } from '../models/Ranking'; // Importa el modelo Ranking
 import LevelRequirement from '../models/LevelRequirement'; // Importar requisitos de nivel
 import { handleLevelUp } from '../services/character.service'; // Importar el nuevo servicio
+import { RealtimeService } from '../services/realtime.service';
 import { IEquipment } from '../models/Equipment';
 import { Item } from '../models/Item';
 import { IConsumable } from '../models/Consumable';
@@ -231,6 +232,10 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       combatLog.push(`VAL ganado: ${valGanado}.`);
 
       for (const char of combatTeam) {
+        const nivelAntes = char.nivel;
+        const atkAntes = char.stats.atk;
+        const defAntes = char.stats.defensa;
+        const vidaAntes = char.stats.vida;
         let finalExp = baseExp;
         const now = new Date();
         let totalXpBonus = 0;
@@ -256,6 +261,18 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         const levelUpResult = handleLevelUp(char, levelRequirements, gameSettings);
         if (levelUpResult.leveledUp) {
           combatLog.push(...levelUpResult.log);
+          const nivelesGanados = char.nivel - nivelAntes;
+          const statsDelta = {
+            atk: char.stats.atk - atkAntes,
+            defensa: char.stats.defensa - defAntes,
+            vida: char.stats.vida - vidaAntes
+          };
+          try {
+            const rt = RealtimeService.getInstance();
+            rt.notifyCharacterLevelUp(user._id.toString(), char.personajeId, char.nivel, nivelesGanados, statsDelta);
+          } catch (e) {
+            // evitar romper el flujo si realtime no está inicializado en algún entorno
+          }
         }
       }
 

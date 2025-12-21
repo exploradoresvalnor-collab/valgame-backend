@@ -97,10 +97,11 @@ router.get('/me', auth, async (req: Request, res: Response) => {
         const item = await Item.findById(consumible.consumableId);
         return item ? {
           id: item._id,
+          consumableId: item._id,
           nombre: item.nombre,
           tipoItem: item.tipoItem,
           usos_restantes: consumible.usos_restantes,
-        } : { id: consumible.consumableId, usos_restantes: consumible.usos_restantes };
+        } : { id: consumible.consumableId, consumableId: consumible.consumableId, usos_restantes: consumible.usos_restantes };
       })
     ),
     // --- NUEVO: paquetes del usuario expandidos ---

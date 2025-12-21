@@ -109,10 +109,13 @@ class ChatService {
             this.sendPrivateMessage(message);
         }
         else if (message.type === 'guild') {
-            this.io.to(message.roomId).emit('chat:message', message);
+            // Nuevo evento normalizado + alias legacy
+            this.io.to(message.roomId).emit('chat:message:new', message);
+            this.io.to(message.roomId).emit('chat:message', message); // legacy (transición)
         }
         else {
-            this.io.to('global').emit('chat:message', message);
+            this.io.to('global').emit('chat:message:new', message);
+            this.io.to('global').emit('chat:message', message); // legacy
         }
     }
     sendPrivateMessage(message) {

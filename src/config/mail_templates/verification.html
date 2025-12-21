@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Verifica tu cuenta</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#f7f8ff,#f0f4ff);color:#222}
+    .container{max-width:600px;margin:24px auto;background:#fff;padding:24px;border-radius:12px;border:1px solid #eee}
+    .cta{display:block;width:60%;margin:18px auto;padding:12px 20px;background:linear-gradient(90deg,#6b46c1,#8a4ff0);color:#fff;text-align:center;border-radius:8px;text-decoration:none}
+    .muted{color:#666;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    {{LOGO_INLINE}}
+    <h2>Verifica tu cuenta de Valgame</h2>
+    <p class="muted">Haz clic en el botón de abajo para activar tu cuenta y recibir tus recompensas.</p>
+    <a class="cta" href="{{VERIFICATION_LINK}}">Verificar mi cuenta</a>
+    <p class="muted">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+    <p style="word-break:break-all;color:#2b2b2b">{{VERIFICATION_LINK}}</p>
+  </div>
+</body>
+</html>

@@ -41,11 +41,274 @@ const mongoose_1 = __importStar(require("mongoose"));
 const UserPackage_1 = __importDefault(require("../models/UserPackage"));
 const User_1 = require("../models/User");
 const Package_1 = __importDefault(require("../models/Package"));
+const Item_1 = require("../models/Item");
 const Category_1 = __importDefault(require("../models/Category"));
 const BaseCharacter_1 = __importDefault(require("../models/BaseCharacter"));
 const PurchaseLog_1 = __importDefault(require("../models/PurchaseLog"));
 const realtime_service_1 = require("../services/realtime.service");
 const router = (0, express_1.Router)();
+// Abrir el siguiente paquete disponible del usuario (comodín E2E)
+router.post('/open', async (req, res) => {
+    const { userId } = req.body || {};
+    if (!userId)
+        return res.status(400).json({ error: 'Faltan datos.' });
+    const session = await mongoose_1.default.startSession();
+    session.startTransaction();
+    try {
+        const user = await User_1.User.findById(userId).session(session);
+        if (!user) {
+            await session.abortTransaction();
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        // Tomar el paquete más antiguo del usuario
+        const candidate = await UserPackage_1.default.findOne({ userId }).sort({ fecha: 1 }).session(session);
+        if (!candidate) {
+            await session.abortTransaction();
+            return res.status(404).json({ error: 'No hay paquetes para abrir' });
+        }
+        // Lock atómico como en la ruta /:id/open
+        const userPackageToOpen = await UserPackage_1.default.findOneAndUpdate({
+            _id: candidate._id,
+            userId,
+            $or: [
+                { locked: { $exists: false } },
+                { locked: false },
+                { locked: true, lockedAt: { $lt: new Date(Date.now() - 30000) } }
+            ]
+        }, { $set: { locked: true, lockedAt: new Date() } }, { new: true, session }).select('+locked');
+        if (!userPackageToOpen) {
+            await session.abortTransaction();
+            return res.status(404).json({ error: 'UserPackage no encontrado o ya en proceso' });
+        }
+        const pkg = await Package_1.default.findById(userPackageToOpen.paqueteId).session(session);
+        if (!pkg) {
+            await session.abortTransaction();
+            return res.status(404).json({ error: 'Paquete base no encontrado' });
+        }
+        if (pkg.val_reward) {
+            user.val = (user.val || 0) + pkg.val_reward;
+        }
+        // Recompensas de items: distinguir entre Equipment e items Consumibles
+        let equipmentToAdd = 0;
+        let consumablesToAdd = 0;
+        if (pkg.items_reward && Array.isArray(pkg.items_reward)) {
+            user.inventarioEquipamiento = user.inventarioEquipamiento || [];
+            user.inventarioConsumibles = user.inventarioConsumibles || [];
+            for (const itemId of pkg.items_reward) {
+                try {
+                    const doc = await Item_1.Item.findById(itemId).session(session);
+                    if (!doc)
+                        continue;
+                    const tipo = doc.tipoItem;
+                    if (tipo === 'Consumable') {
+                        // Validar límite antes de añadir
+                        if ((user.inventarioConsumibles?.length || 0) + 1 > (user.limiteInventarioConsumibles || 50)) {
+                            await session.abortTransaction();
+                            return res.status(400).json({ error: 'Límite de consumibles alcanzado' });
+                        }
+                        const usos = doc.usos_maximos || 1;
+                        user.inventarioConsumibles.push({
+                            consumableId: new mongoose_1.Types.ObjectId(String(doc._id)),
+                            usos_restantes: usos
+                        });
+                        user.markModified?.('inventarioConsumibles');
+                        consumablesToAdd += 1;
+                    }
+                    else {
+                        if (!user.inventarioEquipamiento.some((id) => String(id) === String(itemId))) {
+                            user.inventarioEquipamiento.push(new mongoose_1.Types.ObjectId(String(itemId)));
+                            equipmentToAdd += 1;
+                        }
+                    }
+                }
+                catch (_e) { }
+            }
+        }
+        const toAssign = pkg.personajes || 1;
+        const assigned = [];
+        const MAX_CHARACTERS = user.limiteInventarioPersonajes || 50;
+        const MAX_EQUIPMENT = user.limiteInventarioEquipamiento || 200;
+        const currentCharacters = user.personajes?.length || 0;
+        const currentEquipment = user.inventarioEquipamiento?.length || 0;
+        const itemsToAdd = equipmentToAdd; // Solo contabilizar equipo para el límite de equipamiento
+        if (currentCharacters + toAssign > MAX_CHARACTERS) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'Límite de personajes alcanzado' });
+        }
+        if (currentEquipment + itemsToAdd > MAX_EQUIPMENT) {
+            await session.abortTransaction();
+            return res.status(400).json({ error: 'Límite de inventario alcanzado' });
+        }
+        const guaranteed = pkg.categorias_garantizadas || [];
+        const categoriesList = await Category_1.default.find().session(session);
+        async function chooseRandomBaseForCategory(_catName) {
+            try {
+                // Si hay personajes base con esa categoría, priorizar (si el esquema la expone)
+                const pipeline = [];
+                // Algunos seeds no guardan categoría/rango en BaseCharacter, así que simplemente sampleamos uno
+                pipeline.push({ $sample: { size: 1 } });
+                const cursor = BaseCharacter_1.default.aggregate(pipeline).session(session);
+                const res = await cursor.exec();
+                return res && res[0];
+            }
+            catch (_e) {
+                return null;
+            }
+        }
+        for (const cat of guaranteed) {
+            if (assigned.length >= toAssign)
+                break;
+            try {
+                const base = await chooseRandomBaseForCategory(cat);
+                if (base) {
+                    user.personajes.push({
+                        personajeId: base.id,
+                        rango: cat,
+                        nivel: 1,
+                        etapa: 1,
+                        progreso: 0,
+                        stats: base.stats,
+                        saludActual: base.stats.vida,
+                        saludMaxima: base.stats.vida,
+                        estado: 'saludable',
+                        fechaHerido: null,
+                        equipamiento: [],
+                        activeBuffs: []
+                    });
+                    assigned.push(base.id);
+                }
+                else {
+                    // Fallback: si no se encuentra base, insertar con id genérico y rango garantizado
+                    user.personajes.push({
+                        personajeId: 'base_d_001',
+                        rango: cat || 'D',
+                        nivel: 1,
+                        etapa: 1,
+                        progreso: 0,
+                        stats: { atk: 10, vida: 100, defensa: 10 },
+                        saludActual: 100,
+                        saludMaxima: 100,
+                        estado: 'saludable',
+                        fechaHerido: null,
+                        equipamiento: [],
+                        activeBuffs: []
+                    });
+                    assigned.push('base_d_001');
+                }
+            }
+            catch (_e) { }
+        }
+        while (assigned.length < toAssign) {
+            try {
+                const cats = categoriesList;
+                const r = Math.random();
+                let accum = 0;
+                let chosenCat = cats.length > 0 ? cats[cats.length - 1]?.nombre : 'D';
+                for (const c of cats) {
+                    accum += c.probabilidad || 0;
+                    if (r <= accum) {
+                        chosenCat = c.nombre;
+                        break;
+                    }
+                }
+                const base = await chooseRandomBaseForCategory(chosenCat);
+                if (base) {
+                    user.personajes.push({
+                        personajeId: base.id,
+                        rango: chosenCat || 'D',
+                        nivel: 1,
+                        etapa: 1,
+                        progreso: 0,
+                        stats: base.stats,
+                        saludActual: base.stats.vida,
+                        saludMaxima: base.stats.vida,
+                        estado: 'saludable',
+                        fechaHerido: null,
+                        equipamiento: [],
+                        activeBuffs: []
+                    });
+                    assigned.push(base.id);
+                }
+                else {
+                    // Fallback seguro
+                    user.personajes.push({
+                        personajeId: 'base_d_001',
+                        rango: chosenCat || 'D',
+                        nivel: 1,
+                        etapa: 1,
+                        progreso: 0,
+                        stats: { atk: 10, vida: 100, defensa: 10 },
+                        saludActual: 100,
+                        saludMaxima: 100,
+                        estado: 'saludable',
+                        fechaHerido: null,
+                        equipamiento: [],
+                        activeBuffs: []
+                    });
+                    assigned.push('base_d_001');
+                    break;
+                }
+            }
+            catch (_e) {
+                break;
+            }
+        }
+        await user.save({ session });
+        await UserPackage_1.default.findByIdAndDelete(userPackageToOpen._id, { session });
+        await PurchaseLog_1.default.create([{
+                userId: new mongoose_1.Types.ObjectId(userId),
+                packageId: pkg._id,
+                action: 'open',
+                itemsReceived: (pkg.items_reward || []).map((id) => new mongoose_1.Types.ObjectId(String(id))),
+                charactersReceived: assigned,
+                valReceived: pkg.val_reward || 0,
+                timestamp: new Date(),
+                metadata: {
+                    currentCharacters: user.personajes.length,
+                    currentItems: user.inventarioEquipamiento.length,
+                    currentVal: user.val,
+                    packageName: pkg.nombre || 'Unknown'
+                }
+            }], { session });
+        await session.commitTransaction();
+        try {
+            const realtime = realtime_service_1.RealtimeService.getInstance();
+            realtime.notifyInventoryUpdate(userId, {
+                personajes: user.personajes.length,
+                equipamiento: user.inventarioEquipamiento.length,
+                val: user.val,
+                newCharacters: assigned,
+                newItems: (pkg.items_reward || []).map((id) => new mongoose_1.Types.ObjectId(String(id))),
+                valGranted: pkg.val_reward || 0
+            });
+        }
+        catch (_e) { }
+        return res.json({
+            ok: true,
+            assigned,
+            summary: {
+                charactersReceived: assigned.length,
+                itemsReceived: itemsToAdd + consumablesToAdd,
+                valReceived: pkg.val_reward || 0,
+                totalCharacters: user.personajes.length,
+                totalItems: user.inventarioEquipamiento.length,
+                totalConsumables: user.inventarioConsumibles.length,
+                valBalance: user.val
+            }
+        });
+    }
+    catch (err) {
+        try {
+            await session.abortTransaction().catch(() => { });
+        }
+        catch { }
+        console.error('[USER-PACKAGE-OPEN] Error:', err);
+        return res.status(500).json({ error: 'Error al abrir paquete' });
+    }
+    finally {
+        session.endSession();
+    }
+});
 // Agregar paquete a usuario (COMPRAR)
 router.post('/agregar', async (req, res) => {
     const { userId, paqueteId } = req.body;
@@ -103,15 +366,20 @@ router.post('/agregar', async (req, res) => {
                 packagePrice: precio
             }
         });
-        // Emitir evento WebSocket para notificar que se compró el paquete
-        const realtime = realtime_service_1.RealtimeService.getInstance();
-        realtime.notifyInventoryUpdate(userId, {
-            val: updatedUser.val,
-            valSpent: precio,
-            newPackage: nuevo,
-            action: 'purchase',
-            packageName: paquete.nombre || 'Unknown'
-        });
+        // Emitir evento WebSocket para notificar que se compró el paquete (ignorar si no está inicializado)
+        try {
+            const realtime = realtime_service_1.RealtimeService.getInstance();
+            realtime.notifyInventoryUpdate(userId, {
+                val: updatedUser.val,
+                valSpent: precio,
+                newPackage: nuevo,
+                action: 'purchase',
+                packageName: paquete.nombre || 'Unknown'
+            });
+        }
+        catch (_e) {
+            // entorno de test puede no inicializar RealtimeService; continuar sin bloquear
+        }
         return res.json({
             success: true,
             ok: true,
