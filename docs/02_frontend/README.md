@@ -1,6 +1,7 @@
 # Frontend Integration Guide (Angular 17)
 
-**Punto de entrada único para desarrollo del Frontend.**
+**Punto de entrada único para desarrollo del Frontend.**  
+**Última actualización**: 2 de febrero de 2026
 
 ---
 
@@ -9,7 +10,7 @@
 👉 **[`00_COMIENZA_AQUI.md`](00_COMIENZA_AQUI.md)** ← EMPIEZA POR AQUÍ
 
 Ese documento te explica:
-- En qué orden leer los 17 documentos
+- En qué orden leer los 19 documentos
 - Cuánto tiempo te tomará cada fase
 - Quick start para login funcional en 2 horas
 - Flujo completo de lectura + implementación
@@ -42,15 +43,43 @@ Ese documento te explica:
 - **Endpoints**: GET /marketplace/listings, POST /marketplace/list, POST /marketplace/buy
 - **WS**: `marketplace:new`, `marketplace:sold`, `marketplace:cancelled`
 
+### Dashboard & Teams (Armado de Equipo)
+- **Archivo**: `game_dashboard/DASHBOARD_Y_TEAMS.md` ⭐
+- **Endpoints**: GET/POST/PUT/DELETE /teams, PUT /teams/:id/activate
+- **Flujo**: Dashboard → Team Builder → Seleccionar personajes → Guardar → Activar → Jugar
+- **Contenido**: Layout UI/UX, componentes Angular, flujo completo de jugabilidad
+
+### Modo Invitado (Guest Mode)
+- **Archivo**: `game_dashboard/MODO_INVITADO.md` ⭐
+- **Concepto**: Permite probar el juego sin registro
+- **Bloqueado**: Shop (comprar), Marketplace (comprar/vender), guardar progreso
+- **Permitido**: Ver tienda, ver marketplace, tutorial dungeon, 1 partida survival
+- **Contenido**: Dos tipos de cuenta, guards, UI de bloqueo, flujo de conversión
+
 ### Dungeons (RPG) & Rankings
 - **Archivo**: `11_COMBATE_Y_DUNGEONS.md`
+- **⚠️ IMPORTANTE**: Dungeons usa **EQUIPO** (múltiples personajes), Survival usa **1 SOLO** personaje
 - **Endpoints canónicos**:
-  - POST /api/dungeons/:id/start
+  - POST /api/dungeons/:id/start → `{ team: ["id1", "id2", ...] }`
+  - POST /api/survival/start → `{ characterId: "id" }`
   - GET /api/dungeons/:id/progress
   - GET /api/rankings/me
   - GET /api/rankings/leaderboard/:category
 - **Alias**: Ver `COMPATIBILITY_ALIASES.md`
 - **WS**: `dungeon:entered`, `dungeon:progress`, `rankings:update`
+
+### Configuración & Conexión
+- **Archivo**: `CONFIGURACION_CONEXION_BACKEND.md`
+- **Contenido**: URLs correctas, prefijos /api/, withCredentials, CORS
+- **Crítico**: Diferencia entre rutas públicas y protegidas
+
+### Registro & Verificación
+- **Archivo**: `FLUJO_REGISTRO_VERIFICACION.md`
+- **Contenido**: Flujo completo paso a paso con ejemplos Angular
+
+### Cookies HttpOnly
+- **Archivo**: `MANEJO_COOKIES_HTTPONLY.md`
+- **Contenido**: Autenticación segura con cookies, withCredentials
 
 ## �� WebSocket & Real-time
 

@@ -137,192 +137,235 @@ Este documento explica **paso a paso** cómo implementar el registro de usuarios
 
 ---
 
-### TypeScript (register.component.ts)
+### TypeScript (React - RegisterPage.tsx)
 
-```typescript
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+```tsx
+import { useState, FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 
-@Component({
-  selector: 'app-register',
-  templateUrl: './register.component.html',
-  styleUrls: ['./register.component.scss']
-})
-export class RegisterComponent implements OnInit {
-  registerForm!: FormGroup;
-  isLoading = false;
-  errorMessage = '';
+const API_URL = 'https://valgame-backend.onrender.com';
 
-  // URL del backend
-  private apiUrl = 'https://valgame-backend.onrender.com';
+export function RegisterPage() {
+  const navigate = useNavigate();
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    username: '',
+    password: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private router: Router
-  ) {}
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-  ngOnInit(): void {
-    this.registerForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      username: ['', [Validators.required, Validators.minLength(3)]],
-      password: ['', [Validators.required, Validators.minLength(6)]]
-    });
-  }
-
-  onRegister(): void {
-    if (this.registerForm.invalid) {
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    // Validación básica
+    if (!formData.email || !formData.username || !formData.password) {
+      setErrorMessage('Todos los campos son requeridos');
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    setIsLoading(true);
+    setErrorMessage('');
 
-    const body = {
-      email: this.registerForm.value.email,
-      username: this.registerForm.value.username,
-      password: this.registerForm.value.password
-    };
+    try {
+      // ⚠️ IMPORTANTE: credentials: 'include' para cookies
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData)
+      });
 
-    // ⚠️ IMPORTANTE: withCredentials: true para cookies
-    this.http.post(`${this.apiUrl}/auth/register`, body, {
-      withCredentials: true
-    }).subscribe({
-      next: (response: any) => {
-        // ✅ Registro exitoso
-        console.log('✅ Registro exitoso:', response);
-        
-        this.isLoading = false;
-        
-        // Guardar email para mostrar en la página de verificación
-        sessionStorage.setItem('pendingEmail', body.email);
-        
-        // Redirigir a página "Revisa tu email"
-        this.router.navigate(['/check-email']);
-      },
-      error: (error: HttpErrorResponse) => {
-        // ❌ Error en registro
-        console.error('❌ Error en registro:', error);
-        
-        this.isLoading = false;
-        
+      const data = await response.json();
+
+      if (!response.ok) {
         // Manejar errores específicos
-        if (error.status === 409) {
-          this.errorMessage = 'Email o username ya existe';
-        } else if (error.status === 400) {
-          this.errorMessage = error.error?.error || 'Datos inválidos';
-        } else {
-          this.errorMessage = 'Error al registrar. Intenta de nuevo.';
+        if (response.status === 409) {
+          throw new Error('Email o username ya existe');
+        } else if (response.status === 400) {
+          throw new Error(data.error || 'Datos inválidos');
         }
-        
-        // Mostrar error en pantalla
-        alert(this.errorMessage);
+        throw new Error('Error al registrar. Intenta de nuevo.');
       }
-    });
-  }
+
+      // ✅ Registro exitoso
+      console.log('✅ Registro exitoso:', data);
+      
+      // Guardar email para mostrar en la página de verificación
+      sessionStorage.setItem('pendingEmail', formData.email);
+      
+      // Redirigir a página "Revisa tu email"
+      navigate('/check-email');
+      
+    } catch (error) {
+      console.error('❌ Error en registro:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="register-container">
+      <h1>Crear Cuenta</h1>
+      
+      <form onSubmit={handleSubmit}>
+        {/* Email */}
+        <div className="form-group">
+          <label>Email</label>
+          <input 
+            type="email" 
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="tu@email.com"
+            required
+          />
+        </div>
+
+        {/* Username */}
+        <div className="form-group">
+          <label>Username</label>
+          <input 
+            type="text" 
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            placeholder="jugador123"
+            minLength={3}
+            required
+          />
+        </div>
+
+        {/* Password */}
+        <div className="form-group">
+          <label>Contraseña</label>
+          <input 
+            type="password" 
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="mínimo 6 caracteres"
+            minLength={6}
+            required
+          />
+        </div>
+
+        {/* Error */}
+        {errorMessage && (
+          <div className="error-message">{errorMessage}</div>
+        )}
+
+        {/* Submit */}
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Registrando...' : 'Crear Cuenta'}
+        </button>
+      </form>
+
+      <p className="footer-text">
+        ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
+      </p>
+    </div>
+  );
 }
 ```
 
 ---
 
-## 📧 PASO 2: Página "Revisa tu Email"
+## 📧 PASO 2: Página "Revisa tu Email" (React)
 
-### HTML (check-email.component.html)
+```tsx
+// CheckEmailPage.tsx
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
-```html
-<div class="check-email-container">
-  <div class="icon">📧</div>
-  
-  <h1>Revisa tu correo</h1>
-  
-  <p class="main-text">
-    Te enviamos un email a <strong>{{ email }}</strong>
-  </p>
-  
-  <p class="instructions">
-    Haz click en el link que te enviamos para verificar tu cuenta.
-  </p>
-  
-  <div class="warning">
-    ⚠️ El link expira en <strong>1 hora</strong>
-  </div>
-  
-  <!-- Botón para reenviar email -->
-  <button 
-    (click)="resendEmail()" 
-    [disabled]="isResending || countdown > 0"
-    class="secondary-btn"
-  >
-    {{ countdown > 0 ? `Reenviar en ${countdown}s` : 'Reenviar email' }}
-  </button>
-  
-  <!-- Link para volver al login -->
-  <p class="footer-text">
-    ¿Ya verificaste tu cuenta? 
-    <a routerLink="/login">Ir al login</a>
-  </p>
-</div>
-```
+const API_URL = 'https://valgame-backend.onrender.com';
 
----
+export function CheckEmailPage() {
+  const [email, setEmail] = useState('tu correo');
+  const [isResending, setIsResending] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
-### TypeScript (check-email.component.ts)
-
-```typescript
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-
-@Component({
-  selector: 'app-check-email',
-  templateUrl: './check-email.component.html',
-  styleUrls: ['./check-email.component.scss']
-})
-export class CheckEmailComponent implements OnInit {
-  email = '';
-  isResending = false;
-  countdown = 0;
-  
-  private apiUrl = 'https://valgame-backend.onrender.com';
-
-  constructor(private http: HttpClient) {}
-
-  ngOnInit(): void {
+  useEffect(() => {
     // Obtener email del sessionStorage
-    this.email = sessionStorage.getItem('pendingEmail') || 'tu correo';
-  }
+    const pendingEmail = sessionStorage.getItem('pendingEmail');
+    if (pendingEmail) setEmail(pendingEmail);
+  }, []);
 
-  resendEmail(): void {
-    if (this.countdown > 0) return;
+  useEffect(() => {
+    // Countdown timer
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
 
-    this.isResending = true;
+  const resendEmail = async () => {
+    if (countdown > 0 || isResending) return;
 
-    this.http.post(`${this.apiUrl}/auth/resend-verification`, {
-      email: this.email
-    }, {
-      withCredentials: true
-    }).subscribe({
-      next: () => {
+    setIsResending(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email })
+      });
+
+      if (response.ok) {
         alert('✅ Email reenviado. Revisa tu bandeja.');
-        this.isResending = false;
-        
-        // Iniciar countdown de 60 segundos
-        this.countdown = 60;
-        const interval = setInterval(() => {
-          this.countdown--;
-          if (this.countdown === 0) {
-            clearInterval(interval);
-          }
-        }, 1000);
-      },
-      error: (error) => {
-        console.error('Error al reenviar email:', error);
-        alert('Error al reenviar. Intenta de nuevo.');
-        this.isResending = false;
+        setCountdown(60); // Iniciar countdown de 60 segundos
+      } else {
+        throw new Error('Error al reenviar');
       }
-    });
-  }
+    } catch (error) {
+      console.error('Error al reenviar email:', error);
+      alert('Error al reenviar. Intenta de nuevo.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  return (
+    <div className="check-email-container">
+      <div className="icon">📧</div>
+      
+      <h1>Revisa tu correo</h1>
+      
+      <p className="main-text">
+        Te enviamos un email a <strong>{email}</strong>
+      </p>
+      
+      <p className="instructions">
+        Haz click en el link que te enviamos para verificar tu cuenta.
+      </p>
+      
+      <div className="warning">
+        ⚠️ El link expira en <strong>1 hora</strong>
+      </div>
+      
+      {/* Botón para reenviar email */}
+      <button 
+        onClick={resendEmail}
+        disabled={isResending || countdown > 0}
+        className="secondary-btn"
+      >
+        {countdown > 0 ? `Reenviar en ${countdown}s` : 'Reenviar email'}
+      </button>
+      
+      {/* Link para volver al login */}
+      <p className="footer-text">
+        ¿Ya verificaste tu cuenta? 
+        <Link to="/login">Ir al login</Link>
+      </p>
+    </div>
+  );
 }
 ```
 
@@ -419,89 +462,125 @@ export class CheckEmailComponent implements OnInit {
 
 ---
 
-### TypeScript (login.component.ts)
+### TypeScript (React - LoginPage.tsx)
 
-```typescript
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+```tsx
+import { useState, FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 
-@Component({
-  selector: 'app-login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss']
-})
-export class LoginComponent implements OnInit {
-  loginForm!: FormGroup;
-  isLoading = false;
-  errorMessage = '';
+const API_URL = 'https://valgame-backend.onrender.com';
 
-  private apiUrl = 'https://valgame-backend.onrender.com';
+export function LoginPage() {
+  const navigate = useNavigate();
+  
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private router: Router
-  ) {}
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-  ngOnInit(): void {
-    this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required]]
-    });
-  }
-
-  onLogin(): void {
-    if (this.loginForm.invalid) {
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email || !formData.password) {
+      setErrorMessage('Todos los campos son requeridos');
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    setIsLoading(true);
+    setErrorMessage('');
 
-    const body = {
-      email: this.loginForm.value.email,
-      password: this.loginForm.value.password
-    };
+    try {
+      // ⚠️ IMPORTANTE: credentials: 'include' para cookies
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData)
+      });
 
-    // ⚠️ IMPORTANTE: withCredentials: true para cookies
-    this.http.post(`${this.apiUrl}/auth/login`, body, {
-      withCredentials: true
-    }).subscribe({
-      next: (response: any) => {
-        // ✅ Login exitoso
-        console.log('✅ Login exitoso:', response);
-        
-        this.isLoading = false;
-        
-        // Guardar token y usuario en localStorage
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        
-        // Redirigir al dashboard
-        this.router.navigate(['/dashboard']);
-      },
-      error: (error: HttpErrorResponse) => {
-        // ❌ Error en login
-        console.error('❌ Error en login:', error);
-        
-        this.isLoading = false;
-        
+      const data = await response.json();
+
+      if (!response.ok) {
         // Manejar errores específicos
-        if (error.status === 403) {
-          this.errorMessage = '⚠️ Cuenta no verificada. Revisa tu email.';
-        } else if (error.status === 401) {
-          this.errorMessage = '❌ Email o contraseña incorrectos';
-        } else {
-          this.errorMessage = '❌ Error al iniciar sesión. Intenta de nuevo.';
+        if (response.status === 403) {
+          throw new Error('⚠️ Cuenta no verificada. Revisa tu email.');
+        } else if (response.status === 401) {
+          throw new Error('❌ Email o contraseña incorrectos');
         }
-        
-        // Mostrar error
-        alert(this.errorMessage);
+        throw new Error('❌ Error al iniciar sesión. Intenta de nuevo.');
       }
-    });
-  }
+
+      // ✅ Login exitoso
+      console.log('✅ Login exitoso:', data);
+      
+      // Guardar token y usuario en localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Redirigir al dashboard
+      navigate('/dashboard');
+      
+    } catch (error) {
+      console.error('❌ Error en login:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <h1>Iniciar Sesión</h1>
+      
+      <form onSubmit={handleSubmit}>
+        {/* Email */}
+        <div className="form-group">
+          <label>Email</label>
+          <input 
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="tu@email.com"
+            required
+          />
+        </div>
+
+        {/* Password */}
+        <div className="form-group">
+          <label>Contraseña</label>
+          <input 
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        {/* Error */}
+        {errorMessage && (
+          <div className="error-message">{errorMessage}</div>
+        )}
+
+        {/* Botón Submit */}
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Entrando...' : 'Iniciar Sesión'}
+        </button>
+      </form>
+
+      {/* Links */}
+      <div className="footer-links">
+        <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>
+        <br />
+        <Link to="/register">¿No tienes cuenta? Regístrate</Link>
+      </div>
+    </div>
+  );
 }
 ```
 
@@ -828,76 +907,90 @@ La documentación abajo muestra **Opción B** que incluye email para verificaci�
 
 ---
 
-### TypeScript (forgot-password.component.ts)
+### TypeScript (React - ForgotPasswordPage.tsx)
 
-```typescript
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
+```tsx
+import { useState, FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 
-@Component({
-  selector: 'app-forgot-password',
-  templateUrl: './forgot-password.component.html',
-  styleUrls: ['./forgot-password.component.scss']
-})
-export class ForgotPasswordComponent implements OnInit {
-  forgotForm!: FormGroup;
-  isLoading = false;
+const API_URL = 'https://valgame-backend.onrender.com';
+
+export function ForgotPasswordPage() {
+  const navigate = useNavigate();
   
-  private apiUrl = 'https://valgame-backend.onrender.com';
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private router: Router
-  ) {}
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) return;
 
-  ngOnInit(): void {
-    this.forgotForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]]
-    });
-  }
+    setIsLoading(true);
 
-  onSubmit(): void {
-    if (this.forgotForm.invalid) {
-      return;
+    try {
+      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json();
+
+      // ✅ Solicitud procesada (incluso si el email no existe, por seguridad)
+      console.log('✅ Email de recuperación enviado');
+      
+      // Guardar email para mostrar en la siguiente pantalla
+      sessionStorage.setItem('resetEmail', email);
+      
+      // Mostrar mensaje
+      alert('✅ ' + data.message);
+      
+      // Redirigir a página de confirmación
+      navigate('/check-email-reset');
+      
+    } catch (error) {
+      console.error('❌ Error:', error);
+      alert('Error al procesar solicitud. Intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    this.isLoading = true;
+  return (
+    <div className="forgot-password-container">
+      <h1>¿Olvidaste tu contraseña?</h1>
+      
+      <p className="instructions">
+        Ingresa tu email y te enviaremos un link para recuperar tu contraseña.
+      </p>
+      
+      <form onSubmit={handleSubmit}>
+        {/* Email */}
+        <div className="form-group">
+          <label>Email</label>
+          <input 
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu@email.com"
+            required
+          />
+        </div>
 
-    const body = {
-      email: this.forgotForm.value.email
-    };
+        {/* Botón Submit */}
+        <button type="submit" disabled={!email || isLoading}>
+          {isLoading ? 'Enviando...' : 'Enviar link de recuperación'}
+        </button>
+      </form>
 
-    this.http.post(`${this.apiUrl}/auth/forgot-password`, body, {
-      withCredentials: true
-    }).subscribe({
-      next: (response: any) => {
-        // ✅ Solicitud procesada
-        console.log('✅ Email de recuperación enviado');
-        
-        this.isLoading = false;
-        
-        // Guardar email para mostrar en la siguiente pantalla
-        sessionStorage.setItem('resetEmail', body.email);
-        
-        // Mostrar mensaje
-        alert('✅ ' + response.message);
-        
-        // Redirigir a página de confirmación
-        this.router.navigate(['/check-email-reset']);
-      },
-      error: (error: HttpErrorResponse) => {
-        console.error('❌ Error:', error);
-        
-        this.isLoading = false;
-        
-        // Mostrar error genérico por seguridad
-        alert('Error al procesar solicitud. Intenta de nuevo.');
-      }
-    });
-  }
+      {/* Link para volver al login */}
+      <p className="footer-text">
+        <Link to="/login">← Volver al login</Link>
+      </p>
+    </div>
+  );
 }
 ```
 
@@ -997,157 +1090,202 @@ export class ForgotPasswordComponent implements OnInit {
 
 ---
 
-### TypeScript (reset-password.component.ts)
+### TypeScript (React - ResetPasswordPage.tsx)
 
-```typescript
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, AbstractControl } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+```tsx
+import { useState, useEffect, FormEvent } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 
-@Component({
-  selector: 'app-reset-password',
-  templateUrl: './reset-password.component.html',
-  styleUrls: ['./reset-password.component.scss']
-})
-export class ResetPasswordComponent implements OnInit {
-  resetForm!: FormGroup;
-  isLoading = false;
-  token = '';
-  userEmail = '';
+const API_URL = 'https://valgame-backend.onrender.com';
+
+export function ResetPasswordPage() {
+  const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   
-  private apiUrl = 'https://valgame-backend.onrender.com';
+  const [userEmail, setUserEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private route: ActivatedRoute,
-    private router: Router
-  ) {}
-
-  ngOnInit(): void {
-    // Obtener token de la URL
-    this.token = this.route.snapshot.params['token'];
-    
-    if (!this.token) {
+  // Validar token al cargar
+  useEffect(() => {
+    if (!token) {
       alert('❌ Token inválido');
-      this.router.navigate(['/login']);
+      navigate('/login');
       return;
     }
 
-    // Crear formulario
-    this.resetForm = this.fb.group({
-      email: [{ value: '', disabled: true }], // Readonly
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required]
-    }, {
-      validators: this.passwordMatchValidator
-    });
+    const validateToken = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/auth/reset-password/validate/${token}`,
+          { credentials: 'include' }
+        );
 
-    // Validar token y obtener email
-    this.validateToken();
-  }
-
-  // Validar token y obtener email del usuario
-  validateToken(): void {
-    this.isLoading = true;
-
-    this.http.get<any>(
-      `${this.apiUrl}/auth/reset-password/validate/${this.token}`,
-      { withCredentials: true }
-    ).subscribe({
-      next: (response) => {
-        // ✅ Token válido
-        console.log('✅ Token válido');
-        console.log(`Expira en: ${response.expiresIn} segundos`);
-        
-        this.userEmail = response.email;
-        
-        // Mostrar email en el formulario
-        this.resetForm.patchValue({
-          email: this.userEmail
-        });
-        
-        this.isLoading = false;
-      },
-      error: (error: HttpErrorResponse) => {
-        console.error('❌ Token inválido:', error);
-        
-        this.isLoading = false;
-        
-        // Manejar errores específicos
-        if (error.error?.code === 'INVALID_TOKEN') {
-          alert('❌ Link inválido o expirado. Solicita uno nuevo.');
-        } else {
-          alert('❌ Error al validar token.');
+        if (!response.ok) {
+          throw new Error('Token inválido');
         }
+
+        const data = await response.json();
+        console.log('✅ Token válido');
+        console.log(`Expira en: ${data.expiresIn} segundos`);
         
-        this.router.navigate(['/forgot-password']);
+        setUserEmail(data.email);
+        setIsLoading(false);
+        
+      } catch (error) {
+        console.error('❌ Token inválido:', error);
+        alert('❌ Link inválido o expirado. Solicita uno nuevo.');
+        navigate('/forgot-password');
       }
-    });
-  }
-
-  // Validador personalizado para confirmar contraseñas
-  passwordMatchValidator(control: AbstractControl): { [key: string]: boolean } | null {
-    const password = control.get('password')?.value;
-    const confirmPassword = control.get('confirmPassword')?.value;
-    
-    if (password && confirmPassword && password !== confirmPassword) {
-      return { mismatch: true };
-    }
-    
-    return null;
-  }
-
-  onSubmit(): void {
-    if (this.resetForm.invalid) {
-      // Marcar todos los campos como tocados para mostrar errores
-      Object.keys(this.resetForm.controls).forEach(key => {
-        this.resetForm.get(key)?.markAsTouched();
-      });
-      return;
-    }
-
-    this.isLoading = true;
-
-    const body = {
-      password: this.resetForm.value.password
     };
 
-    this.http.post(
-      `${this.apiUrl}/auth/reset-password/${this.token}`,
-      body,
-      { withCredentials: true }
-    ).subscribe({
-      next: (response: any) => {
-        // ✅ Contraseña actualizada
-        console.log('✅ Contraseña actualizada');
-        
-        this.isLoading = false;
-        
-        // Mostrar mensaje de éxito
-        alert(`✅ ${response.message}\n\nYa puedes iniciar sesión con tu nueva contraseña.`);
-        
-        // Redirigir al login
-        this.router.navigate(['/login']);
-      },
-      error: (error: HttpErrorResponse) => {
-        console.error('❌ Error:', error);
-        
-        this.isLoading = false;
-        
-        // Manejar errores específicos
-        if (error.status === 400) {
-          alert('❌ Token inválido o expirado. Solicita un nuevo link de recuperación.');
-          this.router.navigate(['/forgot-password']);
-        } else if (error.status === 422) {
-          alert('❌ Contraseña inválida. Debe tener al menos 6 caracteres.');
-        } else {
-          alert('❌ Error al actualizar contraseña. Intenta de nuevo.');
+    validateToken();
+  }, [token, navigate]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validar que las contraseñas coincidan
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/auth/reset-password/${token}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ password })
         }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 400) {
+          throw new Error('Token inválido o expirado. Solicita un nuevo link.');
+        } else if (response.status === 422) {
+          throw new Error('Contraseña inválida. Debe tener al menos 6 caracteres.');
+        }
+        throw new Error('Error al actualizar contraseña.');
       }
-    });
+
+      // ✅ Contraseña actualizada
+      console.log('✅ Contraseña actualizada');
+      alert(`✅ ${data.message}\n\nYa puedes iniciar sesión con tu nueva contraseña.`);
+      navigate('/login');
+      
+    } catch (error) {
+      console.error('❌ Error:', error);
+      setError(error instanceof Error ? error.message : 'Error desconocido');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading && !userEmail) {
+    return <div className="loading">Validando token...</div>;
   }
+
+  return (
+    <div className="reset-password-container">
+      <h1>Crear Nueva Contraseña</h1>
+      
+      <p className="instructions">
+        Ingresa tu nueva contraseña para <strong>{userEmail}</strong>
+      </p>
+      
+      <form onSubmit={handleSubmit}>
+        {/* Email (Solo para verificación visual) */}
+        <div className="form-group">
+          <label>Email de la Cuenta</label>
+          <input 
+            type="email"
+            value={userEmail}
+            readOnly
+            className="readonly-field"
+          />
+          <small className="help-text">
+            ℹ️ Verificación: Estás cambiando la contraseña de esta cuenta
+          </small>
+        </div>
+
+        {/* Nueva Contraseña */}
+        <div className="form-group">
+          <label>Nueva Contraseña *</label>
+          <input 
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            minLength={6}
+            required
+          />
+        </div>
+
+        {/* Confirmar Contraseña */}
+        <div className="form-group">
+          <label>Confirmar Contraseña *</label>
+          <input 
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        {/* Error */}
+        {error && <div className="error-message">{error}</div>}
+
+        {/* Botón Submit */}
+        <button 
+          type="submit" 
+          disabled={isLoading || !password || !confirmPassword}
+          className="btn-primary"
+        >
+          {isLoading ? 'Actualizando...' : 'Actualizar Contraseña'}
+        </button>
+      </form>
+
+      {/* Footer */}
+      <p className="footer-text">
+        <Link to="/login">← Volver al login</Link>
+      </p>
+    </div>
+  );
+}
+```
+
+---
+
+### CSS Adicional para ResetPassword
+
+```css
+.readonly-field {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  color: #666;
+}
+
+.help-text {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 12px;
 }
 ```
 
@@ -1267,53 +1405,75 @@ router.get('/reset-password/validate/:token', async (req, res) => {
 
 ---
 
-### TypeScript (check-email-reset.component.ts)
+### TypeScript (React - CheckEmailResetPage.tsx)
 
-```typescript
-import { Component, OnInit } from '@angular/core';
+```tsx
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
-@Component({
-  selector: 'app-check-email-reset',
-  templateUrl: './check-email-reset.component.html',
-  styleUrls: ['./check-email-reset.component.scss']
-})
-export class CheckEmailResetComponent implements OnInit {
-  email = '';
+export function CheckEmailResetPage() {
+  const [email, setEmail] = useState('tu correo');
 
-  ngOnInit(): void {
+  useEffect(() => {
     // Obtener email del sessionStorage
-    this.email = sessionStorage.getItem('resetEmail') || 'tu correo';
-  }
+    const resetEmail = sessionStorage.getItem('resetEmail');
+    if (resetEmail) setEmail(resetEmail);
+  }, []);
+
+  return (
+    <div className="check-email-reset-container">
+      <div className="icon">📧</div>
+      
+      <h1>Revisa tu correo</h1>
+      
+      <p className="main-text">
+        Te enviamos un link de recuperación a <strong>{email}</strong>
+      </p>
+      
+      <p className="instructions">
+        Haz click en el link que te enviamos para crear una nueva contraseña.
+      </p>
+      
+      <div className="warning">
+        ⚠️ El link expira en <strong>1 hora</strong>
+      </div>
+      
+      <p className="footer-text">
+        <Link to="/login">← Volver al login</Link>
+      </p>
+    </div>
+  );
 }
 ```
 
 ---
 
-### Rutas en app-routing.module.ts
+### Rutas en React Router (App.tsx)
 
-```typescript
-import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
-import { LoginComponent } from './components/login/login.component';
-import { RegisterComponent } from './components/register/register.component';
-import { ForgotPasswordComponent } from './components/forgot-password/forgot-password.component';
-import { ResetPasswordComponent } from './components/reset-password/reset-password.component';
-import { CheckEmailResetComponent } from './components/check-email-reset/check-email-reset.component';
+```tsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { CheckEmailPage } from './pages/CheckEmailPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { CheckEmailResetPage } from './pages/CheckEmailResetPage';
 
-const routes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'forgot-password', component: ForgotPasswordComponent },
-  { path: 'reset-password/:token', component: ResetPasswordComponent },
-  { path: 'check-email-reset', component: CheckEmailResetComponent },
-  { path: '', redirectTo: '/login', pathMatch: 'full' }
-];
-
-@NgModule({
-  imports: [RouterModule.forRoot(routes)],
-  exports: [RouterModule]
-})
-export class AppRoutingModule { }
+export function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/check-email" element={<CheckEmailPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/check-email-reset" element={<CheckEmailResetPage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 ```
 
 ---

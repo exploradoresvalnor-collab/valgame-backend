@@ -30,6 +30,72 @@ Este playbook está pensado para que el frontend implemente un demo mínimo oper
 
 Prioridad para demo: mostrar flujo completo de `start -> log -> rewards -> estado personaje/inventario` en Mazmorras y flujos `start -> complete-wave -> end` en Survival.
 
+## Fases de implementación (MVP → Full)
+Objetivo: dividir el demo en entregables por fases, cada fase con criterios de aceptación y endpoints mínimos.
+
+- Fase 0 — Preparación (setup, proxy, samples)
+  - Qué: Proxy dev configurado (`config/proxy.conf.json`), `.env` con `MONGODB_URI`, samples JSON disponibles en `dev-samples/` (opcional).
+  - Endpoints mínimos: `GET /api/dungeons`, `GET /api/items`, `GET /api/users/:id/inventory`.
+  - Criterio aceptación: Frontend puede cargar mazmorras, items e inventario sin errores; `withCredentials` funciona para login.
+
+- Fase 1 — MVP Playable (Cueva de los Goblins)
+  - Qué: Demo jugable corto: seleccionar party (1 o 3), equipar, entrar en `Cueva de los Goblins`, reproducir `combatLog`, mostrar recompensas y actualizar inventario.
+  - Endpoints: `POST /api/dungeons/:dungeonId/start`, `GET /api/dungeons/:dungeonId`, `GET /api/users/:id/inventory`.
+  - Criterio aceptación: Demo muestra selección de equipo, botón Entrar, replay del `combatLog`, y pantalla final con `recompensas` añadidas al inventario.
+
+  - Checklist (MVP 1 día, tareas divididas)
+   1. Preparación local (30-45 min)
+     - Verificar `MONGODB_URI` y correr `node scripts/read-all-collections.js` para confirmar datos.
+     - Confirmar proxy dev (`config/proxy.conf.json`) y reiniciar frontend.
+     - Opcional: crear `dev-samples/dungeon-sample.json` si se quiere evitar DB.
+
+   2. Pantalla de selección & carga (60 min)
+     - Implementar vista `Seleccionar Mazmorra` que consulta `GET /api/dungeons` y muestra `Cueva de los Goblins` como opción principal.
+     - Implementar `Seleccionar Party` (1 o 3 personajes) leyendo `GET /api/users/:id/inventory` para mostrar equipamiento y consumibles.
+     - Mostrar loadout recomendado en un panel lateral (stats sumados por equip).
+
+   3. Acción: Entrar y solicitar combate (30 min)
+     - Botón `Entrar` que hace `POST /api/dungeons/:dungeonId/start` con body `{ team: [charIds] }`.
+     - Mostrar loader/estado bloqueado mientras llega la respuesta.
+
+   4. Replay del combate (60 min)
+     - Consumir `combatLog` de la respuesta y reproducirlo como lista paso a paso (auto-play + botón "siguiente").
+     - Soportar acción de usar consumible durante el combate (UI que hace POST a endpoint de uso, o simular efecto en el replay si no existe).
+
+   5. Pantalla final y actualización (30 min)
+     - Mostrar `recompensas` (EXP, VAL, items) y botón `Aceptar` que recoge y actualiza inventario local (refrescar `GET /api/users/:id/inventory`).
+     - Ofrecer opción rápida `Vender` o `Listar` (si existe marketplace) o marcar como para listar más tarde.
+
+   6. Tests rápidos & QA (30 min)
+     - Validar flujo completo: seleccionar, entrar, replay, aceptar recompensas.
+     - Comprobaciones: manejo de errores (400/401), `withCredentials` en llamadas auth, y visibilidad de `usos_restantes` para consumibles.
+
+   7. Entrega (15 min)
+     - Documentar pasos en `README.md` del demo (cómo arrancar frontend, endpoints usados y cómo probar).
+
+  - Nota: priorizar experiencia fluida por encima de animaciones; usar dev-samples si la BD es inestable.
+
+- Fase 2 — Exploración Ramificada (Bosque, Fortaleza)
+  - Qué: Agregar `dungeonSession`/salas, decisiones de ruta, cofres y NPC básicos; checkpoints/`rest` y `choose` por sala.
+  - Endpoints: `POST /api/dungeons/:dungeonId/enter`, `GET /api/dungeons/:dungeonId/session/:sessionId/room`, `POST /api/dungeons/:dungeonId/session/:sessionId/choose`, `POST /api/dungeons/:dungeonId/session/:sessionId/interact`, `POST /api/dungeons/:dungeonId/session/:sessionId/rest`.
+  - Criterio aceptación: Frontend permite explorar salas, elegir rutas (riesgo vs recompensa), recoger cofres e interactuar con NPCs (simulados si backend no los soporta).
+
+- Fase 3 — Survival & Leaderboards
+  - Qué: Implementar run por oleadas con `start/complete-wave/pickup/end` y mostrar leaderboard en vivo mediante `rankings:update` WS.
+  - Endpoints/Events: `POST /api/survival/start`, `POST /api/survival/:sessionId/complete-wave`, `POST /api/survival/:sessionId/pickup`, `POST /api/survival/:sessionId/end`, WS `rankings:update`.
+  - Criterio aceptación: Frontend puede iniciar run, completar olas, recoger drops y ver leaderboard actualizado.
+
+- Fase 4 — Comercio & Economy
+  - Qué: Integrar marketplace demo: listar, comprar y vender (simulado con dev-samples si el backend no expone endpoints completos).
+  - Endpoints: `GET /api/listings`, `POST /api/marketplace/buy` (o flow existente en `marketplace.service`).
+  - Criterio aceptación: Usuario puede listar/sell items demo y ver VAL descontado/añadido.
+
+- Fase 5 — Pulido, UX y QA
+  - Qué: Animaciones, minimapa, barra de fuerza para contraseña, accessibility, tests unitarios y e2e para flows críticos.
+  - Criterio aceptación: Experiencia fluida y estable, tests básicos verdes, documentación MVP lista.
+
+Notas: cada fase debe usar datos reales extraídos de la BD (mazmorras e items ya presentes) o `dev-samples` si se necesita aislar la UI del backend.
+
 ---
 
 # Mazmorras (Dungeons)
@@ -88,6 +154,15 @@ Body:
 - `notifications:new` — notificaciones relacionadas
 - `rankings:update` — actualizar leaderboards en vivo
 
+### Rankings & Leaderboards (endpoints y flujo)
+- `GET /api/rankings` — lista de leaderboards por modo (dungeons, survival, global).
+- `GET /api/rankings/:mode` — leaderboard filtrado por modo (`dungeons` | `survival`).
+- `POST /api/rankings/submit` — (opcional) submit explícito de score/run; normalmente el backend actualiza rankings al finalizar `dungeon` o `survival`.
+
+Flujo recomendado para demo: al completar una `dungeon` o `survival` el backend emite `rankings:update` y actualiza la colección/tabla `Rankings`. El frontend debe suscribirse a `rankings:update` y refrescar `GET /api/rankings/:mode` para mostrar posiciones actualizadas.
+
+Nota: verifica la ruta real en `src/routes/rankings.routes.ts` si existe (los nombres sugeridos son convencionales para el demo).
+
 Payloads ejemplo:
 - `character:level-up`:
   { "userId": "uid", "personajeId": "char-1-id", "nuevoNivel": 13, "nivelesGanados": 1, "statsDelta": {"atk":2,"vida":10}}
@@ -101,6 +176,24 @@ Payloads ejemplo:
 - Botón `Entrar` llama `POST /start` y deshabilita UI hasta respuesta.
 - Replay: mostrar `combatLog` como feed paso a paso (auto-play con velocidad configurable). Añadir botones "siguiente" y "saltar".
 - Final: pantalla de recompensa con EXP, VAL, items (botón "Añadir a inventario" o mostrar ya añadidos) y cambios de estado de personajes.
+
+### Mejora: Diseño visual y microinteracciones (wireframe textual)
+Objetivo: dejar claro lo que el jugador ve e interactúa, sin depender de assets gráficos.
+
+- Encabezado (persistente): nombre del juego, botón Perfil (avatar), VAL disponible, acceso a Leaderboard.
+- Panel izquierdo (sección selección/estado): minimapa / sala actual + lista de acciones (Explorar, Interactuar, Rest, Exit).
+- Panel central (acción principal): descripción de sala + `combatLog` replay (lista con timestamps) y animación simple de barra HP para cada personaje/enemigo.
+- Panel derecho (party & inventory): lista de personajes con avatar small, `saludActual/vidaMax`, `atk`, `def`, equipamiento (click para ver stats) y consumibles con `usos_restantes` y botón `Usar`.
+- Footer (acciones rápidas): botón `Entrar` / `Continuar` / `Usar consumible` / `Aceptar Recompensas`.
+
+Microinteracciones mínimas:
+- Al usar consumible: animación de pulso en objetivo + badge decremental en `usos_restantes`.
+- Cuando llega `combatLog` nuevo: desplazamiento automático al último evento y highlight breve.
+- Confirmación modal al `Rest` mostrando costes (boletos/stamina) y efecto (HP recuperado).
+
+Accesibilidad y performance:
+- Evitar autoplay de sonidos; usar animaciones CSS ligeras; permitir pausa del replay.
+- En party grande (>=5) colapsar vista detallada por rendimiento.
 
 ### Demo: Qué mostrar exactamente (RPG - Mazmorras)
 - Tipo de pelea: combate por turnos entre "Equipo" (tus personajes) y "Mazmorra" (enemigo único o jefe).
@@ -130,12 +223,107 @@ Payloads ejemplo:
   { "consumableId": "cons1", "target": "player", "effect": { "heal": 50 }, "usos_restantes": 1 }
   ```
 
+  ### Payloads de ejemplo (contractos mínimos que el frontend debe manejar)
+
+  - `POST /api/dungeons/:dungeonId/start` (request)
+    ```json
+    { "team": ["char-1-id","char-2-id","char-3-id"] }
+    ```
+
+  - `POST /api/dungeons/:dungeonId/start` (response ejemplo)
+    ```json
+    {
+      "resultado": "victoria",
+      "log": ["Turno 1: Player1 ataca Goblin: -12 HP", "Turno 2: Goblin ataca Player2: -8 HP"],
+      "recompensas": { "expGanada": 120, "valGanado": 8, "botinObtenido": [{ "itemId":"i1","nombre":"Casco" }] },
+      "estadoEquipo": [{ "personajeId":"char-1-id","saludFinal":80 }]
+    }
+    ```
+
+  - `dungeon session - room` (ejemplo de sala)
+    ```json
+    {
+      "roomId":"r1",
+      "description":"Sala con estatuas rotas. Hay dos salidas: norte y este.",
+      "exits":[{"id":"north","label":"Pasillo oscuro"},{"id":"east","label":"Sala del cofre"}],
+      "encounters":[],
+      "interactables":[{"id":"chest-1","type":"cofre","label":"Cofre polvoriento"}]
+    }
+    ```
+
+  - `inventory item` (formato para UI)
+    ```json
+    { "itemId":"cons1","nombre":"Poción de Vida","tipoItem":"Consumable","usos_restantes":1,"efectos":{"mejora_vida":150} }
+    ```
+
+  Estos ejemplos ayudan a adaptar la UI al contract real que el backend entrega.
+
+### RPG — Flujo de exploración y toma de decisiones (más que "entrar y jugar")
+Objetivo: convertir la mazmorra en una experiencia exploratoria con elecciones, checkpoints, NPCs y caminos ramificados.
+
+- Evento inicial: `POST /api/dungeons/:dungeonId/enter` crea una `dungeonSession` y devuelve `sessionId` y primer `room`.
+- Obtener sala actual: `GET /api/dungeons/:dungeonId/session/:sessionId/room` → payload con `roomId`, `description`, `exits`, `encounters`, `traps`, `interactables`.
+- Elegir camino/puerta: `POST /api/dungeons/:dungeonId/session/:sessionId/choose` body `{ "exitId": "north" }` → resuelve encuentros o revela nueva sala.
+- Interactuar NPC/objeto: `POST /api/dungeons/:dungeonId/session/:sessionId/interact` body `{ "targetId": "npc-1", "action": "talk" }` → diálogo, quest, comercio o pista para puzzle.
+- Mini-eventos y puzzles: `POST /api/dungeons/:dungeonId/session/:sessionId/solve` body `{ "puzzleId":"p1","solution":"..." }` → recompensa o penalización.
+- Descanso / checkpoint: `POST /api/dungeons/:dungeonId/session/:sessionId/rest` → guarda estado del `session` (checkpoint), recupera salud parcial y consume recursos (por ejemplo, `boletos` o `stamina`).
+- Salir/guardar run: `POST /api/dungeons/:dungeonId/session/:sessionId/exit` → persistir progreso parcial y drops recogidos.
+
+Estado y persistencia: la `dungeonSession` contiene `currentRoom`, `visitedRooms`, `inventoryGained`, `hpState`, `stamina`, `checkpoints`. El frontend debe mostrar mapa/minimapa con `visitedRooms` y permitir volver a un `checkpoint` si existe.
+
+Consecuencias de decisiones:
+- Ramas: elegir una ruta puede incrementar dificultad y drops (riesgo vs recompensa).
+- Trampas: fallar un puzzle o evitar una trampa reduce `hp` o `stamina` y puede bloquear salidas.
+- NPCs: ofrecen side-quests o ventas; completar side-quest otorga items únicos.
+
+UI recomendada para exploración:
+- Panel de descripción de sala con `description`, lista de `exits` (botones), `encounters` visibles/ocultos y `interactables` (NPC, cofres).
+- Minimap: mostrar nodos visitados y rutas disponibles.
+- Registro de exploración: feed de eventos (ej. "Abriste un cofre: +1 Pocion") que se concatena al `combatLog` historic.
+- Botón `Rest/Checkpoint` y confirmación de costes (muestra recursos que se consumirán).
+- Opciones de elección: botones de decisión con timeout opcional para demo (o modo manual con confirmación).
+
+Ejemplo de flujo (resumido):
+1. User abre dungeon → `POST /enter` → recibe `sessionId` + `room1`.
+2. Explora `room1` → ve `exits: [north,east]` y un `chest` (interactuable).
+3. Interactúa `chest` → `POST /interact` → recibe drop `{ itemId: 'cons1' }`.
+4. Elige `north` → `POST /choose` → encuentra `enemy` → backend lanza `combatLog` y resuelve combate con posibles consumibles usados.
+5. Tras victoria, obtiene recompensa y opción de `rest` o continuar.
+6. Al completar una sección, backend emite `dungeon:progress` y opcionalmente `rankings:update`.
+
+Endpoints opcionales de utilidad para demo:
+- `GET /api/dungeons/:dungeonId/rooms/:roomId` — información detallada de la sala (para preload del mapa).
+- `POST /api/dungeons/:dungeonId/session/:sessionId/pickup` — recoger item de sala.
+- `GET /api/dungeons/:dungeonId/session/:sessionId/status` — estado completo de la sesión (para reconexión).
+
+Notas para la demo: este flujo permite al frontend mostrar una experiencia más rica (decisiones, riesgo/recompensa, side-quests). Si el backend no implementa todas las rutas, usar endpoints demo (`/api/demo/*`) que devuelvan `dungeonSession` precomputadas para la UI.
+
+### Equipamiento (endpoints y acciones)
+- `POST /api/characters/:characterId/equip` — equipar un item en un personaje (body: `{ "itemId": "eq1" }`).
+- `POST /api/characters/:characterId/unequip` — quitar un item del personaje (body: `{ "slot": "head" }`).
+- `GET /api/users/:userId/inventory` — obtener inventario (equipables + consumibles) con `usos_restantes` por consumible.
+
+Flujo recomendado: antes de `POST /api/dungeons/:dungeonId/start` el frontend debe enviar las elecciones de `equipmentIds` y `consumableIds` por personaje (o llamar a `equip` explícito). El backend aplicará los bonos de equipo en el cálculo del combate y decrementará usos de consumibles cuando se usen.
+
+Nota: si las rutas exactas difieren en el proyecto, adapta los nombres anteriores al archivo de rutas correspondiente (`src/routes/*`).
+
 ### Casos de prueba (QA)
 - Entrar con personaje por debajo del nivel mínimo → 400 con mensaje claro.
 - Inventario lleno → recibir mensaje y no añadir item.
 - Personaje herido no puede entrar → 400.
 - Racha e incremento de ranking: validar incremento en DB (`Ranking` actualizado).
 - Simular subida de nivel y recepción del evento `character:level-up`.
+
+### Checklist QA rápida (demo)
+- Login funciona y cookie `token` se mantiene (`withCredentials`).
+- `GET /api/dungeons` muestra las 5 mazmorras.
+- Flow completo Cueva de los Goblins: seleccionar party → Entrar → recibir `combatLog` → replay → aceptar recompensas → `GET /api/users/:id/inventory` refleja items nuevos.
+- Usar consumible en combate actualiza `usos_restantes` en UI y backend (si endpoint implementado) o en el sample.
+- Leaderboard se actualiza al finalizar run (si hay WS) o al refrescar `GET /api/rankings`.
+
+---
+
+Fin de mejoras visuales y contractuales para el demo. Implementa estas guías en la UI y dime si quieres que extraiga la checklist como `docs/MVP-1DAY-CHECKLIST.md` o que cree las rutas demo con `dev-samples` para simplificar integración.
 
 ### Seed data mínimo para demo (Mongo insert / script)
 - 1 `User` con 3 `personajes` (niveles 10–12), `boletos` >= 3, `val` moderado.

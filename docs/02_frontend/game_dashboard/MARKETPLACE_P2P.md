@@ -1,4 +1,6 @@
-# Marketplace P2P (Frontend)
+# Marketplace P2P (Frontend React)
+
+**Framework**: React + TypeScript
 
 Guía completa para integrar el Marketplace entre usuarios: listar items, comprar, vender, historial y actualizar UI en tiempo real.
 
@@ -260,60 +262,110 @@ GET /api/marketplace-transactions/my-purchases  # Solo compras
 
 ## Snippets de Código
 
-### Angular Service: MarketplaceService
-```typescript
-@Injectable({ providedIn: 'root' })
-export class MarketplaceService {
-  private baseUrl = 'https://api.valgame.com/api/marketplace';
+### React Hook: useMarketplace
+```tsx
+// hooks/useMarketplace.ts
+import { useState, useCallback } from 'react';
+import { useApi } from './useApi';
 
-  constructor(private http: HttpClient) {}
+interface ListingFilters {
+  category?: 'equipment' | 'consumable';
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  limit?: number;
+}
 
-  getListings(filters: { category?: string; page?: number; limit?: number }) {
-    return this.http.get<ListingsResponse>(`${this.baseUrl}/listings`, { params: filters });
-  }
+export function useMarketplace() {
+  const { get, post, patch, loading, error } = useApi();
+  const [listings, setListings] = useState([]);
 
-  listItem(payload: { itemId: string; precio: number; duracion_horas: number }) {
-    return this.http.post<ListingCreatedResponse>(`${this.baseUrl}/list`, payload);
-  }
+  const getListings = useCallback(async (filters: ListingFilters = {}) => {
+    const params = new URLSearchParams(filters as any).toString();
+    const data = await get(`/api/marketplace/listings?${params}`);
+    setListings(data.listings);
+    return data;
+  }, [get]);
 
-  buyItem(listingId: string) {
-    return this.http.post<BuyResponse>(`${this.baseUrl}/buy/${listingId}`, {});
-  }
+  const listItem = useCallback(async (itemId: string, precio: number, duracion_horas: number) => {
+    return post('/api/marketplace/list', { itemId, precio, duracion_horas });
+  }, [post]);
 
-  cancelListing(listingId: string) {
-    return this.http.post<CancelResponse>(`${this.baseUrl}/cancel/${listingId}`, {});
-  }
+  const buyItem = useCallback(async (listingId: string) => {
+    return post(`/api/marketplace/buy/${listingId}`, {});
+  }, [post]);
 
-  getMyHistory() {
-    return this.http.get<TransactionHistory>(`${this.baseUrl}-transactions/my-history`);
-  }
+  const cancelListing = useCallback(async (listingId: string) => {
+    return post(`/api/marketplace/cancel/${listingId}`, {});
+  }, [post]);
+
+  const updatePrice = useCallback(async (listingId: string, nuevoPrecio: number) => {
+    return patch(`/api/marketplace/${listingId}/price`, { nuevoPrecio });
+  }, [patch]);
+
+  const getMyHistory = useCallback(() => 
+    get('/api/marketplace-transactions/my-history'), [get]);
+
+  return {
+    listings,
+    getListings,
+    listItem,
+    buyItem,
+    cancelListing,
+    updatePrice,
+    getMyHistory,
+    loading,
+    error,
+  };
 }
 ```
 
-### WebSocket Listener (en AppComponent o MarketplaceComponent)
-```typescript
-ngOnInit() {
-  this.socketService.on('marketplace:new', (data: MarketplaceNewEvent) => {
-    console.log('Nuevo item listado:', data);
-    this.refreshListings();
-  });
+### WebSocket Listener (React)
+```tsx
+// components/MarketplaceScreen.tsx
+import { useEffect } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useAuth } from '../hooks/useAuth';
+import { toast } from 'react-hot-toast';
 
-  this.socketService.on('marketplace:sold', (data: MarketplaceSoldEvent) => {
-    if (data.sellerId === this.currentUserId) {
-      this.toastr.success(`¡Tu item se vendió por ${data.precio} VAL!`);
-      this.updateBalance();
-    } else if (data.buyerId === this.currentUserId) {
-      this.toastr.success('¡Compra exitosa!');
-      this.updateInventory();
-    }
-  });
+function MarketplaceScreen() {
+  const { user, token } = useAuth();
+  const { on, connected } = useWebSocket(token);
+  const { getListings } = useMarketplace();
 
-  this.socketService.on('marketplace:cancelled', (data: MarketplaceCancelledEvent) => {
-    this.removeListingFromView(data.listingId);
-    if (data.reason === 'expired') {
-      this.toastr.info('Tu publicación expiró. Item devuelto.');
-    }
-  });
+  useEffect(() => {
+    if (!connected) return;
+
+    const unsubNew = on('marketplace:new', (data: any) => {
+      console.log('Nuevo item listado:', data);
+      getListings(); // Refrescar listado
+    });
+
+    const unsubSold = on('marketplace:sold', (data: any) => {
+      if (data.sellerId === user?.id) {
+        toast.success(`¡Tu item se vendió por ${data.precio} VAL!`);
+        // updateBalance();
+      } else if (data.buyerId === user?.id) {
+        toast.success('¡Compra exitosa!');
+        // updateInventory();
+      }
+    });
+
+    const unsubCancelled = on('marketplace:cancelled', (data: any) => {
+      if (data.reason === 'expired') {
+        toast('Tu publicación expiró. Item devuelto.');
+      }
+      getListings(); // Refrescar
+    });
+
+    return () => {
+      unsubNew();
+      unsubSold();
+      unsubCancelled();
+    };
+  }, [connected, on, user]);
+
+  return <div>...</div>;
 }
 ```
 

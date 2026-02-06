@@ -1,6 +1,8 @@
-# Tienda vs Paquetes del Usuario (Angular 17)
+# Tienda vs Paquetes del Usuario (React + TypeScript)
 
 Esta guía aclara la diferencia entre paquetes "disponibles para la compra" (Tienda) y los "paquetes que el usuario ya posee" (inventario), y define un orden de implementación claro para el frontend.
+
+**Framework**: React + TypeScript
 
 ## Conceptos clave
 - Tienda (Shop Packages):
@@ -68,26 +70,69 @@ Esta guía aclara la diferencia entre paquetes "disponibles para la compra" (Tie
 - 409: contención/lock al abrir paquete (reintento con jitter 500–1500ms).
 - 429: aplicar backoff exponencial (ver `ERRORS_AND_LIMITS.md`).
 
-## Orden de implementación (Angular 17)
+## Orden de implementación (React)
 1) Infraestructura base
-   - Interceptor de Auth (`AUTH_AND_FLOWS.md`).
-   - `ApiService` + `WebsocketService` (`03_SETUP_ANGULAR17_THREEJS.md`).
+   - Hook `useApi` para HTTP con interceptor de Auth.
+   - Hook `useWebSocket` para tiempo real.
 2) Tienda (Listado + Compra)
-   - Servicio `ShopService` (wrappers: `getPackages`, `purchase`...).
+   - Hook `useShop` (wrappers: `getPackages`, `purchase`...).
    - Componente de listado con CTA de compra.
    - Listener `payments:status` y `notification:new`.
 3) Inventario de Paquetes del Usuario
-   - Página/Componente de "Mis Paquetes".
+   - Página "Mis Paquetes".
    - Llamadas a `GET /user-packages/:userId`.
 4) Apertura de Paquete
    - Botón "Abrir" (usa `POST /user-packages/open` o por id).
    - Refrescar inventario/usuario; toasts de recompensa.
 5) Three.js (presentación)
-   - Integrar animación/modales de apertura usando `ThreeCanvasComponent`.
+   - Integrar animación/modales de apertura usando `@react-three/fiber`.
 6) Tests
-   - Mocks de HTTP y simulación de eventos WS.
+   - Mocks de HTTP y simulación de eventos WS con vitest.
+
+## Hook useShop (React)
+```tsx
+// hooks/useShop.ts
+import { useState, useCallback } from 'react';
+import { useApi } from './useApi';
+
+export function useShop() {
+  const { get, post, loading, error } = useApi();
+  const [packages, setPackages] = useState([]);
+
+  const getPackages = useCallback(async () => {
+    const data = await get('/api/shop/packages');
+    setPackages(data);
+    return data;
+  }, [get]);
+
+  const purchase = useCallback(async (packageId: string) => {
+    return post('/api/shop/purchase', { packageId });
+  }, [post]);
+
+  const getUserPackages = useCallback(async (userId: string) => {
+    return get(`/api/user-packages/${userId}`);
+  }, [get]);
+
+  const openPackage = useCallback(async (packageId?: string) => {
+    if (packageId) {
+      return post(`/api/user-packages/${packageId}/open`, {});
+    }
+    return post('/api/user-packages/open', {});
+  }, [post]);
+
+  return {
+    packages,
+    getPackages,
+    purchase,
+    getUserPackages,
+    openPackage,
+    loading,
+    error,
+  };
+}
+```
 
 ## Snippets sugeridos
-- Ver `AUTH_AND_FLOWS.md` → sección "Apertura de paquete" (contratos + ejemplos).
-- Ver `03_SETUP_ANGULAR17_THREEJS.md` → `ApiService`, `WebsocketService` y componente Three.
+- Ver `WEBSOCKET_LISTENERS.md` → hook `useWebSocket` completo.
+- Ver `../AUTH_AND_FLOWS.md` → sección "Apertura de paquete" (contratos + ejemplos).
 - Ver `WEBSOCKET_LISTENERS_GUIDE.md` → eventos confirmados para toasts/UX.

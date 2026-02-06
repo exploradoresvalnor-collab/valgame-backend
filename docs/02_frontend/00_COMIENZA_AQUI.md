@@ -1,269 +1,158 @@
-# 🚀 COMIENZA AQUÍ - Guía de Lectura Frontend
+# 🚀 COMIENZA AQUÍ - Guía de Desarrollo Frontend
 
-**Fecha**: 18 de diciembre de 2025  
-**Desarrollador Frontend**: Este es tu punto de partida.
+**Framework**: React + TypeScript + Vite + Three.js  
+**Última actualización**: Febrero 2026
 
 ---
 
-## 📊 Resumen Ejecutivo
+## 📊 Resumen
 
-Tienes **17 documentos** para integrar el backend de Valgame (v2.0). Son **6,998 líneas** de documentación profesional cubriendo:
-- ✅ 135 endpoints REST
+Tienes **15 documentos** para desarrollar el frontend de Valgame. Esta documentación cubre:
+
+- ✅ 135+ endpoints REST
 - ✅ 12+ eventos WebSocket
-- ✅ Auth, Paquetes, Marketplace, Dungeons, Survival, Rankings
-- ✅ Ejemplos de código Angular 17
+- ✅ Auth, Dashboard, Personajes, Dungeons, Survival, Marketplace
+- ✅ Ejemplos de código React + TypeScript
+- ✅ Integración con Three.js para modo Survival
 
-**Tiempo estimado de lectura completa**: 4-5 horas  
-**Tiempo para setup inicial funcional**: 1 día
-
----
-
-## 🎯 Flujo de Lectura Obligatorio
-
-### Fase 0: Orientación (15 min)
-**Lee PRIMERO estos dos**:
-
-1. **`README.md`** ← El mapa general
-   - Estructura de carpetas
-   - Qué hace cada documento
-   - Archivos obsoletos (no pierdas tiempo con ellos)
-
-2. **`CHECKLIST_INTEGRACION.md`** ← El plan de trabajo
-   - Orden de implementación por prioridad
-   - Dependencias entre módulos
-   - Validaciones de cada fase
+**Tiempo estimado para MVP completo**: 12-14 semanas
 
 ---
 
-### Fase 1: Setup Técnico (1-2 horas de lectura + 4-6 horas de implementación)
+## 🎯 DOCUMENTO PRINCIPAL
 
-#### Día 1 - Fundamentos
+### 📖 [FASES_DESARROLLO_FRONTEND.md](./FASES_DESARROLLO_FRONTEND.md)
 
-**3. `03_SETUP_ANGULAR17_THREEJS.md`** (CRÍTICO)
-- **Qué aprenderás**: Configurar Angular 17 + Three.js + Socket.IO
-- **Cuándo leer**: Antes de escribir una línea de código
-- **Acción**: Crear proyecto, instalar dependencias, configurar entorno
-- **Output esperado**: `ng serve` corriendo + conexión Socket.IO establecida
+**ESTE ES TU DOCUMENTO GUÍA.** Contiene:
 
-**4. `AUTH_AND_FLOWS.md`** (CRÍTICO)
-- **Qué aprenderás**: JWT, guards, flujo registro/login/verificación
-- **Cuándo leer**: Inmediatamente después del setup
-- **Acción**: Implementar `AuthService`, `AuthGuard`, interceptors
-- **Output esperado**: Login funcional + token en localStorage + rutas protegidas
+- ✅ Las 8 fases de desarrollo en orden
+- ✅ Qué documentos leer en cada fase
+- ✅ Qué implementar en cada fase
+- ✅ Endpoints que usarás
+- ✅ Checklist de completado
+- ✅ Estructura de carpetas sugerida
+- ✅ Cronograma de 12-14 semanas
 
-**5. `ERRORS_AND_LIMITS.md`** (REFERENCIA)
-- **Qué aprenderás**: Manejo de errores HTTP, rate limits, backoff
-- **Cuándo leer**: Después de Auth (para implementar interceptor global)
-- **Acción**: Crear `ErrorInterceptor`, toasts de error
-- **Output esperado**: Manejo consistente de 401/403/429/5xx
+**→ Abre ese documento y síguelo paso a paso.**
 
 ---
 
-### Fase 2: Arquitectura & Referencias (30 min)
-
-**6. `ENDPOINTS_CATALOG.md`** (REFERENCIA - ten abierto siempre)
-- **Qué contiene**: Lista completa de 135 endpoints organizados por módulo
-- **Cuándo consultar**: Cada vez que implementes un feature
-- **Uso**: Ctrl+F para buscar el endpoint que necesitas
-- **Ejemplo**: Busca "marketplace" → encuentras 9 endpoints relacionados
-
-**7. `COMPATIBILITY_ALIASES.md`** (REFERENCIA)
-- **Qué contiene**: Endpoints canónicos vs alias temporales
-- **Cuándo leer**: Al implementar Dungeons o Rankings
-- **Regla de oro**: **Usa siempre los endpoints canónicos** (columna izquierda)
-- **Ejemplo**: Usa `POST /dungeons/:id/start` NO `POST /dungeons/enter/:id`
-
----
-
-### Fase 3: Real-time (1 hora de lectura + 2-3 horas de implementación)
-
-#### Día 2 - WebSocket
-
-**8. `WEBSOCKET_LISTENERS_GUIDE.md`** (CRÍTICO)
-- **Qué aprenderás**: Configurar Socket.IO client, listeners globales, manejo de eventos
-- **Cuándo leer**: Después de tener Auth funcionando
-- **Acción**: Crear `WebSocketService`, conectar con JWT, listeners base
-- **Output esperado**: Console logs mostrando eventos en tiempo real
-
-**9. `WEBSOCKET_EVENT_SPEC.md`** (REFERENCIA)
-- **Qué contiene**: Especificación completa de cada evento (payload, cuándo se emite)
-- **Cuándo consultar**: Al implementar listeners específicos
-- **Ejemplo**: `marketplace:sold` → payload `{ listingId, buyerId, sellerId, precio }`
-
----
-
-### Fase 4: Features por Módulo (lectura bajo demanda)
-
-#### Día 3-5 - Implementación de Features
-
-Lee estos **EN EL ORDEN QUE VAYAS A IMPLEMENTAR** (según `CHECKLIST_INTEGRACION.md`):
-
-**10. `05_TIENDA_Y_PAQUETES.md`** (Prioridad ALTA)
-- **Qué implementarás**: Onboarding, compra de paquetes, acreditación, apertura
-- **Dependencias**: Auth + WebSocket
-- **Output esperado**: Usuario nuevo puede comprar Paquete Pionero y abrir items
-- **Tiempo**: 1 día
-
-**11. `06-Marketplace-P2P.md`** (Prioridad ALTA)
-- **Qué implementarás**: Listar items, comprar, vender, historial de transacciones
-- **Dependencias**: Auth + WebSocket + Inventario
-- **Output esperado**: Marketplace funcional con actualizaciones en tiempo real
-- **Tiempo**: 2 días
-- **Contenido**: 349 líneas con flujo completo, ejemplos Angular, manejo de tax 5%
-
-**12. `11_COMBATE_Y_DUNGEONS.md`** (Prioridad MEDIA)
-- **Qué implementarás**: Dungeons RPG, combate, rankings, sesiones
-- **Dependencias**: Auth + WebSocket + Characters
-- **Output esperado**: Usuario puede entrar a dungeon, combatir, ver rankings
-- **Tiempo**: 2-3 días
-- **Nota**: Sesiones reales (Copa) están en roadmap; por ahora usa endpoints actuales
-
----
-
-## 📈 Orden de Implementación Recomendado
+## 📚 MAPA DE DOCUMENTACIÓN
 
 ```
-Semana 1: Setup + Auth + WebSocket
-├─ Día 1: Setup (doc #3) + Auth (doc #4)
-├─ Día 2: WebSocket (docs #8, #9) + Error handling (doc #5)
-└─ Día 3: Tienda & Paquetes (doc #10)
-
-Semana 2: Core Features
-├─ Día 4-5: Marketplace (doc #11)
-└─ Día 6-8: Dungeons (doc #12) o Survival (si aplica)
-
-Semana 3+: Refinamiento + Features adicionales
-├─ Rankings, leaderboards
-├─ Profiles, inventario avanzado
-└─ Optimizaciones UI/UX
+docs/02_frontend/
+│
+├── 🎯 GUÍAS PRINCIPALES
+│   ├── 00_COMIENZA_AQUI.md              ← ESTÁS AQUÍ
+│   ├── FASES_DESARROLLO_FRONTEND.md     ← DOCUMENTO GUÍA (sigue este)
+│   └── README.md                         ← Visión general
+│
+├── 🔧 SETUP Y CONFIGURACIÓN
+│   ├── CONFIGURACION_CONEXION_BACKEND.md ← Setup React + variables entorno
+│   └── MANEJO_COOKIES_HTTPONLY.md        ← Auth con cookies httpOnly
+│
+├── 🔐 AUTENTICACIÓN
+│   ├── AUTH_AND_FLOWS.md                 ← Flujos de login/registro
+│   └── FLUJO_REGISTRO_VERIFICACION.md    ← Registro paso a paso
+│
+├── 📖 REFERENCIAS
+│   ├── ENDPOINTS_CATALOG.md              ← TODOS los endpoints
+│   ├── ERRORS_AND_LIMITS.md              ← Manejo de errores
+│   └── COMPATIBILITY_ALIASES.md          ← Alias de endpoints
+│
+├── 🎮 GAME DASHBOARD (carpeta)
+│   ├── 00_INDICE.md                      ← Índice de la carpeta
+│   ├── DASHBOARD_Y_TEAMS.md              ← Dashboard principal
+│   ├── INVENTARIO_Y_PERSONAJES.md        ← Gestión de items/chars
+│   ├── PERSONAJES_Y_MODELOS_3D.md        ← Three.js + modelos .glb
+│   ├── SELECCION_MODO.md                 ← Elegir modo de juego
+│   ├── COMBATE_Y_DUNGEONS.md             ← Dungeons + Survival
+│   ├── MARKETPLACE_P2P.md                ← Compra/venta P2P
+│   ├── TIENDA_Y_PAQUETES.md              ← Comprar con dinero real
+│   ├── PERFIL_Y_CONFIGURACION.md         ← Settings del usuario
+│   ├── WEBSOCKET_EVENTS.md               ← Eventos real-time
+│   └── WEBSOCKET_LISTENERS.md            ← Cómo escuchar eventos
+│
+└── 📋 OTROS
+    ├── CHECKLIST_INTEGRACION.md          ← Verificar integración
+    └── VENTAJAS_Y_CARACTERISTICAS.md     ← Features del producto
 ```
 
 ---
 
-## 🎓 Estrategia de Lectura por Perfil
+## ⚡ QUICK START (si tienes prisa)
 
-### Si eres Frontend Junior:
-1. Lee **TODO en orden** (docs #1-17)
-2. No te saltes nada, especialmente Setup y Auth
-3. Implementa paso a paso siguiendo los ejemplos de código
-4. Tiempo estimado: 2-3 semanas para setup + features básicos
+### Opción A: Seguir las fases (recomendado)
+```
+1. Abre FASES_DESARROLLO_FRONTEND.md
+2. Lee los 4 documentos de FASE 1
+3. Implementa Auth
+4. Continúa con FASE 2, 3, 4...
+```
 
-### Si eres Frontend Senior:
-1. Lee docs #1-2 (orientación)
-2. Hojea rápido #3-5 (setup/auth/errors) si ya conoces Angular 17
-3. Lee en profundidad #6-9 (endpoints + WebSocket)
-4. Consulta docs #10-17 bajo demanda según features a implementar
-5. Tiempo estimado: 4-5 días para setup + features básicos
+### Opción B: Setup mínimo en 2 horas
+```bash
+# 1. Crear proyecto
+npm create vite@latest valgame-frontend -- --template react-ts
+cd valgame-frontend
+npm install
 
-### Si eres Tech Lead:
-1. Lee #1 (README) + #2 (CHECKLIST)
-2. Revisa #6 (catálogo completo de endpoints)
-3. Hojea #8-9 (WebSocket) para entender arquitectura real-time
-4. Asigna docs #10-17 a tu equipo según sprint planning
-5. Tiempo estimado: 1-2 horas de lectura + planning con equipo
+# 2. Configurar .env
+echo "VITE_API_URL=http://localhost:8080" > .env
 
----
+# 3. Crear hook de API básico
+# (ver CONFIGURACION_CONEXION_BACKEND.md)
 
-## 📋 Checklist de Lectura
-
-Marca conforme vayas avanzando:
-
-### Orientación
-- [ ] `README.md` - Entender estructura general
-- [ ] `CHECKLIST_INTEGRACION.md` - Plan de trabajo
-
-### Setup Inicial
-- [ ] `03_SETUP_ANGULAR17_THREEJS.md` - Configurar proyecto
-- [ ] `AUTH_AND_FLOWS.md` - Implementar auth
-- [ ] `ERRORS_AND_LIMITS.md` - Manejo de errores
-
-### Referencias (tener abiertas)
-- [ ] `ENDPOINTS_CATALOG.md` - Consulta permanente
-- [ ] `COMPATIBILITY_ALIASES.md` - Endpoints canónicos
-
-### Real-time
-- [ ] `WEBSOCKET_LISTENERS_GUIDE.md` - Configurar WS
-- [ ] `WEBSOCKET_EVENT_SPEC.md` - Especificación eventos
-
-### Features (bajo demanda)
-- [ ] `05_TIENDA_Y_PAQUETES.md` - Onboarding + compras
-- [ ] `06-Marketplace-P2P.md` - Marketplace P2P
-- [ ] `11_COMBATE_Y_DUNGEONS.md` - Dungeons + Rankings
-- [ ] `FLUJO_REGISTRO_VERIFICACION.md` - Flujo completo de registro
-- [ ] `MANEJO_COOKIES_HTTPONLY.md` - Cookies HttpOnly
-- [ ] `VENTAJAS_Y_CARACTERISTICAS.md` - Características del producto
+# 4. Implementar login
+# (ver MANEJO_COOKIES_HTTPONLY.md)
+```
 
 ---
 
-## 🔥 Quick Start (si tienes prisa)
+## 📋 RESUMEN DE LAS 8 FASES
 
-**Objetivo**: Login funcional en 2 horas
+| Fase | Qué hacer | Documentos clave | Tiempo |
+|------|-----------|------------------|--------|
+| **1** | Auth (login, registro, logout) | CONFIGURACION_CONEXION_BACKEND, MANEJO_COOKIES_HTTPONLY, AUTH_AND_FLOWS | 1-2 sem |
+| **2** | Dashboard (ver recursos, personajes) | DASHBOARD_Y_TEAMS, ENDPOINTS_CATALOG | 1 sem |
+| **3** | Gestión personajes (equipar, curar, revivir) | INVENTARIO_Y_PERSONAJES, COMBATE_Y_DUNGEONS | 1-2 sem |
+| **4** | Selección de modo | SELECCION_MODO | 3-5 días |
+| **5** | Modo Dungeons (combate automático) | COMBATE_Y_DUNGEONS | 1 sem |
+| **6** | Modo Survival (Three.js) | COMBATE_Y_DUNGEONS, PERSONAJES_Y_MODELOS_3D | 3-4 sem |
+| **7** | Marketplace | MARKETPLACE_P2P | 1-2 sem |
+| **8** | Extras (tienda, rankings, chat) | TIENDA_Y_PAQUETES, WEBSOCKET_EVENTS | 2-4 sem |
 
-1. Crea proyecto Angular: `ng new valgame-frontend --standalone`
-2. Lee **SOLO** estas secciones:
-   - `03_SETUP_ANGULAR17_THREEJS.md` → "Instalación de dependencias"
-   - `AUTH_AND_FLOWS.md` → "Endpoints de Auth" + "Ejemplo de AuthService"
-3. Implementa:
-   ```typescript
-   // auth.service.ts
-   login(email: string, password: string) {
-     return this.http.post<AuthResponse>('https://api.valgame.com/auth/login', { email, password });
-   }
-   ```
-4. Guarda token en localStorage
-5. Crea `AuthGuard` básico
-6. **Resultado**: Login funcional en 2 horas
-
-Después, vuelve al flujo completo y lee el resto de documentación.
+**Ver detalle completo en** → [FASES_DESARROLLO_FRONTEND.md](./FASES_DESARROLLO_FRONTEND.md)
 
 ---
 
 ## ❓ FAQ
 
-**P: ¿Debo leer los 17 documentos antes de escribir código?**  
-R: No. Lee #1-5, luego implementa Setup+Auth. Después lee #6-9 y trabaja en WebSocket. Docs #10-17 léelos cuando vayas a implementar ese feature específico.
+**P: ¿Debo leer todos los documentos antes de codear?**  
+R: No. Sigue las fases. Cada fase te dice exactamente qué documentos leer.
 
-**P: ¿Qué documento es el más importante?**  
-R: `03_SETUP_ANGULAR17_THREEJS.md` y `AUTH_AND_FLOWS.md`. Sin estos dos, no puedes avanzar.
+**P: ¿Cuál es el documento más importante?**  
+R: [FASES_DESARROLLO_FRONTEND.md](./FASES_DESARROLLO_FRONTEND.md) - es tu guía maestra.
 
-**P: ¿Cuándo consulto `ENDPOINTS_CATALOG.md`?**  
-R: Cada vez que necesites saber qué endpoint llamar. Es tu diccionario de APIs.
+**P: ¿Dónde busco un endpoint específico?**  
+R: En [ENDPOINTS_CATALOG.md](./ENDPOINTS_CATALOG.md) - usa Ctrl+F.
 
-**P: ¿Y si encuentro un endpoint no documentado?**  
-R: Posible (cobertura ~80%), si pasa, revisa `COMPATIBILITY_ALIASES.md` por si es un alias, o el código backend en `src/routes/`.
+**P: ¿Qué framework frontend uso?**  
+R: **React + TypeScript + Vite**. Para 3D usa **Three.js**.
 
-**P: ¿Qué hago con los archivos "obsoletos" que menciona README?**  
-R: Ignóralos. Ya fueron archivados o eliminados. Solo trabaja con los 17 documentos listados aquí.
-
----
-
-## 🆘 Soporte
-
-Si encuentras inconsistencias o faltan detalles:
-1. Revisa primero `ENDPOINTS_CATALOG.md` (puede tener info adicional)
-2. Chequea `COMPATIBILITY_ALIASES.md` (por si usas el alias en vez del canónico)
-3. Busca en `WEBSOCKET_EVENT_SPEC.md` (si es un evento real-time)
-4. Último recurso: Revisa código backend en `src/routes/` para ver implementación exacta
+**P: ¿El backend ya está listo?**  
+R: Sí, corre en `localhost:8080`. Solo necesitas implementar el frontend.
 
 ---
 
-## 🎯 Meta Final
+## 🚀 SIGUIENTE PASO
 
-Al terminar de leer estos 17 documentos y seguir el orden de implementación, tendrás:
+**Abre ahora** → [FASES_DESARROLLO_FRONTEND.md](./FASES_DESARROLLO_FRONTEND.md)
 
-✅ Login/registro funcional con JWT  
-✅ WebSocket conectado y escuchando eventos  
-✅ Onboarding con Paquete Pionero  
-✅ Marketplace P2P con compra/venta de items  
-✅ Dungeons RPG con combate y rankings  
-✅ Survival mode con oleadas y canjes  
-✅ Manejo consistente de errores y rate limits  
-
-**Tiempo total**: 2-3 semanas (frontend completo funcional)
+Ese documento te guiará fase por fase hasta completar el frontend.
 
 ---
 
-**Última Actualización**: 18 de diciembre de 2025  
-**Autor**: GitHub Copilot Agent  
-**Estado**: ✅ Documentación actualizada y verificada contra código
+**Última Actualización**: Febrero 2026  
+**Framework**: React + TypeScript + Vite + Three.js
 

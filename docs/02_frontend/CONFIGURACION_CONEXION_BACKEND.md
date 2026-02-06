@@ -45,43 +45,49 @@ http://127.0.0.1:8080  ❌ (Usa localhost)
 
 ---
 
-### ⚙️ **Configuración Rápida en AuthService**
+### ⚙️ **Configuración Rápida - Hook useAuth (React)**
 
-```typescript
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+```tsx
+// hooks/useAuth.ts
+import { useCallback } from 'react';
 
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  // ✅ URL base usando localhost (NO 127.0.0.1)
-  private apiUrl = 'http://localhost:8080';
+// ✅ URL base usando localhost (NO 127.0.0.1)
+const API_URL = 'http://localhost:8080';
 
-  constructor(private http: HttpClient) {}
-
-  register(data: any) {
+export function useAuth() {
+  const register = useCallback(async (data: { email: string; username: string; password: string }) => {
     // ✅ Ruta pública sin /api/
-    return this.http.post(`${this.apiUrl}/auth/register`, data, {
-      withCredentials: true  // ⚠️ OBLIGATORIO para cookies
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',  // ⚠️ OBLIGATORIO para cookies
+      body: JSON.stringify(data)
     });
-  }
+    return response.json();
+  }, []);
 
-  login(credentials: any) {
-    return this.http.post(`${this.apiUrl}/auth/login`, credentials, {
-      withCredentials: true
+  const login = useCallback(async (credentials: { email: string; password: string }) => {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(credentials)
     });
-  }
+    return response.json();
+  }, []);
 
-  getCurrentUser() {
+  const getCurrentUser = useCallback(async () => {
     // ✅ CORRECTO: ruta protegida con /api/
-    return this.http.get(`${this.apiUrl}/api/users/me`, {
-      withCredentials: true
+    const response = await fetch(`${API_URL}/api/users/me`, {
+      credentials: 'include'
     });
-  }
+    return response.json();
+  }, []);
 
   // ❌ INCORRECTO:
-  // getCurrentUser() {
-  //   return this.http.get(`${this.apiUrl}/auth/me`);  ❌
-  // }
+  // const getCurrentUser = () => fetch(`${API_URL}/auth/me`);  ❌
+
+  return { register, login, getCurrentUser };
 }
 ```
 
@@ -182,156 +188,155 @@ export const environment = {
 
 ---
 
-**Archivo**: `src/environments/environment.prod.ts` (Producción)
+**Archivo**: `.env.production` (Producción)
 
-```typescript
-export const environment = {
-  production: true,
-  apiUrl: 'https://valgame-backend.onrender.com',
-  wsUrl: 'wss://valgame-backend.onrender.com'
-};
+```env
+VITE_API_URL=https://valgame-backend.onrender.com
+VITE_WS_URL=wss://valgame-backend.onrender.com
 ```
 
 ---
 
-### Paso 2: Configurar angular.json
+### Paso 2: Configurar vite.config.ts
 
-**Archivo**: `angular.json`
+**Archivo**: `vite.config.ts`
 
-```json
-{
-  "projects": {
-    "tu-proyecto": {
-      "architect": {
-        "build": {
-          "configurations": {
-            "production": {
-              "fileReplacements": [
-                {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.prod.ts"
-                }
-              ],
-              "optimization": true,
-              "outputHashing": "all",
-              "sourceMap": false,
-              "namedChunks": false,
-              "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true
-            },
-            "development": {
-              "optimization": false,
-              "extractLicenses": false,
-              "sourceMap": true,
-              "namedChunks": true
-            }
-          },
-          "defaultConfiguration": "production"
+```typescript
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  return {
+    plugins: [react()],
+    define: {
+      // Disponible en import.meta.env.VITE_*
+    },
+    build: {
+      outDir: 'dist',
+      sourcemap: mode === 'development',
+      minify: mode === 'production' ? 'esbuild' : false,
+    },
+    server: {
+      port: 5173,
+      // Proxy solo para desarrollo
+      proxy: mode === 'development' ? {
+        '/auth': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
         },
-        "serve": {
-          "configurations": {
-            "production": {
-              "buildTarget": "tu-proyecto:build:production"
-            },
-            "development": {
-              "buildTarget": "tu-proyecto:build:development"
-            }
-          },
-          "defaultConfiguration": "development"
-        }
-      }
-    }
-  }
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      } : undefined,
+    },
+  };
+});
+```
+
+---
+
+### Paso 3: Usar en tus hooks (React)
+
+**Archivo**: `src/hooks/useAuth.ts`
+
+```tsx
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+export function useAuth() {
+  const register = async (data: { email: string; username: string; password: string }) => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  };
+
+  const login = async (credentials: { email: string; password: string }) => {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(credentials)
+    });
+    return response.json();
+  };
+
+  const logout = async () => {
+    const response = await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    return response.json();
+  };
+
+  const verifyEmail = async (token: string) => {
+    const response = await fetch(`${API_URL}/auth/verify/${token}`, {
+      credentials: 'include'
+    });
+    return response.json();
+  };
+
+  const forgotPassword = async (email: string) => {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email })
+    });
+    return response.json();
+  };
+
+  const resetPassword = async (token: string, password: string) => {
+    const response = await fetch(`${API_URL}/auth/reset-password/${token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ password })
+    });
+    return response.json();
+  };
+
+  const validateResetToken = async (token: string) => {
+    const response = await fetch(`${API_URL}/auth/reset-password/validate/${token}`, {
+      credentials: 'include'
+    });
+    return response.json();
+  };
+
+  const restoreSession = async () => {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      credentials: 'include'
+    });
+    return response.json();
+  };
+
+  return {
+    register, login, logout, verifyEmail,
+    forgotPassword, resetPassword, validateResetToken, restoreSession
+  };
 }
 ```
 
 ---
 
-### Paso 3: Usar en tus servicios
+### Paso 4: Comandos para correr (Vite)
 
-**Archivo**: `src/app/services/auth.service.ts`
-
-```typescript
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class AuthService {
-  private apiUrl = environment.apiUrl;
-
-  constructor(private http: HttpClient) {}
-
-  register(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/register`, data, {
-      withCredentials: true
-    });
-  }
-
-  login(credentials: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/login`, credentials, {
-      withCredentials: true
-    });
-  }
-
-  logout(): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/logout`, {}, {
-      withCredentials: true
-    });
-  }
-
-  verifyEmail(token: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/auth/verify/${token}`, {
-      withCredentials: true
-    });
-  }
-
-  forgotPassword(email: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email }, {
-      withCredentials: true
-    });
-  }
-
-  resetPassword(token: string, password: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/reset-password/${token}`, { password }, {
-      withCredentials: true
-    });
-  }
-
-  validateResetToken(token: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/auth/reset-password/validate/${token}`, {
-      withCredentials: true
-    });
-  }
-
-  restoreSession(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/auth/me`, {
-      withCredentials: true
-    });
-  }
-}
-```
-
----
-
-### Paso 4: Comandos para correr
-
-**Desarrollo (usa environment.ts - localhost):**
+**Desarrollo (usa .env - localhost):**
 ```bash
-ng serve
+npm run dev
 # o
-npm start
+yarn dev
 ```
 
-**Producción (usa environment.prod.ts - Render):**
+**Producción (usa .env.production - Render):**
 ```bash
-ng serve --configuration=production
-# o para build:
-ng build --configuration=production
+npm run build
+npm run preview
 ```
 
 ---
@@ -382,202 +387,224 @@ ng build --configuration=production
 
 ---
 
-### Paso 2: Configurar angular.json
+### Paso 2: Configurar vite.config.ts
 
-**Archivo**: `angular.json`
-
-```json
-{
-  "projects": {
-    "tu-proyecto": {
-      "architect": {
-        "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
-          "options": {
-            "proxyConfig": "proxy.conf.json"
-          },
-          "configurations": {
-            "production": {
-              "buildTarget": "tu-proyecto:build:production"
-            },
-            "development": {
-              "buildTarget": "tu-proyecto:build:development"
-            }
-          },
-          "defaultConfiguration": "development"
-        }
-      }
-    }
-  }
-}
-```
-
----
-
-### Paso 3: Actualizar servicios (rutas relativas)
-
-**Archivo**: `src/app/services/auth.service.ts`
+**Archivo**: `vite.config.ts`
 
 ```typescript
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-@Injectable({
-  providedIn: 'root'
-})
-export class AuthService {
-  // ✅ Sin URL base - usa proxy
-  constructor(private http: HttpClient) {}
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/auth': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true, // Importante para WebSockets
+      },
+    },
+  },
+});
+```
 
-  register(data: any): Observable<any> {
+---
+
+### Paso 3: Hook con proxy (rutas relativas) - React
+
+**Archivo**: `src/hooks/useAuth.ts`
+
+```tsx
+// ✅ Sin URL base - usa proxy de Vite
+export function useAuth() {
+  const register = async (data: { email: string; username: string; password: string }) => {
     // ✅ Ruta relativa - proxy redirige a localhost:8080
-    return this.http.post('/auth/register', data, {
-      withCredentials: true
+    const response = await fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
     });
-  }
+    return response.json();
+  };
 
-  login(credentials: any): Observable<any> {
-    return this.http.post('/auth/login', credentials, {
-      withCredentials: true
+  const login = async (credentials: { email: string; password: string }) => {
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(credentials)
     });
-  }
+    return response.json();
+  };
 
-  logout(): Observable<any> {
-    return this.http.post('/auth/logout', {}, {
-      withCredentials: true
+  const logout = async () => {
+    const response = await fetch('/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
     });
-  }
+    return response.json();
+  };
+
+  return { register, login, logout };
 }
 ```
 
 ---
 
-### Paso 4: Iniciar servidor
+### Paso 4: Iniciar servidor (Vite)
 
 ```bash
-ng serve
+npm run dev
 ```
 
 **Consola mostrará:**
 ```
-** Angular Live Development Server is listening on localhost:4200
-** Proxy config: proxy.conf.json
+VITE v5.x.x  ready in xxx ms
 
-[HPM] Proxy created: /auth  -> http://localhost:8080
-[HPM] Proxy created: /api   -> http://localhost:8080
+➜  Local:   http://localhost:5173/
+➜  Proxy:   /auth, /api → http://localhost:8080
 ```
 
 ---
 
 ### Para Producción (sin proxy)
 
-Cuando hagas build para producción, Angular NO usa el proxy. Debes configurar la URL completa:
+Cuando hagas build para producción, Vite NO usa el proxy. Debes configurar la URL completa:
 
-**Opción A: Variable de entorno**
+**Opción A: Variable de entorno (.env.production)**
 
-```typescript
-// src/environments/environment.prod.ts
-export const environment = {
-  production: true,
-  apiUrl: 'https://valgame-backend.onrender.com'
-};
-
-// src/app/services/auth.service.ts
-import { environment } from '../../environments/environment';
-
-export class AuthService {
-  private apiUrl = environment.production ? environment.apiUrl : '';
-  
-  register(data: any) {
-    const url = this.apiUrl ? `${this.apiUrl}/auth/register` : '/auth/register';
-    return this.http.post(url, data, { withCredentials: true });
-  }
-}
+```env
+# .env.production
+VITE_API_URL=https://valgame-backend.onrender.com
 ```
 
-**Opción B: Variable de Angular en runtime**
+```tsx
+// src/hooks/useAuth.ts
+const API_URL = import.meta.env.VITE_API_URL || '';
 
-```typescript
-// src/app/services/auth.service.ts
-import { isDevMode } from '@angular/core';
-
-export class AuthService {
-  private apiUrl = isDevMode() ? '' : 'https://valgame-backend.onrender.com';
-  
-  register(data: any) {
-    const url = `${this.apiUrl}/auth/register`;
-    return this.http.post(url, data, { withCredentials: true });
-  }
-}
-```
-
----
-
-## 🔧 HTTP Interceptor (Importante)
-
-Para que las cookies funcionen, necesitas un interceptor que agregue `withCredentials: true` a TODAS las peticiones.
-
-**Archivo**: `src/app/interceptors/credentials.interceptor.ts`
-
-```typescript
-import { Injectable } from '@angular/core';
-import {
-  HttpInterceptor,
-  HttpRequest,
-  HttpHandler,
-  HttpEvent
-} from '@angular/common/http';
-import { Observable } from 'rxjs';
-
-@Injectable()
-export class CredentialsInterceptor implements HttpInterceptor {
-  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    // Clonar request y agregar withCredentials
-    const clonedRequest = req.clone({
-      withCredentials: true
+export function useAuth() {
+  const register = async (data: any) => {
+    const url = `${API_URL}/auth/register`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
     });
-    
-    return next.handle(clonedRequest);
+    return response.json();
+  };
+  
+  // ... otros métodos
+}
+```
+
+**Opción B: Detección de entorno en runtime**
+
+```tsx
+// src/config/api.ts
+const isDev = import.meta.env.DEV;
+export const API_URL = isDev ? '' : 'https://valgame-backend.onrender.com';
+
+// src/hooks/useAuth.ts
+import { API_URL } from '../config/api';
+
+export function useAuth() {
+  const register = async (data: any) => {
+    const url = `${API_URL}/auth/register`;
+    return this.http.post(url, data, { withCredentials: true });
   }
 }
 ```
 
 ---
 
-**Registrar en app.config.ts:**
+## 🔧 Hook useApi (Importante)
+
+Para que las cookies funcionen, creamos un hook centralizado que agregue `credentials: 'include'` a TODAS las peticiones.
+
+**Archivo**: `src/hooks/useApi.ts`
 
 ```typescript
-import { ApplicationConfig } from '@angular/core';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { CredentialsInterceptor } from './interceptors/credentials.interceptor';
+import { useCallback } from 'react';
 
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideHttpClient(
-      withInterceptors([CredentialsInterceptor])
-    )
-  ]
-};
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+export function useApi() {
+  // Función base que siempre incluye credentials
+  const fetchWithCredentials = useCallback(async (
+    endpoint: string,
+    options: RequestInit = {}
+  ) => {
+    const url = `${API_URL}${endpoint}`;
+    
+    const response = await fetch(url, {
+      ...options,
+      credentials: 'include', // ✅ Siempre envía cookies
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }, []);
+
+  const get = useCallback((endpoint: string) => 
+    fetchWithCredentials(endpoint), [fetchWithCredentials]);
+
+  const post = useCallback((endpoint: string, data: unknown) => 
+    fetchWithCredentials(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }), [fetchWithCredentials]);
+
+  const put = useCallback((endpoint: string, data: unknown) => 
+    fetchWithCredentials(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }), [fetchWithCredentials]);
+
+  const del = useCallback((endpoint: string) => 
+    fetchWithCredentials(endpoint, { method: 'DELETE' }), [fetchWithCredentials]);
+
+  return { get, post, put, del, fetchWithCredentials };
+}
 ```
 
-**O en app.module.ts (si usas módulos):**
+---
 
-```typescript
-import { NgModule } from '@angular/core';
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
-import { CredentialsInterceptor } from './interceptors/credentials.interceptor';
+**Usar en cualquier componente o hook:**
 
-@NgModule({
-  providers: [
-    {
-      provide: HTTP_INTERCEPTORS,
-      useClass: CredentialsInterceptor,
-      multi: true
-    }
-  ]
-})
-export class AppModule { }
+```tsx
+// Ejemplo de uso en un componente
+import { useApi } from '../hooks/useApi';
+
+function MyComponent() {
+  const { post, get } = useApi();
+
+  const handleLogin = async (credentials: LoginData) => {
+    const result = await post('/auth/login', credentials);
+    // Cookie se guarda automáticamente
+    console.log('Login exitoso:', result);
+  };
+
+  return <button onClick={() => handleLogin({ email, password })}>Login</button>;
+}
 ```
 
 ---
@@ -601,28 +628,28 @@ export class AppModule { }
 cd valgame-backend
 npm start
 
-# Terminal 2: Frontend
+# Terminal 2: Frontend (Vite)
 cd valgame-frontend
-ng serve
+npm run dev
 ```
 
 **Configuración:**
-- ✅ Proxy: `proxy.conf.json` → `http://localhost:8080`
-- ✅ Interceptor: `CredentialsInterceptor` para cookies
-- ✅ Rutas relativas en servicios (`/auth/register`)
+- ✅ Proxy: `vite.config.ts` → `http://localhost:8080`
+- ✅ Hook useApi: `credentials: 'include'` para cookies
+- ✅ Rutas relativas en hooks (`/auth/register`)
 
 ---
 
 ### 2. Build Producción
 
 ```bash
-ng build --configuration=production
+npm run build
 ```
 
 **Configuración:**
-- ✅ Environment: `environment.prod.ts` → `https://valgame-backend.onrender.com`
+- ✅ Environment: `VITE_API_URL` → `https://valgame-backend.onrender.com`
 - ✅ URLs absolutas desde variable de entorno
-- ✅ Interceptor sigue funcionando
+- ✅ Hook useApi sigue funcionando
 
 ---
 
@@ -685,12 +712,16 @@ POST http://localhost:8080/api/auth/register 404 (Not Found)
 **Solución**:
 ```typescript
 // ❌ INCORRECTO
-private apiUrl = 'http://localhost:8080/api';
-this.http.get(`${this.apiUrl}/users/me`);  // → /api/users/me ❌
+const apiUrl = 'http://localhost:8080/api';
+await fetch(`${apiUrl}/users/me`);  // → /api/users/me ❌
 
 // ✅ CORRECTO
-private apiUrl = 'http://localhost:8080';
-this.http.get(`${this.apiUrl}/auth/me`);  // → /auth/me ✅
+const apiUrl = 'http://localhost:8080';
+await fetch(`${apiUrl}/auth/me`, { credentials: 'include' });  // → /auth/me ✅
+```
+
+---
+
 ## 📝 Checklist Final
 
 ### Desarrollo Local
@@ -706,15 +737,12 @@ this.http.get(`${this.apiUrl}/auth/me`);  // → /auth/me ✅
 - [ ] URL es `http://localhost:8080` (NO `127.0.0.1`)
 - [ ] **NO usar** prefijo `/api/` en las rutas
 - [ ] Rutas correctas: `/auth/login`, `/auth/register`, `/auth/me`
-- [ ] `withCredentials: true` en TODAS las peticiones
-- [ ] `proxy.conf.json` creado (si usas proxy)
-- [ ] `angular.json` configurado con `proxyConfig`
-- [ ] Interceptor `CredentialsInterceptor` registrado
-- [ ] Servicios usan rutas correctas (sin `/api/`)
+- [ ] `credentials: 'include'` en TODAS las peticiones fetch
+- [ ] `vite.config.ts` configurado con proxy (si usas proxy)
+- [ ] Hook `useApi` centralizado para todas las peticiones
 
 **Frontend - Verificación:**
-- [ ] `ng serve` inicia sin errores
-- [ ] Ver en logs (si usas proxy): `[HPM] Proxy created: /auth -> http://localhost:8080`
+- [ ] `npm run dev` inicia sin errores (Vite)
 - [ ] Abrir DevTools → Network → Ver peticiones a `/auth/*`
 - [ ] Status debe ser `200`, `201`, `400`, etc. (NO `0` ni `404`)
 - [ ] No ver errores `ERR_CONNECTION_REFUSED`
@@ -728,19 +756,24 @@ this.http.get(`${this.apiUrl}/auth/me`);  // → /auth/me ✅
 - [ ] Primera petición puede tardar 30-60s (backend despierta)
 
 **Frontend:**
-- [ ] `environment.prod.ts` con URL: `https://valgame-backend.onrender.com`
-- [ ] Servicios usan `environment.apiUrl`
-- [ ] Build con: `ng build --configuration=production`
+- [ ] `.env.production` con: `VITE_API_URL=https://valgame-backend.onrender.com`
+- [ ] Hooks usan `import.meta.env.VITE_API_URL`
+- [ ] Build con: `npm run build`
 - [ ] CORS configurado en backend con dominio del frontend
 - [ ] No usar proxy en producción (solo desarrollo)
 - [ ] Rutas siguen siendo `/auth/*` (sin `/api/`)
+
+---
+
+### ❌ Error: CORS
+
 **Causa**: El backend no permite tu origen.
 
 **Solución**:
 ```typescript
 // Backend: src/app.ts
 app.use(cors({
-  origin: ['http://localhost:4200', 'https://tu-frontend.com'],
+  origin: ['http://localhost:5173', 'https://tu-frontend.com'],
   credentials: true
 }));
 ```
@@ -794,35 +827,32 @@ npm start
 
 ### ❌ Cookies no se guardan
 
-**Causa**: Falta `withCredentials: true`.
+**Causa**: Falta `credentials: 'include'`.
 
 **Verificar en DevTools:**
 ```
-Application → Cookies → http://localhost:4200
+Application → Cookies → http://localhost:5173
 ```
 
 **Solución**:
 ```typescript
 // ✅ Opción 1: En cada petición
-this.http.post('/auth/login', data, {
-  withCredentials: true
+const response = await fetch('/auth/login', {
+  method: 'POST',
+  credentials: 'include', // ✅ Importante
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data),
 });
 
-// ✅ Opción 2: Interceptor (mejor)
-@Injectable()
-export class CredentialsInterceptor implements HttpInterceptor {
-  intercept(req: HttpRequest<any>, next: HttpHandler) {
-    const cloned = req.clone({ withCredentials: true });
-    return next.handle(cloned);
-  }
-}
+// ✅ Opción 2: Hook useApi centralizado (mejor)
+// Ver sección "Hook useApi" arriba
 ```
 
 **Verificar en el backend:**
 ```typescript
 // Backend debe tener:
 app.use(cors({
-  origin: 'http://localhost:4200',
+  origin: 'http://localhost:5173',
   credentials: true  // ⚠️ OBLIGATORIO
 }));
 ```
@@ -831,27 +861,31 @@ app.use(cors({
 
 ### ❌ Proxy no funciona
 
-**Causa**: Angular no cargó `proxy.conf.json`.
+**Causa**: Vite no cargó la configuración de proxy.
 
 **Solución**:
 ```bash
 # 1. Detener servidor
 Ctrl + C
 
-# 2. Verificar que proxy.conf.json existe
-ls proxy.conf.json
+# 2. Verificar vite.config.ts tiene la sección proxy
+cat vite.config.ts
 
-# 3. Verificar angular.json
-# Debe tener: "proxyConfig": "proxy.conf.json"
+# Debe tener:
+# server: {
+#   proxy: {
+#     '/auth': 'http://localhost:8080',
+#     '/api': 'http://localhost:8080'
+#   }
+# }
 
-# 4. Reiniciar con proxy
-ng serve
+# 3. Reiniciar Vite
+npm run dev
 
-# 5. Verificar logs (DEBE aparecer):
-[HPM] Proxy created: /auth  -> http://localhost:8080
-[HPM] Proxy created: /api   -> http://localhost:8080
+# 4. Verificar logs (debe mostrar puerto 5173)
+  VITE v5.x.x  ready in xxx ms
 
-# Si NO aparecen los logs [HPM], el proxy NO está activo
+  ➜  Local:   http://localhost:5173/
 ```
 
 ---
@@ -882,13 +916,13 @@ curl http://localhost:8080/health
 # Si funciona → revisar CORS
 
 # 2. Verificar CORS en backend
-# Debe permitir: http://localhost:4200
+# Debe permitir: http://localhost:5173
 
 # 3. Verificar URL en frontend
 # Debe ser: http://localhost:8080 (NO 127.0.0.1)
 
-# 4. Verificar withCredentials
-# Debe estar en: true
+# 4. Verificar credentials
+# Debe estar: credentials: 'include'
 ```
 
 ---
@@ -898,17 +932,16 @@ curl http://localhost:8080/health
 ### Desarrollo Local
 
 - [ ] Backend corriendo en `http://localhost:8080`
-- [ ] `proxy.conf.json` creado
-- [ ] `angular.json` configurado con proxy
-- [ ] Interceptor `CredentialsInterceptor` registrado
-- [ ] Servicios usan rutas relativas (`/auth/login`)
-- [ ] `ng serve` muestra logs de proxy
+- [ ] `vite.config.ts` configurado con proxy
+- [ ] Hook `useApi` centralizado para peticiones
+- [ ] Hooks usan rutas relativas (`/auth/login`)
+- [ ] `npm run dev` inicia sin errores
 
 ### Producción
 
-- [ ] `environment.prod.ts` con URL de Render
-- [ ] Servicios usan `environment.apiUrl`
-- [ ] Build con `ng build --configuration=production`
+- [ ] `.env.production` con `VITE_API_URL` de Render
+- [ ] Hooks usan `import.meta.env.VITE_API_URL`
+- [ ] Build con `npm run build`
 - [ ] Backend en Render responde correctamente
 - [ ] CORS configurado con dominio del frontend
 
@@ -920,118 +953,143 @@ curl http://localhost:8080/health
 
 ```
 valgame-frontend/
-├── proxy.conf.json
-├── angular.json
+├── vite.config.ts
+├── .env                        # Desarrollo
+├── .env.production            # Producción
 ├── src/
-│   ├── environments/
-│   │   ├── environment.ts         # Local
-│   │   └── environment.prod.ts    # Producción
-│   ├── app/
-│   │   ├── interceptors/
-│   │   │   └── credentials.interceptor.ts
-│   │   ├── services/
-│   │   │   └── auth.service.ts
-│   │   └── app.config.ts
+│   ├── hooks/
+│   │   ├── useAuth.ts
+│   │   └── useApi.ts
+│   ├── components/
+│   └── App.tsx
 ```
 
 ---
 
-### proxy.conf.json
-```json
-{
-  "/auth": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "changeOrigin": true
+### vite.config.ts (Proxy desarrollo)
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/auth': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
-  "/api": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "changeOrigin": true
-  }
-}
+});
 ```
 
 ---
 
-### environment.ts (Desarrollo)
-```typescript
-export const environment = {
-  production: false,
-  apiUrl: '' // Usa proxy
-};
+### .env (Desarrollo)
+```env
+# Vacío o sin VITE_API_URL - usa proxy
 ```
 
 ---
 
-### environment.prod.ts (Producción)
-```typescript
-export const environment = {
-  production: true,
-  apiUrl: 'https://valgame-backend.onrender.com'
-};
+### .env.production (Producción)
+```env
+VITE_API_URL=https://valgame-backend.onrender.com
 ```
 
 ---
 
-### auth.service.ts
+### useAuth.ts (Hook de autenticación)
 ```typescript
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../environments/environment';
+// src/hooks/useAuth.ts
+import { useState, useCallback } from 'react';
 
-@Injectable({ providedIn: 'root' })
-export class AuthService {
-  private apiUrl = environment.apiUrl;
+const API_URL = import.meta.env.VITE_API_URL || '';
 
-  constructor(private http: HttpClient) {}
+export function useAuth() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  register(data: any) {
-    const url = this.apiUrl ? `${this.apiUrl}/auth/register` : '/auth/register';
-    return this.http.post(url, data);
-  }
+  const fetchWithCredentials = useCallback(async (endpoint: string, options: RequestInit = {}) => {
+    const url = API_URL ? `${API_URL}${endpoint}` : endpoint;
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+  }, []);
 
-  login(credentials: any) {
-    const url = this.apiUrl ? `${this.apiUrl}/auth/login` : '/auth/login';
-    return this.http.post(url, credentials);
-  }
-}
-```
-
----
-
-### credentials.interceptor.ts
-```typescript
-import { Injectable } from '@angular/core';
-import { HttpInterceptor, HttpRequest, HttpHandler } from '@angular/common/http';
-
-@Injectable()
-export class CredentialsInterceptor implements HttpInterceptor {
-  intercept(req: HttpRequest<any>, next: HttpHandler) {
-    const cloned = req.clone({ withCredentials: true });
-    return next.handle(cloned);
-  }
-}
-```
-
----
-
-### app.config.ts
-```typescript
-import { ApplicationConfig } from '@angular/core';
-import { provideHttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
-import { CredentialsInterceptor } from './interceptors/credentials.interceptor';
-
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideHttpClient(),
-    {
-      provide: HTTP_INTERCEPTORS,
-      useClass: CredentialsInterceptor,
-      multi: true
+  const register = useCallback(async (data: RegisterData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetchWithCredentials('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      return response.json();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error en registro');
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  ]
-};
+  }, [fetchWithCredentials]);
+
+  const login = useCallback(async (credentials: LoginCredentials) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetchWithCredentials('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+      return response.json();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error en login');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchWithCredentials]);
+
+  return { register, login, loading, error };
+}
+```
+
+---
+
+### vite.config.ts (Proxy para desarrollo)
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/auth': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
+});
 ```
 
 ---
@@ -1040,8 +1098,8 @@ export const appConfig: ApplicationConfig = {
 
 Con esta configuración:
 - ✅ **Desarrollo**: Proxy automático a `localhost:8080`
-- ✅ **Producción**: URLs a Render
-- ✅ **Cookies**: Funcionan con `withCredentials`
+- ✅ **Producción**: URLs a Render via `VITE_API_URL`
+- ✅ **Cookies**: Funcionan con `credentials: 'include'`
 - ✅ **CORS**: Resuelto automáticamente
 
 ---
@@ -1049,4 +1107,4 @@ Con esta configuración:
 **Última Actualización**: 3 de diciembre de 2025  
 **Backend Local**: http://localhost:8080  
 **Backend Producción**: https://valgame-backend.onrender.com  
-**Frontend Local**: http://localhost:4200
+**Frontend Local**: http://localhost:5173
