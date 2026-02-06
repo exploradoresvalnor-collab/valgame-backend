@@ -8,6 +8,11 @@ const router = (0, express_1.Router)();
 router.get('/', rankings_controller_1.getGlobalRanking); // GET /api/rankings?limit=100&periodo=global
 router.get('/leaderboard/:category', rankings_controller_1.getLeaderboardByCategory); // GET /api/rankings/leaderboard/level?page=0&limit=20
 router.get('/period/:periodo', rankings_controller_1.getRankingByPeriod); // GET /api/rankings/period/2025-W45
+// Alias: GET /api/rankings/period/:period → mapea a :periodo
+router.get('/period/:period', (req, res, next) => {
+    req.params.periodo = req.params.period;
+    return rankings_controller_1.getRankingByPeriod(req, res, next);
+});
 router.get('/stats', rankings_controller_1.getRankingStats); // GET /api/rankings/stats?periodo=global
 // Rutas protegidas (requieren autenticación)
 router.get('/me', auth_1.auth, rankings_controller_1.getUserRanking); // GET /api/rankings/me

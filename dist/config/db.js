@@ -6,6 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.connectDB = connectDB;
 exports.disconnectDB = disconnectDB;
 const mongoose_1 = __importDefault(require("mongoose"));
+const dns_1 = __importDefault(require("dns"));
+// Forzar DNS de Google para resolver registros SRV de MongoDB Atlas
+dns_1.default.setServers(['8.8.8.8', '8.8.4.4']);
 async function connectDB(uri = process.env.MONGODB_URI || '') {
     // Si ya estamos conectados o conectando, no hacer nada.
     if (mongoose_1.default.connection.readyState >= 1) {

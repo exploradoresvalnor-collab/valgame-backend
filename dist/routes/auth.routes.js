@@ -48,10 +48,17 @@ const security_1 = require("../config/security");
 const auth_1 = require("../middlewares/auth");
 const router = (0, express_1.Router)();
 // --- ZODY SCHEMAS ---
+// Política de contraseña: mínima y reglas de complejidad
+const PasswordSchema = zod_1.z.string()
+    .min(10, 'La contraseña debe tener al menos 10 caracteres')
+    .regex(/(?=.*[a-z])/, 'La contraseña debe contener una letra minúscula')
+    .regex(/(?=.*[A-Z])/, 'La contraseña debe contener una letra mayúscula')
+    .regex(/(?=.*\d)/, 'La contraseña debe contener un número')
+    .regex(/(?=.*\W)/, 'La contraseña debe contener un carácter especial');
 const RegisterSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     username: zod_1.z.string().min(3),
-    password: zod_1.z.string().min(6)
+    password: PasswordSchema
 });
 const LoginSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
@@ -64,7 +71,7 @@ const ForgotPasswordSchema = zod_1.z.object({
     email: zod_1.z.string().email()
 });
 const ResetPasswordSchema = zod_1.z.object({
-    password: zod_1.z.string().min(6)
+    password: PasswordSchema
 });
 // --- RUTA: POST /auth/register ---
 router.post('/register', async (req, res) => {
