@@ -8,12 +8,18 @@ import Category from '../models/Category';
 import BaseCharacter from '../models/BaseCharacter';
 import PurchaseLog from '../models/PurchaseLog';
 import { RealtimeService } from '../services/realtime.service';
+import { auth } from '../middlewares/auth';
 
 const router = Router();
 
+// Todas las rutas de user-packages requieren autenticación
+router.use(auth);
+
 // Abrir el siguiente paquete disponible del usuario (comodín E2E)
 router.post('/open', async (req, res) => {
-  const { userId } = req.body || {};
+  // Preferir userId autenticado, si no viene en el body
+  const { userId: bodyUserId } = req.body || {};
+  const userId = bodyUserId || (req as any).userId;
   if (!userId) return res.status(400).json({ error: 'Faltan datos.' });
 
   const session = await mongoose.startSession();

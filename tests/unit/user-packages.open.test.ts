@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../../src/app';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const { MongoMemoryReplSet } = require('mongodb-memory-server');
@@ -37,6 +37,16 @@ describe('POST /api/user-packages/:id/open', () => {
     await Category.deleteMany({}).exec();
     await BaseCharacter.deleteMany({}).exec();
     await PurchaseLog.deleteMany({}).exec();
+  });
+
+  it('returns 401 when called without token', async () => {
+    // Usar un id aleatorio; la ruta está protegida por auth middleware
+    const upId = new Types.ObjectId().toString();
+    const res = await request(app)
+      .post(`/api/user-packages/${upId}/open`)
+      .send();
+
+    expect(res.status).toBe(401);
   });
 
   it('opens a user package and grants rewards', async () => {
