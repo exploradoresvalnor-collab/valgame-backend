@@ -1,16 +1,45 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cancelMarketplaceListing = exports.buyItemFromMarketplace = exports.listItemInMarketplace = void 0;
 const User_1 = require("../models/User");
-const Listing_1 = __importDefault(require("../models/Listing"));
-const Item_1 = require("../models/Item");
 const mongoose_1 = require("mongoose");
+const marketplaceService = __importStar(require("../services/marketplace.service"));
 const listItemInMarketplace = async (req, res) => {
     try {
-        const { userId } = req.user;
+        const userId = req.userId || req.user?._id?.toString();
         const { itemId, precio, descripcion } = req.body;
         if (!itemId || !precio || precio <= 0) {
             res.status(400).json({ error: 'Invalid item or price' });
@@ -29,24 +58,21 @@ const listItemInMarketplace = async (req, res) => {
             res.status(403).json({ error: 'Item not in user inventory' });
             return;
         }
-        // Create listing
-        const listing = new Listing_1.default({
-            itemId: itemIdObj,
-            sellerId: new mongoose_1.Types.ObjectId(userId),
-            precio,
-            descripcion: descripcion || '',
-            estado: 'activo',
-            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-        });
-        await listing.save();
+        // Delegate to marketplace service which handles atomic listing, inventory updates and transaction audit
+        const sellerDoc = await User_1.User.findById(userId);
+        if (!sellerDoc) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+        const createdListing = await marketplaceService.listItem(sellerDoc, itemId, precio, false);
         res.status(201).json({
             exito: true,
             listing: {
-                id: listing._id,
-                itemId: listing.itemId,
-                sellerId: listing.sellerId,
-                precio: listing.precio,
-                estado: listing.estado
+                id: createdListing._id,
+                itemId: createdListing.itemId,
+                sellerId: createdListing.sellerId,
+                precio: createdListing.precio,
+                estado: createdListing.estado
             }
         });
     }
@@ -57,117 +83,41 @@ const listItemInMarketplace = async (req, res) => {
 exports.listItemInMarketplace = listItemInMarketplace;
 const buyItemFromMarketplace = async (req, res) => {
     try {
-        const { userId } = req.user;
+        const userId = req.userId || req.user?._id?.toString();
         const { listingId } = req.params;
-        // Validate listing exists
-        const listing = await Listing_1.default.findById(listingId);
-        if (!listing) {
-            res.status(404).json({ error: 'Listing not found' });
-            return;
-        }
-        if (listing.estado !== 'activo') {
-            res.status(400).json({ error: 'Listing is not active' });
-            return;
-        }
-        // Get buyer
         const buyer = await User_1.User.findById(userId);
         if (!buyer) {
             res.status(404).json({ error: 'Buyer not found' });
             return;
         }
-        // Get seller
-        const seller = await User_1.User.findById(listing.sellerId);
-        if (!seller) {
-            res.status(404).json({ error: 'Seller not found' });
-            return;
-        }
-        // Check buyer has sufficient funds
-        if (buyer.val < listing.precio) {
-            res.status(400).json({ error: 'Insufficient funds' });
-            return;
-        }
-        // Validate item exists
-        const item = await Item_1.Item.findById(listing.itemId);
-        if (!item) {
-            res.status(404).json({ error: 'Item not found' });
-            return;
-        }
-        // Calculate commission (5%)
-        const comision = Math.floor(listing.precio * 0.05);
-        const montoVendedor = listing.precio - comision;
-        // Transfer money
-        buyer.val -= listing.precio;
-        seller.val += montoVendedor;
-        // Transfer item
-        const itemIdObj = new mongoose_1.Types.ObjectId(listing.itemId.toString());
-        const sellerItemIndex = seller.inventarioEquipamiento.findIndex((id) => id.toString() === itemIdObj.toString());
-        if (sellerItemIndex !== -1) {
-            seller.inventarioEquipamiento.splice(sellerItemIndex, 1);
-        }
-        buyer.inventarioEquipamiento.push(itemIdObj);
-        // Mark listing as sold
-        listing.estado = 'vendido';
-        await Promise.all([buyer.save(), seller.save(), listing.save()]);
-        res.status(200).json({
-            exito: true,
-            transaccion: {
-                listingId: listing._id,
-                compradorId: userId,
-                vendedorId: listing.sellerId,
-                precioOriginal: listing.precio,
-                comision,
-                montoVendedor,
-                itemId: listing.itemId
-            }
-        });
+        // Delegate to marketplace service which performs atomic buy and auditing
+        const result = await marketplaceService.buyItem(buyer, listingId);
+        // Mantener compatibilidad con API antigua (propiedades en español)
+        res.status(200).json({ exito: true, transaccion: result.transaction || result });
     }
     catch (error) {
+        console.error('Error in buyItemFromMarketplace:', error);
         res.status(500).json({ error: error.message });
+        return;
     }
 };
 exports.buyItemFromMarketplace = buyItemFromMarketplace;
 const cancelMarketplaceListing = async (req, res) => {
     try {
-        const { userId } = req.user;
+        const userId = req.userId || req.user?._id?.toString();
         const { listingId } = req.params;
-        // Get listing
-        const listing = await Listing_1.default.findById(listingId);
-        if (!listing) {
-            res.status(404).json({ error: 'Listing not found' });
-            return;
-        }
-        // Verify user is seller
-        if (listing.sellerId.toString() !== userId) {
-            res.status(403).json({ error: 'Only seller can cancel listing' });
-            return;
-        }
-        if (listing.estado !== 'activo') {
-            res.status(400).json({ error: 'Can only cancel active listings' });
-            return;
-        }
-        // Get seller
         const seller = await User_1.User.findById(userId);
         if (!seller) {
             res.status(404).json({ error: 'Seller not found' });
             return;
         }
-        // Return item to inventory
-        const itemIdObj = new mongoose_1.Types.ObjectId(listing.itemId.toString());
-        seller.inventarioEquipamiento.push(itemIdObj);
-        // Mark listing as cancelled
-        listing.estado = 'cancelado';
-        await Promise.all([seller.save(), listing.save()]);
-        res.status(200).json({
-            exito: true,
-            listing: {
-                id: listing._id,
-                estado: 'cancelado',
-                itemId: listing.itemId
-            }
-        });
+        const result = await marketplaceService.cancelListing(seller, listingId);
+        res.status(200).json({ success: true, result });
     }
     catch (error) {
+        console.error('Error in cancelMarketplaceListing:', error);
         res.status(500).json({ error: error.message });
+        return;
     }
 };
 exports.cancelMarketplaceListing = cancelMarketplaceListing;
