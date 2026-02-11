@@ -1,0 +1,48 @@
+name: Staging validation
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  staging-validate:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })' || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      MONGODB_URI: mongodb://localhost:27017/valgame_test
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit --silent
+
+      - name: Migration dry-run
+        run: npx ts-node scripts/migrate-add-currency.ts --dryRun
+
+      - name: Run E2E (tests)
+        run: npx jest tests/e2e --runInBand --detectOpenHandles --silent
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-validation-logs
+          path: |
+            jest-results.json
+            coverage/
