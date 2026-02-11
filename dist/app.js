@@ -52,7 +52,7 @@ const user_characters_routes_1 = __importDefault(require("./routes/user-characte
 const chat_routes_1 = __importDefault(require("./routes/chat.routes"));
 const survival_routes_1 = __importDefault(require("./routes/survival.routes"));
 const combat_routes_1 = __importDefault(require("./routes/combat.routes"));
-const marketplace_routes_2 = __importDefault(require("./routes/marketplace.routes"));
+// marketplaceControlRoutes was a duplicate import causing redundant routes. Import removed to avoid `/api/marketplace/marketplace/*`.
 // Valida variables de entorno críticas al inicio (salta en tests)
 if (process.env.NODE_ENV !== 'test') {
     try {
@@ -139,7 +139,8 @@ app.use('/api/events', events_routes_1.default);
 app.use('/api/player-stats', playerStats_routes_1.default);
 app.use('/api/characters', characters_routes_1.default);
 app.use('/api', combat_routes_1.default);
-app.use('/api', marketplace_routes_2.default);
+// Removed duplicate mount of marketplace routes to avoid redundant paths like /api/marketplace/marketplace/*
+// app.use('/api', marketplaceControlRoutes);
 app.use('/api/shop', shop_routes_1.default);
 app.use('/api/rankings', rankings_routes_1.default);
 app.use('/api/achievements', achievements_routes_1.default);

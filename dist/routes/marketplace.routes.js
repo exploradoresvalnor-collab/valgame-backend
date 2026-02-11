@@ -5,27 +5,56 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middlewares/auth");
+const mongoose_1 = require("mongoose");
 const marketplace_controller_1 = require("../controllers/marketplace.controller");
 const Listing_1 = __importDefault(require("../models/Listing"));
+const MarketplaceTransaction_1 = __importDefault(require("../models/MarketplaceTransaction"));
 const router = (0, express_1.Router)();
-router.post('/marketplace/list', auth_1.auth, marketplace_controller_1.listItemInMarketplace);
-router.post('/marketplace/buy/:listingId', auth_1.auth, marketplace_controller_1.buyItemFromMarketplace);
-router.post('/marketplace/cancel/:listingId', auth_1.auth, marketplace_controller_1.cancelMarketplaceListing);
-// Alias: historial de transacciones propias (usa marketplace-transactions internamente en futuro)
-router.get('/marketplace/history', auth_1.auth, async (req, res) => {
+console.log('[ROUTES] marketplace.routes initialized');
+// Mostrar rutas registradas (safe access para evitar errores de TS en runtime de tests)
+console.log('[ROUTES] marketplace.routes map:', router.stack.filter((s) => s.route).map((s) => ({ path: s.route?.path || '<unknown>', methods: s.route?.methods || {} })));
+// Rutas normalizadas: montadas en /api/marketplace desde app.ts
+router.post('/listings', auth_1.auth, marketplace_controller_1.listItemInMarketplace);
+router.post('/listings/:listingId/buy', auth_1.auth, marketplace_controller_1.buyItemFromMarketplace);
+router.post('/listings/:listingId/cancel', auth_1.auth, marketplace_controller_1.cancelMarketplaceListing);
+// Historial de transacciones propias (paginado)
+router.get('/history', auth_1.auth, async (req, res) => {
     try {
-        if (!req.userId)
+        const user = req.user;
+        if (!user)
             return res.status(401).json({ error: 'No autenticado' });
-        // Futura integración: marketplaceTransactionsService.obtenerHistorialUsuario(req.userId)
-        return res.json({ success: true, stub: true, data: [], message: 'Implementar lógica de historial (alias)' });
+        const page = Math.max(0, Number(req.query.page || 0));
+        const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
+        const skip = page * limit;
+        const userId = new mongoose_1.Types.ObjectId(user._id.toString());
+        const query = {
+            $or: [
+                { sellerId: userId },
+                { buyerId: userId }
+            ]
+        };
+        const [data, total] = await Promise.all([
+            MarketplaceTransaction_1.default.find(query).sort({ timestamp: -1 }).skip(skip).limit(limit).lean(),
+            MarketplaceTransaction_1.default.countDocuments(query)
+        ]);
+        return res.json({
+            success: true,
+            data,
+            pagination: {
+                page,
+                limit,
+                total,
+                hasMore: (page * limit + data.length) < total
+            }
+        });
     }
     catch (error) {
-        console.error('Error history marketplace alias:', error);
+        console.error('Error fetching marketplace history:', error);
         return res.status(500).json({ error: 'Error interno' });
     }
 });
 // Detalle de un listing
-router.get('/marketplace/:listingId', async (req, res) => {
+router.get('/listings/:listingId', async (req, res) => {
     try {
         const { listingId } = req.params;
         const listing = await Listing_1.default.findById(listingId);
@@ -39,7 +68,7 @@ router.get('/marketplace/:listingId', async (req, res) => {
     }
 });
 // Actualizar precio de un listing (opcional)
-router.patch('/marketplace/:listingId/price', auth_1.auth, async (req, res) => {
+router.patch('/listings/:listingId/price', auth_1.auth, async (req, res) => {
     try {
         const { listingId } = req.params;
         const { price } = req.body;
@@ -48,7 +77,7 @@ router.patch('/marketplace/:listingId/price', auth_1.auth, async (req, res) => {
         const listing = await Listing_1.default.findById(listingId);
         if (!listing)
             return res.status(404).json({ error: 'Listing no encontrado' });
-        if (listing.sellerId?.toString() !== req.userId)
+        if (listing.sellerId?.toString() !== req.user._id.toString())
             return res.status(403).json({ error: 'No autorizado' });
         listing.precio = price; // mantener compat con modelo existente
         await listing.save();

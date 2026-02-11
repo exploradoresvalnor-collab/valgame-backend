@@ -3,10 +3,11 @@ import { User } from '../models/User';
 import Listing from '../models/Listing';
 import { Item } from '../models/Item';
 import { Types } from 'mongoose';
+import * as marketplaceService from '../services/marketplace.service';
 
 export const listItemInMarketplace = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = (req as any).userId || (req as any).user?._id?.toString();
     const { itemId, precio, descripcion } = req.body;
 
     if (!itemId || !precio || precio <= 0) {
@@ -29,26 +30,23 @@ export const listItemInMarketplace = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Create listing
-    const listing = new Listing({
-      itemId: itemIdObj,
-      sellerId: new Types.ObjectId(userId),
-      precio,
-      descripcion: descripcion || '',
-      estado: 'activo',
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-    });
+    // Delegate to marketplace service which handles atomic listing, inventory updates and transaction audit
+    const sellerDoc = await User.findById(userId);
+    if (!sellerDoc) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
 
-    await listing.save();
+    const createdListing = await marketplaceService.listItem(sellerDoc as any, itemId, precio, false);
 
     res.status(201).json({
       exito: true,
       listing: {
-        id: listing._id,
-        itemId: listing.itemId,
-        sellerId: listing.sellerId,
-        precio: listing.precio,
-        estado: listing.estado
+        id: (createdListing as any)._id,
+        itemId: (createdListing as any).itemId,
+        sellerId: (createdListing as any).sellerId,
+        precio: (createdListing as any).precio,
+        estado: (createdListing as any).estado
       }
     });
   } catch (error: any) {
@@ -58,134 +56,38 @@ export const listItemInMarketplace = async (req: Request, res: Response): Promis
 
 export const buyItemFromMarketplace = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = (req as any).userId || (req as any).user?._id?.toString();
     const { listingId } = req.params;
 
-    // Validate listing exists
-    const listing = await Listing.findById(listingId);
-    if (!listing) {
-      res.status(404).json({ error: 'Listing not found' });
-      return;
-    }
-
-    if (listing.estado !== 'activo') {
-      res.status(400).json({ error: 'Listing is not active' });
-      return;
-    }
-
-    // Get buyer
     const buyer = await User.findById(userId);
-    if (!buyer) {
-      res.status(404).json({ error: 'Buyer not found' });
-      return;
-    }
+    if (!buyer) { res.status(404).json({ error: 'Buyer not found' }); return; }
 
-    // Get seller
-    const seller = await User.findById(listing.sellerId);
-    if (!seller) {
-      res.status(404).json({ error: 'Seller not found' });
-      return;
-    }
+    // Delegate to marketplace service which performs atomic buy and auditing
+    const result = await marketplaceService.buyItem(buyer as any, listingId);
 
-    // Check buyer has sufficient funds
-    if (buyer.val < listing.precio) {
-      res.status(400).json({ error: 'Insufficient funds' });
-      return;
-    }
-
-    // Validate item exists
-    const item = await Item.findById(listing.itemId);
-    if (!item) {
-      res.status(404).json({ error: 'Item not found' });
-      return;
-    }
-
-    // Calculate commission (5%)
-    const comision = Math.floor(listing.precio * 0.05);
-    const montoVendedor = listing.precio - comision;
-
-    // Transfer money
-    buyer.val -= listing.precio;
-    seller.val += montoVendedor;
-
-    // Transfer item
-    const itemIdObj = new Types.ObjectId(listing.itemId.toString());
-    const sellerItemIndex = seller.inventarioEquipamiento.findIndex((id: any) => id.toString() === itemIdObj.toString());
-    if (sellerItemIndex !== -1) {
-      seller.inventarioEquipamiento.splice(sellerItemIndex, 1);
-    }
-    buyer.inventarioEquipamiento.push(itemIdObj);
-
-    // Mark listing as sold
-    listing.estado = 'vendido';
-
-    await Promise.all([buyer.save(), seller.save(), listing.save()]);
-
-    res.status(200).json({
-      exito: true,
-      transaccion: {
-        listingId: listing._id,
-        compradorId: userId,
-        vendedorId: listing.sellerId,
-        precioOriginal: listing.precio,
-        comision,
-        montoVendedor,
-        itemId: listing.itemId
-      }
-    });
+    // Mantener compatibilidad con API antigua (propiedades en español)
+    res.status(200).json({ exito: true, transaccion: result.transaction || result });
   } catch (error: any) {
+    console.error('Error in buyItemFromMarketplace:', error);
     res.status(500).json({ error: error.message });
+    return;
   }
 };
 
 export const cancelMarketplaceListing = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = (req as any).userId || (req as any).user?._id?.toString();
     const { listingId } = req.params;
 
-    // Get listing
-    const listing = await Listing.findById(listingId);
-    if (!listing) {
-      res.status(404).json({ error: 'Listing not found' });
-      return;
-    }
-
-    // Verify user is seller
-    if (listing.sellerId.toString() !== userId) {
-      res.status(403).json({ error: 'Only seller can cancel listing' });
-      return;
-    }
-
-    if (listing.estado !== 'activo') {
-      res.status(400).json({ error: 'Can only cancel active listings' });
-      return;
-    }
-
-    // Get seller
     const seller = await User.findById(userId);
-    if (!seller) {
-      res.status(404).json({ error: 'Seller not found' });
-      return;
-    }
+    if (!seller) { res.status(404).json({ error: 'Seller not found' }); return; }
 
-    // Return item to inventory
-    const itemIdObj = new Types.ObjectId(listing.itemId.toString());
-    seller.inventarioEquipamiento.push(itemIdObj);
+    const result = await marketplaceService.cancelListing(seller as any, listingId);
 
-    // Mark listing as cancelled
-    listing.estado = 'cancelado';
-
-    await Promise.all([seller.save(), listing.save()]);
-
-    res.status(200).json({
-      exito: true,
-      listing: {
-        id: listing._id,
-        estado: 'cancelado',
-        itemId: listing.itemId
-      }
-    });
+    res.status(200).json({ success: true, result });
   } catch (error: any) {
+    console.error('Error in cancelMarketplaceListing:', error);
     res.status(500).json({ error: error.message });
+    return;
   }
 };
