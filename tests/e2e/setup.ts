@@ -114,7 +114,7 @@ export async function seedTestData() {
         nivel_evolucion_etapa_2: 40,
         nivel_evolucion_etapa_3: 100,
         puntos_ranking_por_victoria: 10,
-        costo_ticket_en_val: 50,
+        costo_ticket_en_val: 100, // actualizado: 1 boleto = 100 VAL
         
         // Campos que ya estaban
         nivel_maximo_personaje: 100,

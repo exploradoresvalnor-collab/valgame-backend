@@ -14,6 +14,7 @@ export interface IMarketplaceTransaction extends Document {
   precioOriginal: number;
   precioFinal: number;
   impuesto: number;
+  currency?: string; // 'VAL' or 'BOLETOS' (default 'VAL')
   
   // Tipo de acción
   action: 'listed' | 'sold' | 'cancelled' | 'expired';
@@ -70,6 +71,8 @@ const MarketplaceTransactionSchema = new Schema({
   precioOriginal: { type: Number, required: true },
   precioFinal: { type: Number, required: true },
   impuesto: { type: Number, required: true },
+  // Moneda de la transacción (auditoría). Default VAL.
+  currency: { type: String, required: true, enum: ['VAL','BOLETOS'], default: 'VAL' },
   
   action: { 
     type: String, 
@@ -117,5 +120,6 @@ MarketplaceTransactionSchema.index({ sellerId: 1, timestamp: -1 });
 MarketplaceTransactionSchema.index({ buyerId: 1, timestamp: -1 });
 MarketplaceTransactionSchema.index({ action: 1, timestamp: -1 });
 MarketplaceTransactionSchema.index({ itemType: 1, action: 1 });
+MarketplaceTransactionSchema.index({ currency: 1, timestamp: -1 });
 
 export default mongoose.model<IMarketplaceTransaction>('MarketplaceTransaction', MarketplaceTransactionSchema);

@@ -30,6 +30,7 @@ export interface IListing extends Document {
       vida?: number;
     }
   }
+  currency: 'VAL' | 'BOLETOS';
 }
 
 const ListingSchema = new Schema({
@@ -70,7 +71,9 @@ const ListingSchema = new Schema({
       defensa: { type: Number },
       vida: { type: Number }
     }
-  }
+  },
+  // Moneda del listing: VAL por defecto. Permitimos expansión a 'BOLETOS' en el futuro.
+  currency: { type: String, required: true, enum: ['VAL','BOLETOS'], default: 'VAL' }
 }, {
   timestamps: true
 });
@@ -80,5 +83,6 @@ ListingSchema.index({ estado: 1, fechaExpiracion: 1 });
 ListingSchema.index({ sellerId: 1, estado: 1 });
 ListingSchema.index({ type: 1, estado: 1 });
 ListingSchema.index({ precio: 1 });
+ListingSchema.index({ currency: 1, estado: 1 });
 
 export default mongoose.model<IListing>('Listing', ListingSchema);

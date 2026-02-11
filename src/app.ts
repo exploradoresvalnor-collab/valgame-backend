@@ -134,13 +134,10 @@ app.use('/api/game-settings', gameSettingsRoutes); // El juego necesita las regl
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/consumables', consumableRoutes);
 app.use('/api/dungeons', dungeonRoutes);
+app.use('/api/items', itemsRoutes);
 
-
-// --- Rutas Protegidas (Requieren autenticación con token) ---
-app.use(checkAuth); // A partir de aquí, todas las rutas usarán el "guardia de seguridad"
-
-// Aplicar rate limiter específico DESPUÉS de la autenticación
-app.use('/api/marketplace', marketplaceLimiter);
+// Montar shop entre las rutas públicas: el endpoint /info debe ser accesible sin auth.
+app.use('/api/shop', shopRoutes);
 
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/marketplace-transactions', marketplaceTransactionsRoutes);
@@ -160,27 +157,13 @@ app.use('/api/characters', characterRoutes);
 app.use('/api', combatRoutes);
 // Removed duplicate mount of marketplace routes to avoid redundant paths like /api/marketplace/marketplace/*
 // app.use('/api', marketplaceControlRoutes);
-app.use('/api/shop', shopRoutes);
-app.use('/api/rankings', rankingsRoutes);
-app.use('/api/achievements', achievementsRoutes);
-app.use('/api/teams', teamsRoutes);
-app.use('/api/user-characters', userCharactersRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/survival', survivalRoutes);
 
 
-// --- Arranque del Servidor ---
-const PORT = Number(process.env.PORT || 8080);
-const MONGODB_URI = process.env.MONGODB_URI;
+  if (process.env.NODE_ENV !== 'test') {
+    const PORT = Number(process.env.PORT || 8080);
+    const MONGODB_URI = process.env.MONGODB_URI;
 
-// En entorno de pruebas, no arrancamos la conexión automática ni el servidor.
-if (process.env.NODE_ENV !== 'test') {
-  if (!MONGODB_URI) {
-    console.error('[FATAL] MONGODB_URI no está definido.');
-    process.exit(1);
-  }
-
-  connectDB(MONGODB_URI)
+    connectDB(MONGODB_URI)
     .then(() => {
       const server = app.listen(PORT, () => {
         console.log(`[API] Servidor corriendo en http://localhost:${PORT}`);

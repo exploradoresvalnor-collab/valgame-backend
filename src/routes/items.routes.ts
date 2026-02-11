@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { Item } from '../models/Item';
+import { auth } from '../middlewares/auth';
+import { buyItem } from '../controllers/items.controller';
 
 const router = Router();
 
@@ -12,5 +14,8 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener los ítems.' });
   }
 });
+
+// POST /api/items/:id/buy - Comprar ítem desde la tienda
+router.post('/:id/buy', auth, buyItem);
 
 export default router;

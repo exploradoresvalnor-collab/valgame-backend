@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { User } from '../models/User';
 import GameSettings from '../models/GameSetting';
 import { RealtimeService } from '../services/realtime.service';
+import Package from '../models/Package';
+import { Purchase } from '../models/Purchase';
+import paymentService from '../services/payment.service';
 
 // Interfaz para extender Request y que incluya el userId del middleware de auth
 interface AuthRequest extends Request {
@@ -113,12 +116,33 @@ export const buyValPackage = async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    // TODO: Implementar lógica de compra de paquetes de VAL
-    // Esto requiere integración con sistema de pagos (Stripe, PayPal, etc.)
-    
-    res.status(501).json({ 
-      error: 'Funcionalidad no implementada aún.',
-      message: 'La compra de VAL con dinero real estará disponible próximamente.'
+    // Lógica: Iniciar checkout y crear Purchase en estado 'pending'
+    const pkg = await Package.findOne({ _id: packageId });
+    if (!pkg) {
+      return res.status(404).json({ error: 'Paquete no encontrado.' });
+    }
+
+    // Crear orden de checkout con el proveedor (mock en MVP)
+    const checkout = await paymentService.createCheckout((userId as any), packageId, pkg.precio_usdt);
+
+    // Persistir la Purchase en estado pending para reconciliación en webhook
+    const purchase = new Purchase({
+      userId: userId,
+      paqueteId: packageId,
+      valorPagadoUSDT: pkg.precio_usdt,
+      valRecibido: pkg.val_reward || 0,
+      externalPaymentId: checkout.externalPaymentId,
+      paymentProvider: checkout.provider,
+      paymentStatus: 'pending'
+    } as any);
+
+    await purchase.save();
+
+    res.json({
+      message: 'Checkout iniciado',
+      checkoutUrl: checkout.checkoutUrl,
+      externalPaymentId: checkout.externalPaymentId,
+      purchaseId: purchase._id
     });
 
   } catch (error) {
@@ -136,13 +160,15 @@ export const getShopInfo = async (_req: AuthRequest, res: Response) => {
     const gameSettings = await GameSettings.findOne();
 
     const exchangeRate = gameSettings?.costo_evo_por_val || 100;
+  const costPerBoleto = gameSettings?.costo_ticket_en_val || 100; // valor en VAL por boleto (1 boleto = 100 VAL)
 
     res.json({
       exchangeRates: {
         evoPerVal: exchangeRate,
         valPerEvo: 1 / exchangeRate,
-        boletosPerVal: 100, // 100 VAL = 1 boleto
-        valPerBoleto: 0.01
+        // Normalizado: costPerBoleto = VAL por boleto; boletosPerVal = cuantos boletos por 1 VAL
+        costPerBoleto,
+        boletosPerVal: Number((1 / costPerBoleto).toFixed(8))
       },
       packages: [
         // TODO: Obtener paquetes de la base de datos
@@ -200,8 +226,9 @@ export const buyBoletos = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
-    // Costo: 100 VAL = 1 boleto
-    const COST_PER_BOLETO = 100;
+    // Obtener costo por boleto desde GameSetting (1 boleto = costo_ticket_en_val VAL)
+    const gameSettings = await GameSettings.findOne();
+    const COST_PER_BOLETO = gameSettings?.costo_ticket_en_val || 100;
     const totalCost = amount * COST_PER_BOLETO;
 
     // Validar que tiene suficiente VAL
