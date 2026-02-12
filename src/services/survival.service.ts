@@ -193,8 +193,14 @@ export class SurvivalService {
         try {
           const rt = RealtimeService.getInstance();
           const durationMs = session.startedAt ? (Date.now() - session.startedAt.getTime()) : 0;
-          rt.notifySurvivalEnd(session._id.toString(), session.currentWave - 1, durationMs, {
-            totalPoints: session.totalPointsAccumulated
+          
+          // Obtener userId de la sesión
+          const userId = session.userId.toString();
+          
+          rt.notifySurvivalEndToUser(userId, session._id.toString(), session.currentWave - 1, durationMs, {
+            totalPoints: session.totalPointsAccumulated,
+            expGanada: Math.floor(session.totalPointsAccumulated / 10), // Ejemplo de cálculo
+            valGanado: Math.floor(session.totalPointsAccumulated / 100)  // Ejemplo de cálculo
           });
         } catch (e) {
           console.warn('[Realtime] No emitido survival:end', (e as any)?.message || e);

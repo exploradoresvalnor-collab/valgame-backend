@@ -7,7 +7,10 @@ const router = Router();
 router.get('/', async (req, res) => {
   try {
     const categorias = await Category.find();
-    res.json(categorias);
+    res.json({
+      success: true,
+      categories: categorias
+    });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener las categorías.' });
   }

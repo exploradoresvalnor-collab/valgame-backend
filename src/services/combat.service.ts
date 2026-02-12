@@ -68,7 +68,13 @@ export class CombatService {
 
     // Notificar a los jugadores
     players.forEach(playerId => {
-      this.realtimeService.notifyBattleUpdate(playerId, {
+      // Unir socket a la sala de batalla
+      const userSockets = this.realtimeService.getUserSockets(playerId);
+      userSockets.forEach(socketId => {
+        this.realtimeService.joinBattleRoom(socketId, matchId);
+      });
+
+      this.realtimeService.notifyBattleUpdate(matchId, {
         type: 'combat_start',
         match
       });
@@ -108,7 +114,7 @@ export class CombatService {
 
     // Notificar a todos los jugadores
     match.turnOrder.forEach(pid => {
-      this.realtimeService.notifyBattleUpdate(pid, {
+      this.realtimeService.notifyBattleUpdate(matchId, {
         type: 'turn_update',
         match
       });
@@ -130,7 +136,7 @@ export class CombatService {
 
           // Notificar a los jugadores
           match.turnOrder.forEach(playerId => {
-            this.realtimeService.notifyBattleUpdate(playerId, {
+            this.realtimeService.notifyBattleUpdate(matchId, {
               type: 'turn_timeout',
               match
             });
@@ -144,6 +150,9 @@ export class CombatService {
     // Implementar lógica de ataque
     const damage = this.calculateDamage(action);
     
+    // Obtener estado actual del objetivo (simulado por ahora)
+    const targetHealth = 100 - damage; // TODO: Obtener health real del personaje
+    
     match.damageLog.push({
       from: playerId,
       to: action.target!,
@@ -151,6 +160,16 @@ export class CombatService {
       type: 'physical',
       timestamp: new Date()
     });
+
+    // Notificar daño al jugador objetivo
+    if (action.target) {
+      this.realtimeService.notifyCombatDamage(action.target, {
+        damage,
+        from: playerId,
+        type: 'physical',
+        currentHealth: Math.max(0, targetHealth)
+      });
+    }
   }
 
   private async processDefend(match: CombatState, playerId: string, action: CombatAction) {

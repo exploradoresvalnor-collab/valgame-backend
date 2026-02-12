@@ -3,7 +3,7 @@ import { auth } from '../middlewares/auth';
 import {
   getUserCharacters,
   getUserCharacterById
-} from '../controllers/user-characters/userCharacters.controller';
+} from '../controllers/userCharacters.controller';
 
 const router = Router();
 

@@ -36,6 +36,7 @@ router.get('/me', auth, async (req: Request, res: Response) => {
 
   // ✅ Devolver datos completos con fallback a 0 para recursos
   res.json({
+    success: true,
     id: user._id,
     email: user.email,
     username: user.username,
@@ -54,6 +55,7 @@ router.get('/me', auth, async (req: Request, res: Response) => {
       (user.personajes || []).map(async (p) => {
         const base = await BaseCharacter.findOne({ id: p.personajeId });
         return {
+          _id: p._id, // Agregar el ID del personaje
           personajeId: p.personajeId,
           nombre: base?.nombre || p.personajeId,
           imagen: base?.imagen || null,

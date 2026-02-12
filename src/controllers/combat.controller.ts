@@ -45,7 +45,7 @@ export const startDungeonCombat = async (req: Request, res: Response): Promise<v
     const combateId = combatService.startCombat([userId]);
 
     res.status(201).json({
-      exito: true,
+      success: true,
       combate: {
         id: combateId,
         estado: 'activo',
@@ -90,7 +90,7 @@ export const performAttack = async (req: Request, res: Response): Promise<void> 
     const danofinal = critico ? dano * 1.5 : dano;
 
     res.status(200).json({
-      exito: true,
+      success: true,
       ataque: {
         personaje: character.personajeId,
         dano: danofinal,
@@ -126,7 +126,7 @@ export const performDefend = async (req: Request, res: Response): Promise<void> 
     const reduccionDano = (character.stats?.defensa || 0) * 0.5;
 
     res.status(200).json({
-      exito: true,
+      success: true,
       defensa: {
         personaje: character.personajeId,
         reduccionDano,
@@ -174,7 +174,7 @@ export const endCombat = async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     res.status(200).json({
-      exito: true,
+      success: true,
       combate: {
         id: combateId,
         resultado,

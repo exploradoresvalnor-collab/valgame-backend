@@ -431,7 +431,10 @@ router.post('/forgot-password', async (req, res) => {
     const { sendPasswordResetEmail } = await import('../config/mailer');
     await sendPasswordResetEmail(user.email, resetURL);
 
-    return res.json({ message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.' });
+    return res.json({
+      success: true,
+      message: 'Si el correo existe, se enviará un email con instrucciones para recuperar tu contraseña.'
+    });
   } catch (e: any) {
     console.error('[FORGOT-PASSWORD] Error:', e);
     return res.status(400).json({ error: e?.message || 'Error al procesar solicitud' });
@@ -610,7 +613,10 @@ router.post('/reset-password/:token', async (req, res) => {
     user.resetPasswordTokenExpires = undefined;
     await user.save();
 
-    return res.json({ message: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.' });
+    return res.json({
+      success: true,
+      message: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.'
+    });
   } catch (e: any) {
     console.error('[RESET-PASSWORD] Error:', e);
     return res.status(400).json({ error: e?.message || 'Error al resetear contraseña' });

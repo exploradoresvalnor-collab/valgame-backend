@@ -47,7 +47,7 @@ export const listItemInMarketplace = async (req: Request, res: Response): Promis
     const createdListing = await marketplaceService.listItem(sellerDoc as any, itemId, precio, false);
 
     res.status(201).json({
-      exito: true,
+      success: true,
       listing: {
         id: (createdListing as any)._id,
         itemId: (createdListing as any).itemId,
@@ -73,7 +73,7 @@ export const buyItemFromMarketplace = async (req: Request, res: Response): Promi
     const result = await marketplaceService.buyItem(buyer as any, listingId);
 
     // Mantener compatibilidad con API antigua (propiedades en español)
-    res.status(200).json({ exito: true, transaccion: result.transaction || result });
+    res.status(200).json({ success: true, transaccion: result.transaction || result });
   } catch (error: any) {
     console.error('Error in buyItemFromMarketplace:', error);
     res.status(500).json({ error: error.message });

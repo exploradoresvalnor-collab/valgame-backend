@@ -51,6 +51,7 @@ router.get('/', auth, async (req: Request, res: Response) => {
     const total = await Notification.countDocuments(query);
 
     return res.json({
+      success: true,
       notifications,
       total,
       limit: parseInt(limit as string),

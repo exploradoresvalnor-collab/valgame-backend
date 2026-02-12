@@ -1,0 +1,173 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.setupTestDB = setupTestDB;
+exports.seedTestData = seedTestData;
+exports.cleanupTestDB = cleanupTestDB;
+const mongodb_memory_server_1 = require("mongodb-memory-server");
+const mongoose_1 = __importDefault(require("mongoose")); // IMPORTACIÓN AÑADIDA
+const db_1 = require("../../src/config/db"); // Usar funciones centralizadas
+const mongodb_1 = require("mongodb");
+async function setupTestDB() {
+    process.env.NODE_ENV = 'test';
+    // Inyectar un mock de RealtimeService para evitar errores cuando no esté inicializado
+    try {
+        // Usamos require y assignamos al cache para que las importaciones en src obtengan el mock
+        const path = require('path');
+        const mockPath = path.resolve(__dirname, 'mocks', 'realtime.service.ts');
+        // Registrar en la cache de require
+        const resolved = require.resolve(mockPath);
+        delete require.cache[resolved];
+        require(resolved);
+        // También mapear la ruta relativa esperada por el código fuente
+        const prodPath = path.resolve(__dirname, '..', '..', 'src', 'services', 'realtime.service.ts');
+        const prodResolved = require.resolve(prodPath);
+        // Copiar el módulo mock en la entrada de cache del prodPath
+        require.cache[prodResolved] = require.cache[resolved];
+    }
+    catch (err) {
+        // Silencioso si fallamos aquí; el código principal ya maneja la falta de realtime
+        console.warn('[TEST SETUP] No fue posible inyectar mock de RealtimeService:', err?.message || err);
+    }
+    // Crear un replSet in-memory para permitir transacciones en los tests
+    const replSet = await mongodb_memory_server_1.MongoMemoryReplSet.create({ replSet: { name: 'rs0', count: 1 } });
+    const mongod = replSet; // compatibilidad de nombre
+    const uri = mongod.getUri();
+    await (0, db_1.connectDB)(uri); // Usar la función corregida
+    return mongod;
+}
+async function seedTestData() {
+    // Limpiar la base de datos ANTES de sembrar
+    const collections = mongoose_1.default.connection.collections;
+    for (const key in collections) {
+        const collection = collections[key];
+        await collection.deleteMany({});
+    }
+    const { Item } = await Promise.resolve().then(() => __importStar(require('../../src/models/Item')));
+    const { Consumable } = await Promise.resolve().then(() => __importStar(require('../../src/models/Consumable')));
+    const BaseCharacter = (await Promise.resolve().then(() => __importStar(require('../../src/models/BaseCharacter')))).default;
+    const Package = (await Promise.resolve().then(() => __importStar(require('../../src/models/Package')))).default;
+    const GameSetting = (await Promise.resolve().then(() => __importStar(require('../../src/models/GameSetting')))).default;
+    const LevelRequirement = (await Promise.resolve().then(() => __importStar(require('../../src/models/LevelRequirement')))).default;
+    // Crear poción inicial usando el discriminador Consumable
+    await Consumable.create({
+        _id: new mongodb_1.ObjectId('68dc525adb5c735854b5659d'),
+        nombre: 'Poción de Vida',
+        descripcion: 'Restaura HP',
+        tipoItem: 'Consumable', // Campo del discriminador
+        rango: 'D',
+        tipo: 'pocion',
+        usos_maximos: 1,
+        duracion_efecto_minutos: 0,
+        efectos: {
+            mejora_atk: 0,
+            mejora_defensa: 0,
+            mejora_vida: 50,
+            mejora_xp_porcentaje: 0
+        },
+        costo_val: 10,
+        fuentes_obtencion: ['tienda', 'mazmorra']
+    });
+    // Crear personaje base
+    await BaseCharacter.create({
+        id: 'base_d_001',
+        nombre: 'Aventurero Novato',
+        descripcion: 'Un aventurero principiante',
+        descripcion_rango: 'D',
+        stats: {
+            atk: 10,
+            defensa: 10,
+            vida: 100
+        },
+        progreso: 0,
+        etapa: 1,
+        nivel: 1,
+        multiplicador_base: 1.0,
+        imagen: 'aventurero_novato.png'
+    });
+    // Crear paquete pionero
+    await Package.create({
+        nombre: 'Paquete Pionero',
+        tipo: 'starter',
+        precio_usdt: 0,
+        personajes: 1,
+        categorias_garantizadas: ['D'],
+        distribucion_aleatoria: 'D:100',
+        val_reward: 100,
+        items_reward: [new mongodb_1.ObjectId('68dc525adb5c735854b5659d'), new mongodb_1.ObjectId('68dc525adb5c735854b5659d')]
+    });
+    // Crear requisitos de nivel para testing (niveles 2-10)
+    let expAcumulada = 0;
+    for (let nivel = 2; nivel <= 10; nivel++) {
+        const expRequerida = nivel * 100; // 200, 300, 400, etc.
+        expAcumulada += expRequerida;
+        await LevelRequirement.create({
+            nivel: nivel,
+            experiencia_requerida: expRequerida,
+            experiencia_acumulada: expAcumulada
+        });
+    }
+    // Crear configuración del juego con TODOS los campos requeridos
+    await GameSetting.create({
+        // Campos que faltaban (requeridos)
+        nivel_evolucion_etapa_2: 40,
+        nivel_evolucion_etapa_3: 100,
+        puntos_ranking_por_victoria: 10,
+        costo_ticket_en_val: 100, // actualizado: 1 boleto = 100 VAL
+        // Campos que ya estaban
+        nivel_maximo_personaje: 100,
+        costo_revivir_personaje: 50,
+        MAX_PERSONAJES_POR_EQUIPO: 9,
+        EXP_GLOBAL_MULTIPLIER: 1,
+        PERMADEATH_TIMER_HOURS: 24,
+        // Configuración de stats por nivel
+        aumento_stats_por_nivel: {
+            D: { atk: 2, defensa: 2, vida: 10 },
+            C: { atk: 3, defensa: 3, vida: 15 },
+            B: { atk: 4, defensa: 4, vida: 20 },
+            A: { atk: 5, defensa: 5, vida: 25 },
+            S: { atk: 6, defensa: 6, vida: 30 }
+        }
+    });
+}
+async function cleanupTestDB(mongod) {
+    await (0, db_1.disconnectDB)(); // Usar la función corregida
+    if (mongod && typeof mongod.stop === 'function') {
+        await mongod.stop();
+    }
+}

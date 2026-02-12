@@ -50,8 +50,29 @@ import characterRoutes from './routes/characters.routes';
 import shopRoutes from './routes/shop.routes';
 import rankingsRoutes from './routes/rankings.routes';
 import achievementsRoutes from './routes/achievements.routes';
-import teamsRoutes from './routes/teams/teams.routes';
+import teamsRoutes from './routes/teams.routes';
 import userCharactersRoutes from './routes/user-characters.routes';
+
+// Rutas de user-characters inline para evitar problemas de importación
+import { Router } from 'express';
+import { auth } from './middlewares/auth';
+import UserCharacter from './models/userCharacter';
+
+const userCharactersRouter = Router();
+userCharactersRouter.use(auth);
+userCharactersRouter.get('/', async (req, res) => {
+  try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+    }
+    const characters = await UserCharacter.find({ userId }).sort({ createdAt: -1 });
+    return res.json({ success: true, data: characters });
+  } catch (error) {
+    console.error('Error getting user characters:', error);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
 import chatRoutes from './routes/chat.routes';
 import survivalRoutes from './routes/survival.routes';
 import combatRoutes from './routes/combat.routes';
@@ -135,6 +156,7 @@ app.use('/api/equipment', equipmentRoutes);
 app.use('/api/consumables', consumableRoutes);
 app.use('/api/dungeons', dungeonRoutes);
 app.use('/api/items', itemsRoutes);
+app.use('/api/achievements', achievementsRoutes);
 
 // Montar shop entre las rutas públicas: el endpoint /info debe ser accesible sin auth.
 app.use('/api/shop', shopRoutes);
@@ -144,18 +166,16 @@ app.use('/api/marketplace-transactions', marketplaceTransactionsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/user/settings', userSettingsRoutes);
 app.use('/api/users/settings', userSettingsRoutes); // alias plural
+app.use('/api/user-characters', userCharactersRouter);
 app.use('/api/inventory', inventoryAliasRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationsRoutes);
-/* ... existing code ... */
 app.use('/api/categories', categoriesRoutes);
-app.use('/api/items', itemsRoutes);
-app.use('/api/chat', chatRoutes);
 app.use('/api/user-packages', userPackagesRoutes);
-/* ... existing code ... */
 app.use('/api/level-requirements', levelRequirementsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/player-stats', playerStatsRoutes);
+app.use('/api/rankings', rankingsRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/combat', combatRoutes); // Asegurar ruta base correcta si es necesario
 app.use('/api/survival', survivalRoutes);

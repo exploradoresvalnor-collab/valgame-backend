@@ -12,9 +12,9 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
     // Validar ObjectId
     if (!isValidObjectId(userId)) {
-      return res.status(400).json({ 
-        exito: false,
-        error: 'ID de usuario inválido' 
+      return res.status(400).json({
+        success: false,
+        error: 'ID de usuario inválido'
       });
     }
 
@@ -22,9 +22,9 @@ export const getUserProfile = async (req: Request, res: Response) => {
     const user = await User.findById(userId).select('-passwordHash');
 
     if (!user) {
-      return res.status(404).json({ 
-        exito: false,
-        error: 'Usuario no encontrado' 
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
       });
     }
 
@@ -43,13 +43,13 @@ export const getUserProfile = async (req: Request, res: Response) => {
       : 0;
 
     // Mascara email para privacidad
-    const emailMasked = user.email 
+    const emailMasked = user.email
       ? user.email.substring(0, 3) + '***' + user.email.substring(user.email.indexOf('@') - 1)
       : 'No disponible';
 
     // Retornar perfil del usuario
     res.json({
-      exito: true,
+      success: true,
       usuarioId: user._id,
       nombre: user.username,
       emailMasked,
@@ -100,9 +100,9 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error('Error al obtener perfil de usuario:', error);
-    res.status(500).json({ 
-      exito: false,
-      error: 'Error interno del servidor' 
+    res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor'
     });
   }
 };

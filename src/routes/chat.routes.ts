@@ -5,7 +5,7 @@ import {
   sendPrivateMessage,
   sendPartyMessage,
   getMessages
-} from '../controllers/chat/chat.controller';
+} from '../controllers/chat.controller';
 
 const router = Router();
 

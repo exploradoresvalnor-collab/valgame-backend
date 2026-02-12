@@ -240,8 +240,40 @@ export class RealtimeService {
     this.io.emit('rankings:update', rankings);
   }
 
+  // Helper para obtener sockets de un usuario
+  public getUserSockets(userId: string): string[] {
+    return this.userSockets.get(userId) || [];
+  }
+
+  // Unir socket a sala de batalla
+  public joinBattleRoom(socketId: string, battleId: string): void {
+    const socket = this.io.sockets.sockets.get(socketId);
+    if (socket) {
+      socket.join(`battle:${battleId}`);
+    }
+  }
+
   // Notificar batalla en vivo (para espectadores)
   public notifyBattleUpdate(battleId: string, battleState: any): void {
     this.io.to(`battle:${battleId}`).emit('battle:update', battleState);
+  }
+
+  // Notificar daño recibido en combate (para el jugador afectado)
+  public notifyCombatDamage(playerId: string, damageData: { damage: number; from: string; type: 'physical' | 'critical' | 'counter'; currentHealth: number }): void {
+    this.emitToUser(playerId, 'combat:damage', {
+      ...damageData,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Notificar fin de survival con recompensas
+  public notifySurvivalEndToUser(userId: string, sessionId: string, totalWaves: number, durationMs: number, rewards: any): void {
+    this.emitToUser(userId, 'survival:end', {
+      sessionId,
+      totalWaves,
+      durationMs,
+      rewards,
+      timestamp: new Date().toISOString()
+    });
   }
 }

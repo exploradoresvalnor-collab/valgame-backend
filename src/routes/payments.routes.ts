@@ -1,9 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import paymentService from '../services/payment.service';
 import { auth } from '../middlewares/auth';
 import { User } from '../models/User';
 import { Types } from 'mongoose';
 import { RealtimeService } from '../services/realtime.service';
+
+interface AuthRequest extends Request {
+  userId?: string;
+}
 
 const router = Router();
 
@@ -26,7 +30,7 @@ router.post('/webhook', async (req, res) => {
 });
 
 // POST /api/payments/blockchain/initiate - iniciar pago Web3
-router.post('/blockchain/initiate', auth, async (req, res) => {
+router.post('/blockchain/initiate', auth, async (req: AuthRequest, res: Response) => {
   try {
     const { packageId, chain = 'evm', amountUSDT, walletAddress } = req.body;
     if (!req.userId) return res.status(401).json({ error: 'No autenticado' });
@@ -68,7 +72,7 @@ router.post('/blockchain/initiate', auth, async (req, res) => {
 });
 
 // POST /api/payments/wallet/connect - asociar wallet al usuario
-router.post('/wallet/connect', auth, async (req, res) => {
+router.post('/wallet/connect', auth, async (req: AuthRequest, res: Response) => {
   try {
     const { walletAddress } = req.body;
     if (!req.userId) return res.status(401).json({ error: 'No autenticado' });
@@ -85,7 +89,7 @@ router.post('/wallet/connect', auth, async (req, res) => {
 });
 
 // GET /api/payments/history - historial de pagos (Stripe + Blockchain)
-router.get('/history', auth, async (req, res) => {
+router.get('/history', auth, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) return res.status(401).json({ error: 'No autenticado' });
     // Si existe método especializado

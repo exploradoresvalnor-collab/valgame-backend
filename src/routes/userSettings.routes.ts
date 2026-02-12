@@ -25,7 +25,10 @@ router.get('/', auth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    return res.json(user.settings);
+    return res.json({
+      success: true,
+      settings: user.settings
+    });
   } catch (error) {
     console.error('Error al obtener configuración:', error);
     return res.status(500).json({ error: 'Error interno del servidor' });
@@ -63,9 +66,10 @@ router.put('/', auth, async (req: Request, res: Response) => {
 
     await user.save();
 
-    return res.json({ 
+    return res.json({
+      success: true,
       message: 'Configuración actualizada correctamente',
-      settings: user.settings 
+      settings: user.settings
     });
   } catch (error: any) {
     if (error.name === 'ZodError') {
