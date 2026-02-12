@@ -5,7 +5,7 @@ let mongod: any;
 let app: any;
 
 const testEmail = `e2e_test_${Date.now()}@example.com`;
-const testUser = { email: testEmail, username: `e2e_${Date.now()}`, password: 'password123' };
+const testUser = { email: testEmail, username: `e2e_${Date.now()}`, password: 'StrongPassword123!' };
 
 describe('Auth E2E', () => {
   beforeAll(async () => {

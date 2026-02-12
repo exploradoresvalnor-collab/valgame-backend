@@ -13,7 +13,8 @@ if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
     (RealtimeService as any).notifyNotificationRead = (_userId: string, _notificationId: string) => {};
   }
 
-  // Test-only alias: add experience and emit character:level-up
+  // Test-only alias: add experience and emit character:level-up - MOVED TO characters.routes.ts
+  /* 
   router.post('/characters/:id/add-experience', async (req, res) => {
     try {
       const userId = '507f1f77bcf86cd799439011';
@@ -27,6 +28,7 @@ if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
       return res.status(500).json({ error: 'test-alias-failed' });
     }
   });
+  */
 
   // Test-only alias: mark notification as read and emit notification:read
   router.put('/notifications/:id/read', async (req, res) => {

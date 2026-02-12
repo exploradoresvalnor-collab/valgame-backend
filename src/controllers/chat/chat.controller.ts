@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import ChatMessage from '../../models/chat/ChatMessage';
 import {
   SendGlobalMessageSchema,
@@ -39,6 +40,12 @@ export const sendGlobalMessage = async (req: Request, res: Response) => {
       data: message
     });
   } catch (error: any) {
+    if (error instanceof z.ZodError) {
+        return res.status(400).json({
+            success: false,
+            error: (error as any).errors
+        });
+    }
     console.error('[SEND-GLOBAL-MESSAGE] Error:', error);
     return res.status(500).json({
       success: false,

@@ -147,7 +147,7 @@ const SurvivalSessionSchema = new Schema<ISurvivalSession>({
   maxRoundReached: { type: Number, default: 0 },
   
   actionsLog: [{
-    type: String,
+    type: { type: String }, // 'type' is reserved, so we must nest it
     wave: Number,
     timestamp: Date,
     serverTime: Date

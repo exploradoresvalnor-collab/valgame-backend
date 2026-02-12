@@ -147,19 +147,21 @@ app.use('/api/users/settings', userSettingsRoutes); // alias plural
 app.use('/api/inventory', inventoryAliasRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationsRoutes);
+/* ... existing code ... */
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/items', itemsRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/user-packages', userPackagesRoutes);
+/* ... existing code ... */
 app.use('/api/level-requirements', levelRequirementsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/player-stats', playerStatsRoutes);
 app.use('/api/characters', characterRoutes);
-app.use('/api', combatRoutes);
-// Removed duplicate mount of marketplace routes to avoid redundant paths like /api/marketplace/marketplace/*
-// app.use('/api', marketplaceControlRoutes);
+app.use('/api/combat', combatRoutes); // Asegurar ruta base correcta si es necesario
+app.use('/api/survival', survivalRoutes);
+app.use('/api/teams', teamsRoutes);
 
-
-  if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test') {
     const PORT = Number(process.env.PORT || 8080);
     const MONGODB_URI = process.env.MONGODB_URI;
 

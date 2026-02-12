@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { isValidObjectId } from 'mongoose';
 import { User } from '../models/User';
 import GameSettings from '../models/GameSetting';
 import { RealtimeService } from '../services/realtime.service';
@@ -113,6 +114,10 @@ export const buyValPackage = async (req: AuthRequest, res: Response) => {
 
   if (!packageId) {
     return res.status(400).json({ error: 'Debes especificar el ID del paquete.' });
+  }
+
+  if (!isValidObjectId(packageId)) {
+    return res.status(400).json({ error: 'ID de paquete inválido.' });
   }
 
   try {

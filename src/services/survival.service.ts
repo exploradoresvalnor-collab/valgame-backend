@@ -23,8 +23,13 @@ export class SurvivalService {
       const user = await User.findById(userId);
       if (!user) throw new Error('User not found');
 
-      // Obtener personaje
-      const character = user.personajes.id(characterId);
+      // Obtener personaje (buscar por _id o por personajeId)
+      // user.personajes.id devuelve Subdocument | null
+      let character: any = user.personajes.id(characterId);
+      if (!character) {
+        character = user.personajes.find((p: any) => p.personajeId === characterId);
+      }
+      
       if (!character) throw new Error('Character not found');
 
       // Si NO se proporcionan equipmentIds, usar del personaje

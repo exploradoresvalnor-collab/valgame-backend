@@ -7,7 +7,7 @@ let mongod: any;
 let app: any;
 
 describe('E2E Consumibles', () => {
-  const testUser = { email: `cons${Date.now()}@test.com`, username: `cons${Date.now()}`, password: 'test1234' };
+  const testUser = { email: `cons${Date.now()}@test.com`, username: `cons${Date.now()}`, password: 'StrongPassword123!' };
   let authToken: string;
   let characterId: string;
   let itemId: string;

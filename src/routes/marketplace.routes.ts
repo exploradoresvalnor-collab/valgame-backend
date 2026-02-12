@@ -15,6 +15,36 @@ console.log('[ROUTES] marketplace.routes initialized');
 console.log('[ROUTES] marketplace.routes map:', router.stack.filter((s: any) => s.route).map((s: any) => ({ path: s.route?.path || '<unknown>', methods: s.route?.methods || {} })));
 
 // Rutas normalizadas: montadas en /api/marketplace desde app.ts
+router.get('/listings', auth, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0 } = req.query;
+    const query = { estado: 'activo' };
+    
+    // Obtener listings activos con paginación
+    const listings = await ListingModel.find(query)
+      .sort({ createdAt: -1 })
+      .skip(Number(offset))
+      .limit(Number(limit))
+      .lean();
+      
+    // Count total for pagination
+    const total = await ListingModel.countDocuments(query);
+    
+    res.json({
+      success: true,
+      listings,
+      pagination: {
+        total,
+        limit: Number(limit),
+        offset: Number(offset)
+      }
+    }); 
+  } catch (error) {
+    console.error('Error fetching listings:', error);
+    res.status(500).json({ error: 'Error al buscar en el mercado' });
+  }
+});
+
 router.post('/listings', auth, listItemInMarketplace);
 router.post('/listings/:listingId/buy', auth, buyItemFromMarketplace);
 router.post('/listings/:listingId/cancel', auth, cancelMarketplaceListing);

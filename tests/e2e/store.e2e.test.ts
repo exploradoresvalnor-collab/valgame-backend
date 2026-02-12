@@ -6,7 +6,7 @@ let mongod: any;
 let app: any;
 
 describe('E2E Store / Paquetes (skeleton)', () => {
-  const user = { email: `store${Date.now()}@test.com`, username: `store${Date.now()}`, password: 'test1234' };
+  const user = { email: `store${Date.now()}@test.com`, username: `store${Date.now()}`, password: 'StrongPassword123!' };
   let token: string;
 
   beforeAll(async () => {

@@ -6,8 +6,8 @@ let mongod: any;
 let app: any;
 
 describe('E2E Ranking (skeleton)', () => {
-  const userA = { email: `rankA${Date.now()}@test.com`, username: `rankA${Date.now()}`, password: 'test1234' };
-  const userB = { email: `rankB${Date.now()}@test.com`, username: `rankB${Date.now()}`, password: 'test1234' };
+  const userA = { email: `rankA${Date.now()}@test.com`, username: `rankA${Date.now()}`, password: 'StrongPassword123!' };
+  const userB = { email: `rankB${Date.now()}@test.com`, username: `rankB${Date.now()}`, password: 'StrongPassword123!' };
   let tokenA: string;
   let tokenB: string;
 

@@ -90,7 +90,10 @@ router.post(
       }
 
       // Verificar que el personaje existe y pertenece al usuario
-      const character = user.personajes.id(characterId);
+      let character: any = user.personajes.id(characterId);
+      if (!character) {
+         character = user.personajes.find((p: any) => p.personajeId === characterId);
+      }
       if (!character) {
         return res.status(400).json({ error: 'Character not found' });
       }

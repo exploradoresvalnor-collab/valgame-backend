@@ -30,7 +30,7 @@ describe('🎮 TEST COMPLETO DE VALIDACIÓN DEL JUEGO', () => {
   describe('🔐 PARTE 1: SEGURIDAD', () => {
     it('1.1 - Debe rechazar acceso sin autenticación', async () => {
       const res = await request(app)
-        .get('/api/auth/profile')
+        .get('/api/users/me')
         .expect(401);
 
       expect(res.body.error).toBeDefined();

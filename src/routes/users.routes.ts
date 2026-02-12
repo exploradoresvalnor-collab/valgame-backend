@@ -137,7 +137,9 @@ router.get('/me', auth, async (req: Request, res: Response) => {
     receivedPioneerPackage: user.receivedPioneerPackage,
     walletAddress: user.walletAddress,
     fechaRegistro: user.fechaRegistro,
-    ultimaActualizacion: user.ultimaActualizacion
+    ultimaActualizacion: user.ultimaActualizacion,
+    survivalStats: user.survivalStats,
+    currentSurvivalSession: user.currentSurvivalSession
   });
 });
 

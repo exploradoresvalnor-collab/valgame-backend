@@ -76,7 +76,7 @@ describe('character:level-up events', () => {
 
   it('emite character:level-up al superar el umbral de experiencia', async () => {
     const res = await request(app)
-      .post('/api/characters/char-1/add-experience')
+      .post('/api/characters/char-1/add-experience-mock')
       .send({ amount: 60 });
     expect(res.status).toBe(200);
     expect(notifyCharacterLevelUp).toHaveBeenCalledTimes(1);

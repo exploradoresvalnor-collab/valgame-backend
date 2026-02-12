@@ -24,8 +24,15 @@ export const listItemInMarketplace = async (req: Request, res: Response): Promis
 
     // Check if user owns the item
     const itemIdObj = new Types.ObjectId(itemId);
-    const itemIndex = user.inventarioEquipamiento.findIndex((id: any) => id.toString() === itemIdObj.toString());  
-    if (itemIndex === -1) {
+    
+    const isEquipment = user.inventarioEquipamiento && user.inventarioEquipamiento.some((id: any) => id.toString() === itemIdObj.toString());
+    
+    // Check consumables (format: [{consumableId: ObjectId, usos_restantes: Number}])
+    const isConsumable = user.inventarioConsumibles && user.inventarioConsumibles.some(
+      (c: any) => c.consumableId?.toString() === itemIdObj.toString() && c.usos_restantes > 0
+    );
+
+    if (!isEquipment && !isConsumable) {
       res.status(403).json({ error: 'Item not in user inventory' });
       return;
     }

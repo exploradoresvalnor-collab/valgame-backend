@@ -49,7 +49,7 @@ describe('Sistema de Niveles', () => {
             .post('/auth/register')
             .send({
                 email: 'test@test.com',
-                password: 'Test1234!',
+                password: 'StrongPassword123!',
                 username: 'testUser'
             });
 
@@ -82,7 +82,7 @@ describe('Sistema de Niveles', () => {
             .post('/auth/login')
             .send({
                 email: 'test@test.com',
-                password: 'Test1234!'
+                password: 'StrongPassword123!'
             });
 
         if (loginResponse.status !== 200 || !loginResponse.body.token) {

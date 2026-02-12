@@ -93,7 +93,7 @@ export async function seedTestData() {
         categorias_garantizadas: ['D'],
         distribucion_aleatoria: 'D:100',
         val_reward: 100,
-        items_reward: [new ObjectId('68dc525adb5c735854b5659d')]
+        items_reward: [new ObjectId('68dc525adb5c735854b5659d'), new ObjectId('68dc525adb5c735854b5659d')]
     });
 
     // Crear requisitos de nivel para testing (niveles 2-10)

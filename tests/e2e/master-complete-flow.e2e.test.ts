@@ -324,6 +324,10 @@ describe('🎮 TEST MAESTRO E2E - FLUJO COMPLETO', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .send({ amount: 500 });
 
+      if (addXpRes.status === 200 && !addXpRes.body.message) {
+         console.log('DEBUG 4.1 RESPONSE BODY:', JSON.stringify(addXpRes.body, null, 2));
+      }
+
       expect(addXpRes.status).toBe(200);
       expect(addXpRes.body.message).toBeDefined();
       

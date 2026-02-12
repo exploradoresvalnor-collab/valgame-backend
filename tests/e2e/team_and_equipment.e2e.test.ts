@@ -6,7 +6,7 @@ let mongod: any;
 let app: any;
 
 describe('E2E Team & Equipment (skeleton)', () => {
-  const user = { email: `team${Date.now()}@test.com`, username: `team${Date.now()}`, password: 'test1234' };
+  const user = { email: `team${Date.now()}@test.com`, username: `team${Date.now()}`, password: 'StrongPassword123!' };
   let token: string;
   let characterId: string;
 

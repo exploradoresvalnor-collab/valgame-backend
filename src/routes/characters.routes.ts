@@ -15,7 +15,7 @@ const router = Router();
 // Test-only shortcut to satisfy WS unit test without DB flow
 if (process.env.NODE_ENV === 'test') {
   // Define before real handler to take precedence during tests
-  router.post('/:characterId/add-experience', async (req: any, res) => {
+  router.post('/:characterId/add-experience-mock', async (req: any, res, next) => {
     try {
       const { RealtimeService } = await import('../services/realtime.service');
       const userId = req.userId || '507f1f77bcf86cd799439011';
