@@ -92,7 +92,7 @@ ResetPasswordSchema { token, newPassword }
 | GET | `/api/characters/:id` | Obtener detalles | ✅ | - |
 | PUT | `/api/characters/:id/name` | Cambiar nombre | ✅ | - |
 
-**Flujo: Personaje progresa mediante EXP → Level Up → Stats increase → Evolve**
+**Nota sobre Arquitectura:** Los personajes ahora se almacenan en su propia colección relacional `UserCharacter`. Aunque el backend mantiene compatibilidad devolviendo el array `personajes` en los endpoints de perfil, se recomienda usar los endpoints específicos de personajes para mayor eficiencia.
 
 ---
 
@@ -358,7 +358,7 @@ Gestión de equipos cooperativos.
 
 | Sistema | Endpoints | Detalles |
 |---------|-----------|----------|
-| **GameSettings** | 2 | Ver/actualizar config |
+| **GameSettings** | 2 | Ver/actualizar config (Incluye nuevos multiplicadores por rango) |
 | **Categories** | 2 | Listar categorías |
 | **Equipment** | 2 | Gestión de equipo |
 | **Consumables** | 2 | Gestión de consumibles |
