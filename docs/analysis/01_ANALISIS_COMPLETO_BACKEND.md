@@ -1,9 +1,9 @@
 # 📊 Análisis Completo del Backend Valgame - Auditoría Técnica
 
-**Fecha:** 24 de noviembre, 2025  
-**Versión:** 2.1.0  
-**Estado:** ✅ Funcional en Producción  
-**Última revisión:** Análisis exhaustivo de código fuente
+**Fecha:** 7 de marzo, 2026  
+**Versión:** 2.2.0  
+**Estado:** ✅ Funcional en Producción (Arch. Separada)  
+**Última revisión:** Auditoría de desacoplamiento de personajes
 
 ---
 
@@ -521,7 +521,8 @@ apiLimiter:          200 peticiones / 15 minutos
 ### Principales:
 
 1. **User** - Datos del usuario, inventario, personajes
-2. **BaseCharacter** - Catálogo de personajes disponibles
+2. **UserCharacter** - Personajes del usuario (Separado de User)
+3. **BaseCharacter** - Catálogo de personajes disponibles
 3. **Item** (discriminator) - Equipamiento, Consumibles
 4. **Listing** - Puestos del marketplace
 5. **Consumable** - Ítems consumibles

@@ -194,6 +194,7 @@ Collections: 25+
 
 Schemas:
 ├─ User
+├─ UserCharacter (Relacional)
 ├─ BaseCharacter
 ├─ Item (discriminators: Equipment, Consumable)
 ├─ Listing (Marketplace)
@@ -208,7 +209,7 @@ Schemas:
 ├─ Team
 ├─ Achievement
 ├─ Ranking
-├─ GameSetting
+├─ GameSetting (Configuración con multiplicadores por rango)
 ├─ Package
 ├─ UserPackage
 ├─ LevelHistory

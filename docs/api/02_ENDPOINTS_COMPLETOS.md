@@ -102,6 +102,8 @@
 | 41 | GET | `/api/characters/:characterId/stats` | Obtener stats |
 | 42 | PUT | `/api/characters/:characterId/level-up` | Subir nivel |
 
+**Nota sobre Arquitectura (Marzo 2026):** Los personajes ahora residen en la colección `UserCharacter`. Se recomienda al frontend usar los endpoints de esta sección para gestionar el inventario de héroes de forma eficiente.
+
 ---
 
 ## ⚔️ COMBATE
@@ -259,8 +261,8 @@
 
 | # | HTTP | Ruta |
 |----|------|------|
-| 93 | GET | `/api/game-settings` |
-| 94 | PUT | `/api/game-settings` |
+| 93 | GET | `/api/game-settings` | Ver config (incluye multiplicadores de XP/VAL/Drop) |
+| 94 | PUT | `/api/game-settings` | Actualizar config (Admin) |
 
 ### Eventos (`/api/events`):
 

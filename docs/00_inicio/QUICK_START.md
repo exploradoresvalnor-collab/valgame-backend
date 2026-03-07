@@ -36,7 +36,7 @@ MongoDB (Atlas)
 
 ## 3️⃣ Endpoints (2 min)
 
-**25+ endpoints totales** organizados en categorías:
+**~120+ endpoints totales** organizados en categorías:
 
 | Sistema | Endpoints | Archivo |
 |---------|-----------|---------|
@@ -170,4 +170,4 @@ Según tu rol:
 
 ---
 
-*Valgame Backend v2.1.0 | Auditoría: 1 dic 2025*
+*Valgame Backend v2.2.0 | Actualizado: 7 mar 2026*

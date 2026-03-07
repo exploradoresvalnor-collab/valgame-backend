@@ -1,6 +1,6 @@
 # 📊 ESTADO ACTUAL DEL PROYECTO VALGAME BACKEND
-**Fecha:** 12 de febrero de 2026
-**Ubicación:** `C:\Users\Usuario\Desktop\trabajo\Valnor-full\gui a de ejempli\valgame-backend\`
+**Fecha:** 7 de marzo de 2026
+**Ubicación:** `C:\Users\Usuario\Desktop\trabajo\Valnor-full\docs\gui a de ejempli\valgame-backend\`
 
 ---
 
@@ -17,6 +17,8 @@
 - **Autenticación**: JWT + Bcrypt
 - **Validación**: Zod schemas
 - **Arquitectura**: Clean Architecture (Controllers → Services → Models)
+- **Desacoplamiento**: Personajes migrados a colección `UserCharacter` (Relacional)
+- **Configuración**: `GameSettings` con multiplicadores dinámicos por rango
 
 ---
 

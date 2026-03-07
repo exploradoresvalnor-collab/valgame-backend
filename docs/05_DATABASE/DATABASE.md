@@ -58,32 +58,35 @@ User {
   _id: ObjectId,
   email: String (unique),
   username: String (unique),
-  password: String (bcryptjs),
-  personajes: [Character],
+  passwordHash: String,
+  personajesId: [ObjectId] (ref: 'UserCharacter'),
   inventarioEquipamiento: [Equipment],
-  inventarioConsumibles: [Consumable],
-  valBalance: Number,
-  energiaActual: Number,
-  verified: Boolean,
+  inventarioConsumibles: [ConsumableItem],
+  val: Number,
+  boletos: Number,
+  energia: Number,
+  energiaMaxima: Number,
+  isVerified: Boolean,
   createdAt: Date,
   updatedAt: Date
 }
 
-// 2. CHARACTER - Personaje del usuario
-Character {
+// 2. USERCHARACTER - Personaje del usuario (Colección relacional)
+UserCharacter {
   _id: ObjectId,
-  userId: ObjectId,
+  userId: ObjectId (ref: 'User'),
+  personajeId: String (ID del personaje base),
   nombre: String,
   nivel: Number,
   rango: String,
   etapa: Number,
-  saludActual: Number,
   experiencia: Number,
-  stats: {
-    ataque: Number,
-    defensa: Number,
-    velocidad: Number
-  }
+  saludActual: Number,
+  saludMaxima: Number,
+  progreso: Number,
+  estado: String,
+  equipamiento: [ObjectId] (ref: 'Item'),
+  activeBuffs: [Buff]
 }
 
 // 3. ITEM - Items discriminator pattern

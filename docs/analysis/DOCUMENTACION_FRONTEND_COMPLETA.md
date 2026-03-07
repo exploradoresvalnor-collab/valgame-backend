@@ -1,6 +1,6 @@
 # 📚 DOCUMENTACIÓN VALGAME RPG v2.1.0
 
-**Completa | Auditada | Production-Ready**
+**Completa | Auditada | Production-Ready (Update: March 2026)**
 
 ---
 
@@ -92,6 +92,8 @@ están listos para copiar-pegar directamente
 - ✅ 8+ middlewares
 - ✅ 5 sistemas principales: Auth, Combat, Survival, Marketplace, Rankings
 - ✅ 5 sistemas nuevos: Rankings, Chat, Notifications, Teams, Energy
+- ✅ **NUEVO**: Colección `UserCharacter` desacoplada para mejor escalabilidad
+- ✅ **NUEVO**: Multiplicadores en `GameSettings` sincronizados con DB
 
 ### Frontend (Guía profesional)
 - ✅ Estructura Angular 17+ completa

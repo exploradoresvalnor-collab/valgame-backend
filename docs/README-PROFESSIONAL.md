@@ -11,7 +11,7 @@
 **Validación**: Zod schemas  
 **Tests**: Jest + Supertest (31/31 tests E2E - 100% pasando)  
 **Estado**: ✅ **PRODUCCIÓN READY** | ✅ **COMPLETADO AL 100%**  
-**Última actualización**: 12 de febrero de 2026  
+**Última actualización**: 7 de marzo de 2026  
 
 ## 🏗️ Arquitectura del Sistema
 
@@ -206,6 +206,7 @@ npm run migrate      # Migraciones de DB
 - [x] Sistema de autenticación robusto
 - [x] Integración WebSocket preparada
 - [x] Base de datos optimizada
+- [x] Desacoplamiento de personajes (`UserCharacter`)
 
 ### 🚧 En Desarrollo
 - [ ] Frontend integration completa
