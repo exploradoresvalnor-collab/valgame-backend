@@ -1,11 +1,16 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
+import UserCharacter from '../models/userCharacter';
 import Dungeon from '../models/Dungeon';
 import { CombatService } from '../services/combat.service';
 
 export const startDungeonCombat = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const { dungeonId } = req.params;
     const { characterId } = req.body;
 
@@ -23,7 +28,7 @@ export const startDungeonCombat = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const character = user.personajes.id(characterId);
+    const character = await UserCharacter.findOne({ userId, _id: characterId });
     if (!character) {
       res.status(404).json({ error: 'Character not found' });
       return;
@@ -62,7 +67,11 @@ export const startDungeonCombat = async (req: Request, res: Response): Promise<v
 
 export const performAttack = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const { combateId, characterId } = req.body;
 
     // Validate inputs
@@ -78,22 +87,22 @@ export const performAttack = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const character = user.personajes.id(characterId);
+    const character = await UserCharacter.findOne({ userId, _id: characterId });
     if (!character) {
       res.status(404).json({ error: 'Character not found' });
       return;
     }
 
-    // Calculate damage: base ATK + 25% crit chance
-    const dano = character.stats?.atk || 0;
-    const critico = Math.random() < 0.25;
-    const danofinal = critico ? dano * 1.5 : dano;
+    // Calculate damage using CombatService
+    const combatService = CombatService.getInstance();
+    const ataqueBase = character.stats?.atk || 0;
+    const { danoFinal, critico } = combatService.calcularAtaqueFisico(ataqueBase);
 
     res.status(200).json({
       success: true,
       ataque: {
         personaje: character.personajeId,
-        dano: danofinal,
+        dano: danoFinal,
         critico,
         tipo: 'fisico',
         timestamp: new Date()
@@ -106,7 +115,11 @@ export const performAttack = async (req: Request, res: Response): Promise<void> 
 
 export const performDefend = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const { combateId, characterId } = req.body;
 
     // Get user and character
@@ -116,14 +129,16 @@ export const performDefend = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const character = user.personajes.id(characterId);
+    const character = await UserCharacter.findOne({ userId, _id: characterId });
     if (!character) {
       res.status(404).json({ error: 'Character not found' });
       return;
     }
 
-    // Calculate defense bonus
-    const reduccionDano = (character.stats?.defensa || 0) * 0.5;
+    // Calculate defense bonus using CombatService
+    const combatService = CombatService.getInstance();
+    const defensaBase = character.stats?.defensa || 0;
+    const reduccionDano = combatService.calcularDefensa(defensaBase);
 
     res.status(200).json({
       success: true,
@@ -141,7 +156,11 @@ export const performDefend = async (req: Request, res: Response): Promise<void> 
 
 export const endCombat = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = (req as any).user;
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const { combateId, characterId, resultado } = req.body;
 
     // Validate inputs
@@ -157,7 +176,7 @@ export const endCombat = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const character = user.personajes.id(characterId);
+    const character = await UserCharacter.findOne({ userId, _id: characterId });
     if (!character) {
       res.status(404).json({ error: 'Character not found' });
       return;
@@ -171,6 +190,7 @@ export const endCombat = async (req: Request, res: Response): Promise<void> => {
     character.experiencia = (character.experiencia || 0) + experienciaCombate;
     user.val = (user.val || 0) + valGanado;
 
+    await character.save();
     await user.save();
 
     res.status(200).json({

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { auth } from '../middlewares/auth';
 import PlayerStat from '../models/PlayerStat';
 import { User } from '../models/User';
+import UserCharacter from '../models/userCharacter';
 
 const router = Router();
 
@@ -17,6 +18,8 @@ router.get('/', auth, async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
+    const userCharacters = await UserCharacter.find({ userId: req.userId }).lean();
+
     // Calcular estadísticas básicas del jugador
     const stats = {
       totalPartidas: (user.dungeon_stats?.total_victorias || 0) + (user.dungeon_stats?.total_derrotas || 0),
@@ -25,10 +28,10 @@ router.get('/', auth, async (req, res) => {
       rachaActual: user.dungeon_streak || 0,
       mejorRacha: user.max_dungeon_streak || 0,
       tiempoJugado: 0, // Placeholder - no implementado aún
-      nivelPromedioPersonajes: user.personajes && user.personajes.length > 0
-        ? Math.round(user.personajes.reduce((sum, p) => sum + (p.nivel || 1), 0) / user.personajes.length)
+      nivelPromedioPersonajes: userCharacters.length > 0
+        ? Math.round(userCharacters.reduce((sum: number, p: any) => sum + (p.nivel || 1), 0) / userCharacters.length)
         : 1,
-      totalPersonajes: user.personajes?.length || 0,
+      totalPersonajes: userCharacters.length,
       totalItems: (user.inventarioEquipamiento?.length || 0) + (user.inventarioConsumibles?.length || 0)
     };
 

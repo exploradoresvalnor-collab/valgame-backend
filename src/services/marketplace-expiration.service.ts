@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import mongoose, { Types } from 'mongoose';
 import Listing from '../models/Listing';
 import { User } from '../models/User';
+import UserCharacter from '../models/userCharacter';
 import { RealtimeService } from './realtime.service';
 
 // Expira listings cuya fechaExpiracion ya pasó:
@@ -29,7 +30,8 @@ export const expireDueListings = async () => {
         switch (listing.type) {
           case 'personaje': {
             const md = (listing.metadata as any) || {};
-            seller.personajes.push({
+            await UserCharacter.create([{
+              userId: seller._id,
               personajeId: listing.itemId,
               rango: md.rango,
               nivel: md.nivel ?? 1,
@@ -42,7 +44,7 @@ export const expireDueListings = async () => {
               fechaHerido: md.fechaHerido ?? null,
               equipamiento: Array.isArray(md.equipamiento) ? md.equipamiento : [],
               activeBuffs: Array.isArray(md.activeBuffs) ? md.activeBuffs : []
-            } as any);
+            }], { session });
             break;
           }
           case 'equipamiento': {
@@ -75,7 +77,7 @@ export const expireDueListings = async () => {
     // Tras procesar, se puede emitir un refresh global para que los clientes vuelvan a consultar
     const realtime = RealtimeService.getInstance();
     realtime.notifyMarketplaceUpdate('refresh', { listings: [], total: 0, hasMore: false });
-  } catch {}
+  } catch { }
 };
 
 export const startMarketplaceExpirationCron = () => {

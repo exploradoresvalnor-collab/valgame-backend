@@ -3,6 +3,7 @@ import { auth } from '../middlewares/auth';
 import {
   getUserTeams,
   getTeamById,
+  getActiveTeam,
   createTeam,
   updateTeam,
   deleteTeam,
@@ -16,6 +17,9 @@ router.use(auth);
 
 // GET /api/teams - Obtener todos los equipos del usuario
 router.get('/', getUserTeams);
+
+// GET /api/teams/active - Obtener equipo activo del usuario
+router.get('/active', getActiveTeam);
 
 // GET /api/teams/:id - Obtener equipo específico
 router.get('/:id', getTeamById);

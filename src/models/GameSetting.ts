@@ -14,14 +14,18 @@ export interface IGameSetting extends Document {
   costo_ticket_en_val: number;
   MAX_PERSONAJES_POR_EQUIPO: number;
   EXP_GLOBAL_MULTIPLIER: number;
-  aumento_stats_por_nivel: { [key: string]: IStatIncrease };
+  aumento_stats_por_nivel: { [key: string]: IStatIncrease; };
   costo_revivir_personaje: number;
-  costo_evo_por_val?: number; // Costo de 1 EVO en VAL (100 VAL = 1 EVO por defecto)
-  costo_evo_etapa_2?: { [key: string]: number }; // Costos de evolución Común → Raro por rango
-  costo_evo_etapa_3?: { [key: string]: number }; // Costos de evolución Raro → Épico por rango
+  costo_evo_por_val?: number;
+  costo_evo_etapa_2?: { [key: string]: number; };
+  costo_evo_etapa_3?: { [key: string]: number; };
   nivel_maximo_personaje: number;
   PERMADEATH_TIMER_HOURS: number;
-  // ...y el resto de campos de tu interfaz...
+  // Multiplicadores por rango
+  exp_req_multiplier_por_rango?: { [key: string]: number; };
+  exp_gain_multiplier_por_rango?: { [key: string]: number; };
+  reward_val_multiplier_por_rango?: { [key: string]: number; };
+  drop_rate_boost_por_rango?: { [key: string]: number; };
 }
 
 const GameSettingSchema: Schema = new Schema({
@@ -47,7 +51,11 @@ const GameSettingSchema: Schema = new Schema({
       defensa: { type: Number, required: true }
     }, { _id: false })
   },
-  // ...y el resto de campos de tu schema...
+  // Multiplicadores por rango (Maps de rango -> numero)
+  exp_req_multiplier_por_rango: { type: Map, of: Number },
+  exp_gain_multiplier_por_rango: { type: Map, of: Number },
+  reward_val_multiplier_por_rango: { type: Map, of: Number },
+  drop_rate_boost_por_rango: { type: Map, of: Number },
 }, {
   versionKey: false
 });

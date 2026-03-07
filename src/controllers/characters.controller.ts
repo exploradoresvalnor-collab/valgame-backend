@@ -5,6 +5,7 @@ import { IConsumable } from '../models/Consumable';
 import { Types } from 'mongoose';
 import BaseCharacter from '../models/BaseCharacter';
 import { RealtimeService } from '../services/realtime.service';
+import UserCharacter from '../models/userCharacter';
 
 // Interfaz para extender Request y que incluya el userId del middleware de auth
 interface AuthRequest extends Request {
@@ -29,8 +30,8 @@ export const reviveCharacter = async (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
     if (!gameSettings) return res.status(500).json({ error: 'Configuración del juego no encontrada.' });
 
-    // Encontrar el personaje específico dentro del array del usuario
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    // Encontrar el personaje específico usando UserCharacter
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
 
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
@@ -56,6 +57,7 @@ export const reviveCharacter = async (req: AuthRequest, res: Response) => {
     character.fechaHerido = null;
 
     // Guardar los cambios en la base de datos
+    await character.save();
     await user.save();
 
     // Notificar en tiempo real (solo si está inicializado)
@@ -120,7 +122,7 @@ export const useConsumable = async (req: AuthRequest, res: Response) => {
 
     const consumable = inventoryItem.consumableId as unknown as IConsumable;
 
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
@@ -158,6 +160,7 @@ export const useConsumable = async (req: AuthRequest, res: Response) => {
       (user as any).markModified('inventarioConsumibles');
     }
 
+    await character.save();
     await user.save();
 
     res.json({
@@ -183,7 +186,7 @@ export const healCharacter = async (req: AuthRequest, res: Response) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
 
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
@@ -208,6 +211,7 @@ export const healCharacter = async (req: AuthRequest, res: Response) => {
     user.val -= cost;
     character.saludActual = character.saludMaxima;
 
+    await character.save();
     await user.save();
 
     // Notificar en tiempo real (solo si está inicializado)
@@ -262,7 +266,7 @@ export const addExperience = async (req: AuthRequest, res: Response) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
 
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
@@ -316,6 +320,7 @@ export const addExperience = async (req: AuthRequest, res: Response) => {
       await levelHistory.save();
     }
 
+    await character.save();
     await user.save();
 
     // Notificar en tiempo real (solo si está inicializado)
@@ -344,8 +349,8 @@ export const addExperience = async (req: AuthRequest, res: Response) => {
     }
 
     res.json({
-      message: leveledUp 
-        ? `¡${character.personajeId} ha subido al nivel ${character.nivel}!` 
+      message: leveledUp
+        ? `¡${character.personajeId} ha subido al nivel ${character.nivel}!`
         : `${character.personajeId} ha ganado ${amount} de experiencia`,
       characterState: {
         personajeId: character.personajeId,
@@ -374,7 +379,7 @@ export const evolveCharacter = async (req: AuthRequest, res: Response) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
 
-    const characterToEvolve = user.personajes.find(p => p.personajeId === characterId);
+    const characterToEvolve = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!characterToEvolve) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
@@ -390,9 +395,9 @@ export const evolveCharacter = async (req: AuthRequest, res: Response) => {
     }
 
     // --- Verificación de Requisitos ---
-  const { nivel, val, evo } = nextEvolution.requisitos;
-  // val puede venir como string o number, manejamos ambos
-  const valCost = typeof val === 'number' ? val : parseInt(String(val || '0'), 10);
+    const { nivel, val, evo } = nextEvolution.requisitos;
+    // val puede venir como string o number, manejamos ambos
+    const valCost = typeof val === 'number' ? val : parseInt(String(val || '0'), 10);
 
     if (characterToEvolve.nivel < nivel) {
       return res.status(400).json({ error: `Se requiere nivel ${nivel} para evolucionar. Nivel actual: ${characterToEvolve.nivel}.` });
@@ -409,12 +414,13 @@ export const evolveCharacter = async (req: AuthRequest, res: Response) => {
     user.evo -= evo;
 
     // --- Actualización del Personaje ---
-  // nextEvolution.etapa puede ser number; casteamos para satisfacer el tipo esperado en el subdocumento
-  characterToEvolve.etapa = nextEvolution.etapa as any;
+    // nextEvolution.etapa puede ser number; casteamos para satisfacer el tipo esperado en el subdocumento
+    characterToEvolve.etapa = nextEvolution.etapa as any;
     characterToEvolve.stats = nextEvolution.stats; // Asignar las nuevas estadísticas base
     characterToEvolve.saludMaxima = nextEvolution.stats.vida; // Actualizar salud máxima
     characterToEvolve.saludActual = nextEvolution.stats.vida; // Curar completamente
 
+    await characterToEvolve.save();
     await user.save();
 
     // Emitir evento WebSocket y crear notificación
@@ -479,7 +485,7 @@ export const levelUpCharacter = async (req: any, res: any) => {
     }
 
     // Obtener personaje
-    const character = user.personajes.find((p: any) => p._id?.toString() === characterId);
+    const character = await UserCharacter.findOne({ _id: characterId, userId });
     if (!character) {
       return res.status(404).json({ error: 'Personaje no encontrado' });
     }
@@ -492,7 +498,7 @@ export const levelUpCharacter = async (req: any, res: any) => {
     // Validar que hay suficiente experiencia
     if (expActual < expRequerida) {
       const faltante = expRequerida - expActual;
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: `No tienes suficiente experiencia. Faltan ${faltante} EXP`,
         experienciaActual: expActual,
         experienciaRequerida: expRequerida,
@@ -522,6 +528,7 @@ export const levelUpCharacter = async (req: any, res: any) => {
     character.saludActual = character.saludMaxima;
 
     // Guardar cambios
+    await character.save();
     await user.save();
 
     res.json({

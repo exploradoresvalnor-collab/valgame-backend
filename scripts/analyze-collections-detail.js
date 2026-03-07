@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 
 async function analyzeCollections() {
   try {
-    console.log('\nÌ¥ó Conectando a MongoDB...\n');
+    console.log('\nÔøΩÔøΩÔøΩ Conectando a MongoDB...\n');
     
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000
+      serverSelectionTimeoutMS: 30000
     });
 
     console.log('‚úÖ Conectado\n');
@@ -14,11 +14,11 @@ async function analyzeCollections() {
 
     // Analizar colecciones cr√≠ticas
     console.log('‚ïê'.repeat(80));
-    console.log('Ì≥ä AN√ÅLISIS DETALLADO DE COLECCIONES CR√çTICAS');
+    console.log('ÔøΩÔøΩÔøΩ AN√ÅLISIS DETALLADO DE COLECCIONES CR√çTICAS');
     console.log('‚ïê'.repeat(80) + '\n');
 
     // USERS
-    console.log('Ì±§ USERS (Usuarios registrados)');
+    console.log('ÔøΩÔøΩÔøΩ USERS (Usuarios registrados)');
     console.log('‚îÄ'.repeat(80));
     const usersCount = await db.collection('users').countDocuments();
     console.log(`   Documentos: ${usersCount}`);
@@ -46,7 +46,7 @@ async function analyzeCollections() {
     console.log();
 
     // DUNGEONS
-    console.log('Ìø∞ DUNGEONS (Mazmorras)');
+    console.log('ÔøΩÔøΩÔøΩ DUNGEONS (Mazmorras)');
     console.log('‚îÄ'.repeat(80));
     const dungeonsCount = await db.collection('dungeons').countDocuments();
     console.log(`   Documentos: ${dungeonsCount}`);
@@ -70,7 +70,7 @@ async function analyzeCollections() {
     console.log();
 
     // PACKAGES
-    console.log('Ì≥¶ PACKAGES (Paquetes de compra)');
+    console.log('ÔøΩÔøΩÔøΩ PACKAGES (Paquetes de compra)');
     console.log('‚îÄ'.repeat(80));
     const packagesCount = await db.collection('packages').countDocuments();
     console.log(`   Documentos: ${packagesCount}`);
@@ -83,7 +83,7 @@ async function analyzeCollections() {
     console.log();
 
     // SURVIVAL_SESSIONS
-    console.log('ÌæÆ SURVIVAL_SESSIONS (Sesiones de supervivencia)');
+    console.log('ÔøΩÔøΩÔøΩ SURVIVAL_SESSIONS (Sesiones de supervivencia)');
     console.log('‚îÄ'.repeat(80));
     const survivalCount = await db.collection('survival_sessions').countDocuments();
     console.log(`   Documentos: ${survivalCount}`);
@@ -98,7 +98,7 @@ async function analyzeCollections() {
     console.log();
 
     // LISTINGS
-    console.log('Ì≤∞ LISTINGS (Items en venta en marketplace)');
+    console.log('ÔøΩÔøΩÔøΩ LISTINGS (Items en venta en marketplace)');
     console.log('‚îÄ'.repeat(80));
     const listingsCount = await db.collection('listings').countDocuments();
     console.log(`   Documentos: ${listingsCount}`);
@@ -113,7 +113,7 @@ async function analyzeCollections() {
     console.log();
 
     // CATEGOR√çAS
-    console.log('Ì≥Ç CATEGORIES (Categor√≠as de items)');
+    console.log('ÔøΩÔøΩÔøΩ CATEGORIES (Categor√≠as de items)');
     console.log('‚îÄ'.repeat(80));
     const categoriesCount = await db.collection('categories').countDocuments();
     console.log(`   Documentos: ${categoriesCount}`);
@@ -124,7 +124,7 @@ async function analyzeCollections() {
     console.log();
 
     console.log('‚ïê'.repeat(80));
-    console.log('Ì≥ã RESUMEN');
+    console.log('ÔøΩÔøΩÔøΩ RESUMEN');
     console.log('‚ïê'.repeat(80));
     console.log(`\n‚úÖ Items: ${itemsCount} - ${itemsCount >= 20 ? 'OK' : '‚ö†Ô∏è Pocos'}`);
     console.log(`${usersCount > 0 ? '‚úÖ' : '‚ùå'} Usuarios: ${usersCount} - ${usersCount === 0 ? 'NECESITA USUARIOS' : 'OK'}`);
@@ -134,13 +134,13 @@ async function analyzeCollections() {
 
     console.log('\n' + '‚ïê'.repeat(80));
     if (usersCount === 0) {
-      console.log('Ì¥¥ ACCI√ìN REQUERIDA: No hay usuarios en la BD');
+      console.log('ÔøΩÔøΩÔøΩ ACCI√ìN REQUERIDA: No hay usuarios en la BD');
       console.log('   Necesitas crear un usuario. Opciones:');
       console.log('   1. Registrarse a trav√©s de la API');
       console.log('   2. Ejecutar script de seed con usuarios');
       console.log('   3. Crear usuario manualmente en MongoDB');
     } else {
-      console.log('Ìø¢ TODO OK - Base de datos lista para usar');
+      console.log('ÔøΩÔøΩÔøΩ TODO OK - Base de datos lista para usar');
     }
     console.log('‚ïê'.repeat(80) + '\n');
 

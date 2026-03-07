@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activateTeam = exports.deleteTeam = exports.updateTeam = exports.createTeam = exports.getTeamById = exports.getUserTeams = void 0;
-const Team_1 = require("../../models/Team");
-const User_1 = require("../../models/User");
-const team_validations_1 = require("../../validations/team.validations");
+const Team_1 = require("../models/Team");
+const User_1 = require("../models/User");
+const team_validations_1 = require("../validations/team.validations");
 const mongoose_1 = require("mongoose");
 // GET /api/teams - Obtener todos los equipos del usuario
 const getUserTeams = async (req, res) => {
@@ -181,9 +181,11 @@ const createTeam = async (req, res) => {
     }
     catch (error) {
         console.error('[CREATE-TEAM] Error:', error);
+        console.error('[CREATE-TEAM] Stack:', error.stack);
         return res.status(500).json({
             success: false,
-            error: 'Error al crear equipo'
+            error: 'Error al crear equipo',
+            details: error.message
         });
     }
 };

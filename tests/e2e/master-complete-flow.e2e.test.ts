@@ -109,6 +109,7 @@ import request from 'supertest';
 import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
 import { setupTestDB, seedTestData, cleanupTestDB } from './setup';
 import { User } from '../../src/models/User';
+import { Team } from '../../src/models/Team';
 import BaseCharacter from '../../src/models/BaseCharacter';
 import Dungeon from '../../src/models/Dungeon';
 import { Item } from '../../src/models/Item';
@@ -435,7 +436,8 @@ describe('🎮 TEST MAESTRO E2E - FLUJO COMPLETO', () => {
       expect(createTeamRes.status).toBe(201);
       expect(createTeamRes.body.success).toBe(true);
       expect(createTeamRes.body.team).toBeDefined();
-      expect(createTeamRes.body.team.isActive).toBe(true); // Primer equipo es activo por defecto
+      // Nota: El equipo no debería ser activo si ya hay uno activo (del onboarding)
+      expect(createTeamRes.body.team.isActive).toBe(false); // No es activo porque ya hay uno activo
 
       teamId = createTeamRes.body.team._id;
 
@@ -460,7 +462,7 @@ describe('🎮 TEST MAESTRO E2E - FLUJO COMPLETO', () => {
       const createdTeam = teamsRes.body.teams.find((team: any) => team._id === teamId);
       expect(createdTeam).toBeDefined();
       expect(createdTeam.name).toBe('Equipo Maestro Test');
-      expect(createdTeam.isActive).toBe(true);
+      expect(createdTeam.isActive).toBe(false); // No es activo porque ya hay uno activo
 
       console.log(`  ✓ Equipos encontrados: ${teamsRes.body.teams.length}`);
     });
@@ -481,7 +483,7 @@ describe('🎮 TEST MAESTRO E2E - FLUJO COMPLETO', () => {
       expect(teamRes.body.success).toBe(true);
       expect(teamRes.body.team._id).toBe(teamId);
       expect(teamRes.body.team.name).toBe('Equipo Maestro Test');
-      expect(teamRes.body.team.isActive).toBe(true);
+      expect(teamRes.body.team.isActive).toBe(false); // No es activo porque ya hay uno activo
       expect(Array.isArray(teamRes.body.team.characters)).toBe(true);
 
       console.log(`  ✓ Equipo obtenido: ${teamRes.body.team.name}`);
@@ -901,6 +903,58 @@ describe('🎮 TEST MAESTRO E2E - FLUJO COMPLETO', () => {
       console.log('\n═══════════════════════════════════════════');
       console.log('✅ TEST MAESTRO E2E COMPLETADO');
       console.log('═══════════════════════════════════════════\n');
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // TEST ESPECÍFICO: CREACIÓN AUTOMÁTICA DE EQUIPOS
+    // ═══════════════════════════════════════════════════════════════
+
+    it('EXTRA: Debe crear equipo automáticamente durante onboarding', async () => {
+      console.log('\n🧪 Probando creación automática de equipos...');
+
+      // Crear un usuario completamente nuevo (no usar el de los tests anteriores)
+      const newTimestamp = Date.now() + 1000; // Para evitar conflictos
+      const newUser = {
+        email: `auto_team_test_${newTimestamp}@test.com`,
+        username: `auto_team_${newTimestamp}`,
+        password: 'SecurePass123!'
+      };
+
+      // 1. Registrar usuario
+      const registerRes = await request(app)
+        .post('/auth/register')
+        .send(newUser);
+
+      expect(registerRes.status).toBe(201);
+
+      // 2. Obtener token de verificación y verificar email (esto activa onboarding)
+      const user = await User.findOne({ email: newUser.email });
+      expect(user).toBeTruthy();
+      const verificationToken = (user as any).verificationToken;
+
+      const verifyRes = await request(app)
+        .get(`/auth/verify/${verificationToken}`);
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.package.delivered).toBe(true);
+
+      // 3. Verificar que se creó un equipo automáticamente
+      const userId = (user as any)._id;
+      const teams = await Team.find({ userId });
+
+      expect(teams.length).toBeGreaterThan(0);
+      expect(teams[0].name).toBe('Equipo Principal');
+      expect(teams[0].isActive).toBe(true);
+      expect(teams[0].characters.length).toBeGreaterThan(0);
+
+      // 4. Verificar que el usuario tiene equipoActivoId
+      const updatedUser = await User.findById(userId);
+      expect(updatedUser?.equipoActivoId?.toString()).toBe(teams[0]._id.toString());
+
+      console.log('✅ ¡Equipo creado automáticamente durante onboarding!');
+      console.log(`   - Equipo: ${teams[0].name}`);
+      console.log(`   - Personajes: ${teams[0].characters.length}`);
+      console.log(`   - Activo: ${teams[0].isActive}`);
     });
   });
 });

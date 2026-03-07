@@ -8,6 +8,8 @@ const router = (0, express_1.Router)();
 router.use(auth_1.auth);
 // GET /api/teams - Obtener todos los equipos del usuario
 router.get('/', teams_controller_1.getUserTeams);
+// GET /api/teams/active - Obtener equipo activo del usuario
+router.get('/active', teams_controller_1.getActiveTeam);
 // GET /api/teams/:id - Obtener equipo específico
 router.get('/:id', teams_controller_1.getTeamById);
 // POST /api/teams - Crear nuevo equipo

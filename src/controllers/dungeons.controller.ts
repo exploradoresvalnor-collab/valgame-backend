@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
-import { User, IPersonajeSubdocument } from '../models/User';
+import { User } from '../models/User';
+import { IUserCharacter } from '../models/userCharacter';
+import UserCharacter from '../models/userCharacter';
 import Dungeon from '../models/Dungeon';
 import GameSettings from '../models/GameSetting';
 import PlayerStat from '../models/PlayerStat'; // Importa el modelo PlayerStat
@@ -10,9 +12,9 @@ import { RealtimeService } from '../services/realtime.service';
 import { IEquipment } from '../models/Equipment';
 import { Item } from '../models/Item';
 import { IConsumable } from '../models/Consumable';
-import { 
-  calcularPuntosVictoria, 
-  calcularTiempoEstimado, 
+import {
+  calcularPuntosVictoria,
+  calcularTiempoEstimado,
   procesarVictoria,
   calcularStatsEscaladas,
   calcularRecompensasEscaladas,
@@ -41,7 +43,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
   try {
     // --- 2. Cargar Todos los Datos Necesarios ---
     const [user, dungeon, gameSettings, levelRequirements] = await Promise.all([
-      User.findById(userId).populate({ path: 'personajes.equipamiento', model: 'Item' }),
+      User.findById(userId),
       Dungeon.findById(dungeonId),
       GameSettings.findOne(),
       LevelRequirement.find() // Cargar todos los requisitos de nivel
@@ -57,27 +59,32 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     }
 
     if (team.length > gameSettings.MAX_PERSONAJES_POR_EQUIPO) {
-        return res.status(400).json({ error: `El equipo no puede tener más de ${gameSettings.MAX_PERSONAJES_POR_EQUIPO} personajes.` });
+      return res.status(400).json({ error: `El equipo no puede tener más de ${gameSettings.MAX_PERSONAJES_POR_EQUIPO} personajes.` });
     }
+
+    const userCharacters = await UserCharacter.find({
+      userId,
+      personajeId: { $in: team }
+    }).populate('equipamiento');
 
     // Validar que los personajes cumplan el nivel mínimo requerido
     const nivelRequerido = dungeon.nivel_requerido_minimo || 1;
     for (const charId of team) {
-      const character = user.personajes.find(p => p.personajeId === charId);
+      const character = userCharacters.find(p => p.personajeId === charId);
       if (character && character.nivel < nivelRequerido) {
-        return res.status(400).json({ 
-          error: `El personaje ${character.personajeId} (nivel ${character.nivel}) no cumple el nivel mínimo requerido (${nivelRequerido}) para esta mazmorra.` 
+        return res.status(400).json({
+          error: `El personaje ${character.personajeId} (nivel ${character.nivel}) no cumple el nivel mínimo requerido (${nivelRequerido}) para esta mazmorra.`
         });
       }
     }
 
     // --- 3. Preparación del Equipo y Validación ---
-    const combatTeam: IPersonajeSubdocument[] = [];
+    const combatTeam: IUserCharacter[] = [];
     let teamATK = 0;
     let teamDEF = 0;
 
     for (const charId of team) {
-      const character = user.personajes.find(p => p.personajeId === charId);
+      const character = userCharacters.find(p => p.personajeId === charId);
       if (!character) {
         return res.status(404).json({ error: `Personaje con ID ${charId} no encontrado en tu equipo.` });
       }
@@ -113,20 +120,20 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       const now = new Date();
       const activeBuffs = [];
       for (const buff of character.activeBuffs) {
-          if (buff.expiresAt > now) {
-              activeBuffs.push(buff);
-              // Aplicar efectos del buff
-              if (buff.effects.mejora_atk) {
-                  finalCharATK += buff.effects.mejora_atk;
-              }
-              if (buff.effects.mejora_defensa) {
-                  finalCharDEF += buff.effects.mejora_defensa;
-              }
-          } 
+        if (buff.expiresAt > now) {
+          activeBuffs.push(buff);
+          // Aplicar efectos del buff
+          if (buff.effects.mejora_atk) {
+            finalCharATK += buff.effects.mejora_atk;
+          }
+          if (buff.effects.mejora_defensa) {
+            finalCharDEF += buff.effects.mejora_defensa;
+          }
+        }
       }
       // Limpiar buffs expirados del personaje
       character.activeBuffs = activeBuffs;
-      
+
       // Añadir a los totales del equipo
       teamATK += finalCharATK;
       teamDEF += finalCharDEF;
@@ -139,7 +146,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     if (!user.dungeon_progress) {
       user.dungeon_progress = new Map();
     }
-    
+
     let dungeonProgress = user.dungeon_progress.get(dungeonIdStr);
     if (!dungeonProgress) {
       dungeonProgress = {
@@ -164,7 +171,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     const combatLog: string[] = [];
     combatLog.push(`🏰 Mazmorra Nivel ${dungeonProgress.nivel_actual}`);
     combatLog.push(`💪 Stats: ${statsEscaladas.vida} HP | ${statsEscaladas.ataque} ATK | ${statsEscaladas.defensa} DEF\n`);
-    
+
     let playerTurn = true;
     let battleResult: 'victoria' | 'derrota' | 'en_curso' = 'en_curso';
     const combatStartTime = Date.now(); // Medir tiempo de combate
@@ -214,7 +221,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
 
     if (battleResult === 'victoria') {
       combatLog.push('¡VICTORIA! Has superado la mazmorra.');
-      
+
       // --- Calcular recompensas escaladas ---
       const recompensasEscaladas = calcularRecompensasEscaladas(
         { expBase: dungeon.recompensas.expBase, valBase: dungeon.recompensas.valBase || 0 },
@@ -227,7 +234,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
 
       const baseExp = recompensasEscaladas.exp * gameSettings.EXP_GLOBAL_MULTIPLIER;
       valGanado = recompensasEscaladas.val;
-      
+
       combatLog.push(`Experiencia base por victoria: ${baseExp}.`);
       combatLog.push(`VAL ganado: ${valGanado}.`);
 
@@ -253,7 +260,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
         } else {
           combatLog.push(` -> ${char.personajeId} gana ${Math.round(finalExp)} de experiencia.`);
         }
-        
+
         const expIndividual = Math.round(finalExp);
         char.progreso += expIndividual;
         totalExpGanada += expIndividual; // Sumar al total para el log
@@ -285,7 +292,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       // Agregar items exclusivos al dropTable si el nivel es suficiente
       let dropTableCompleto = [...dungeon.recompensas.dropTable];
       const nivelMinimoExclusivos = dungeon.nivel_minimo_para_exclusivos || 20;
-      
+
       if (dungeonProgress.nivel_actual >= nivelMinimoExclusivos) {
         if (dungeon.items_exclusivos && dungeon.items_exclusivos.length > 0) {
           combatLog.push(`🏆 Items exclusivos desbloqueados en esta mazmorra!`);
@@ -343,7 +350,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       // --- Sistema de Progresión de Mazmorra ---
       const saludRestantePorcentaje = combatTeam.reduce((sum, c) => sum + (c.saludActual / c.stats.vida) * 100, 0) / combatTeam.length;
       const tiempoEstimado = calcularTiempoEstimado(statsEscaladas.vida, statsEscaladas.ataque);
-      
+
       puntosGanados = calcularPuntosVictoria(
         combatDuration,
         tiempoEstimado,
@@ -356,7 +363,7 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
 
       combatLog.push(`\n🎯 Puntos de mazmorra ganados: ${puntosGanados}`);
       combatLog.push(`📊 Progreso: ${progresoMazmorraResult.progreso.puntos_acumulados}/${progresoMazmorraResult.progreso.puntos_requeridos_siguiente_nivel} pts (Nivel ${progresoMazmorraResult.progreso.nivel_actual})`);
-      
+
       if (progresoMazmorraResult.subiDeNivel) {
         combatLog.push(`🎉 ¡Tu mazmorra subió ${progresoMazmorraResult.nivelesSubidos} nivel(es)! Ahora está en nivel ${progresoMazmorraResult.progreso.nivel_actual}`);
       }
@@ -390,13 +397,13 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       const puntosRanking = gameSettings.puntos_ranking_por_victoria || 10;
       await Ranking.findOneAndUpdate(
         { userId: user._id, periodo: 'global' },
-        { 
-          $inc: { 
+        {
+          $inc: {
             puntos: puntosRanking,
             victorias: 1,
             boletosUsados: 1
           },
-          $set: { 
+          $set: {
             ultimaPartida: new Date()
           }
         },
@@ -405,16 +412,16 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
 
     } else {
       combatLog.push('DERROTA... Tu equipo ha sido vencido.');
-      
+
       // Resetear racha en derrota
       user.dungeon_streak = 0;
-      
+
       // Incrementar contador de derrotas
       if (!user.dungeon_stats) {
         user.dungeon_stats = { total_victorias: 0, total_derrotas: 0, mejor_racha: 0 };
       }
       user.dungeon_stats.total_derrotas += 1;
-      
+
       // Incrementar derrotas en progreso de mazmorra
       if (dungeonProgress) {
         dungeonProgress.derrotas += 1;
@@ -424,12 +431,12 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
       // --- Actualizar Ranking (derrota) ---
       await Ranking.findOneAndUpdate(
         { userId: user._id, periodo: 'global' },
-        { 
-          $inc: { 
+        {
+          $inc: {
             derrotas: 1,
             boletosUsados: 1
           },
-          $set: { 
+          $set: {
             ultimaPartida: new Date()
           }
         },
@@ -441,19 +448,16 @@ export const startDungeon = async (req: AuthRequest, res: Response) => {
     user.boletos -= 1;
 
     // --- 6. Actualizar Estado de Personajes ---
-    combatTeam.forEach(char => {
-        const characterInUser = user.personajes.id(char._id);
-        if (characterInUser) {
-            if (char.saludActual <= 0) {
-                characterInUser.saludActual = 0;
-                characterInUser.estado = 'herido';
-                characterInUser.fechaHerido = new Date();
-            } else {
-                characterInUser.saludActual = char.saludActual;
-            }
-        }
+    const savePromises = combatTeam.map(char => {
+      if (char.saludActual <= 0) {
+        char.saludActual = 0;
+        char.estado = 'herido';
+        char.fechaHerido = new Date();
+      }
+      return char.save();
     });
 
+    await Promise.all(savePromises);
     await user.save();
 
     // --- 7. Enviar Respuesta ---

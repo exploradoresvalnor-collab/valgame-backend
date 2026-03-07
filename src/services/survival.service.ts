@@ -3,6 +3,7 @@ import { SurvivalRun, ISurvivalRun } from '../models/SurvivalRun';
 import { SurvivalLeaderboard, ISurvivalLeaderboard } from '../models/SurvivalLeaderboard';
 import { User, IUser } from '../models/User';
 import { Item } from '../models/Item';
+import UserCharacter from '../models/userCharacter';
 import mongoose from 'mongoose';
 import { RealtimeService } from './realtime.service';
 import { SurvivalMilestonesService } from './survivalMilestones.service';
@@ -24,12 +25,13 @@ export class SurvivalService {
       if (!user) throw new Error('User not found');
 
       // Obtener personaje (buscar por _id o por personajeId)
-      // user.personajes.id devuelve Subdocument | null
-      let character: any = user.personajes.id(characterId);
-      if (!character) {
-        character = user.personajes.find((p: any) => p.personajeId === characterId);
+      let character: any;
+      try {
+        character = await UserCharacter.findOne({ userId, _id: characterId });
+      } catch (e) {
+        character = await UserCharacter.findOne({ userId, personajeId: characterId });
       }
-      
+
       if (!character) throw new Error('Character not found');
 
       // Si NO se proporcionan equipmentIds, usar del personaje
@@ -59,7 +61,7 @@ export class SurvivalService {
       const finalConsumableIds = consumableIds || [];
 
       // Obtener consumibles si existen
-      const consumables = finalConsumableIds.length > 0 
+      const consumables = finalConsumableIds.length > 0
         ? await Item.find({ _id: { $in: finalConsumableIds } })
         : [];
       if (consumables.length !== finalConsumableIds.length) {
@@ -189,14 +191,14 @@ export class SurvivalService {
 
       await session.save();
       // Emitir fin de sesión si la sesión ya no está activa
-        if (session.state !== 'active') {
+      if (session.state !== 'active') {
         try {
           const rt = RealtimeService.getInstance();
           const durationMs = session.startedAt ? (Date.now() - session.startedAt.getTime()) : 0;
-          
+
           // Obtener userId de la sesión
           const userId = session.userId.toString();
-          
+
           rt.notifySurvivalEndToUser(userId, session._id.toString(), session.currentWave - 1, durationMs, {
             totalPoints: session.totalPointsAccumulated,
             expGanada: Math.floor(session.totalPointsAccumulated / 10), // Ejemplo de cálculo
@@ -417,7 +419,7 @@ export class SurvivalService {
   /**
    * 7. Canjear puntos por experiencia
    */
-  async exchangePointsForExp(userId: string, points: number): Promise<{ experienceGained: number }> {
+  async exchangePointsForExp(userId: string, points: number): Promise<{ experienceGained: number; }> {
     try {
       const user = await User.findById(userId);
       if (!user) throw new Error('User not found');
@@ -426,10 +428,15 @@ export class SurvivalService {
 
       // Actualizar personaje activo con experiencia
       if (user.personajeActivoId) {
-        const character = user.personajes.id(user.personajeActivoId);
+        let character: any;
+        try {
+          character = await UserCharacter.findOne({ userId, _id: user.personajeActivoId });
+        } catch (e) {
+          character = await UserCharacter.findOne({ userId, personajeId: user.personajeActivoId });
+        }
         if (character) {
           character.experiencia = (character.experiencia || 0) + experienceGained;
-          await user.save();
+          await character.save();
         }
       }
 
@@ -442,7 +449,7 @@ export class SurvivalService {
   /**
    * 8. Canjear puntos por VAL
    */
-  async exchangePointsForVal(userId: string, points: number): Promise<{ valGained: number }> {
+  async exchangePointsForVal(userId: string, points: number): Promise<{ valGained: number; }> {
     try {
       const user = await User.findById(userId);
       if (!user) throw new Error('User not found');
@@ -462,7 +469,7 @@ export class SurvivalService {
     userId: string,
     points: number,
     itemType: 'helmet' | 'armor' | 'gloves' | 'boots' | 'consumable'
-  ): Promise<{ item: any; itemType: string }> {
+  ): Promise<{ item: any; itemType: string; }> {
     try {
       const user = await User.findById(userId);
       if (!user) throw new Error('User not found');
@@ -541,7 +548,7 @@ export class SurvivalService {
           userId,
           username: user.username,
           characterName: user.personajeActivoId
-            ? user.personajes.id(user.personajeActivoId)?.personajeId || 'Unknown'
+            ? (await UserCharacter.findOne({ userId, _id: user.personajeActivoId }).catch(() => UserCharacter.findOne({ userId, personajeId: user.personajeActivoId })))?.personajeId || 'Unknown'
             : 'Unknown',
           totalRuns: 1,
           maxWave,

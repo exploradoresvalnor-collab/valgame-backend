@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { User } from '../models/User';
+import UserCharacter from '../models/userCharacter';
 import GameSettings from '../models/GameSetting';
 
 /**
@@ -8,7 +9,7 @@ import GameSettings from '../models/GameSetting';
  */
 export const checkAndEnforcePermadeath = async () => {
   console.log('[CRON-Permadeath] Ejecutando verificación de muerte permanente...');
-  
+
   try {
     const gameSettings = await GameSettings.findOne();
     if (!gameSettings || !gameSettings.PERMADEATH_TIMER_HOURS) {
@@ -17,49 +18,31 @@ export const checkAndEnforcePermadeath = async () => {
     }
 
     const permadeathHours = gameSettings.PERMADEATH_TIMER_HOURS;
-    const users = await User.find({ 'personajes.estado': 'herido' });
+    const charactersToRemove = await UserCharacter.find({ estado: 'herido' });
 
-    if (users.length === 0) {
-      console.log('[CRON-Permadeath] No se encontraron usuarios con personajes heridos.');
+    if (charactersToRemove.length === 0) {
+      console.log('[CRON-Permadeath] No se encontraron personajes heridos.');
       return;
     }
 
-    const promises: Promise<any>[] = [];
     let charactersRemovedCount = 0;
+    const now = new Date();
 
-    for (const user of users) {
-      let userModified = false;
-      const now = new Date();
-
-      // Filtramos los personajes que deben ser eliminados
-      const charactersToRemove = user.personajes.filter(character => {
-        if (character.estado === 'herido' && character.fechaHerido) {
-          const hoursSinceWounded = (now.getTime() - character.fechaHerido.getTime()) / (1000 * 60 * 60);
-          return hoursSinceWounded > permadeathHours;
-        }
-        return false;
-      });
-
-      if (charactersToRemove.length > 0) {
-        userModified = true;
-        charactersToRemove.forEach(charToRemove => {
-          console.log(`[CRON-Permadeath] Personaje ${charToRemove.personajeId} del usuario ${user.username} ha sido eliminado por Permadeath.`);
-          user.personajes.pull(charToRemove._id);
+    for (const character of charactersToRemove) {
+      if (character.fechaHerido) {
+        const hoursSinceWounded = (now.getTime() - character.fechaHerido.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceWounded > permadeathHours) {
+          console.log(`[CRON-Permadeath] Personaje ${character.personajeId} del usuario ${character.userId} ha sido eliminado por Permadeath.`);
+          await character.deleteOne();
           charactersRemovedCount++;
-        });
-      }
-
-      if (userModified) {
-        promises.push(user.save());
+        }
       }
     }
 
-    await Promise.all(promises);
-
     if (charactersRemovedCount > 0) {
-        console.log(`[CRON-Permadeath] Verificación completada. Se eliminaron ${charactersRemovedCount} personajes.`);
+      console.log(`[CRON-Permadeath] Verificación completada. Se eliminaron ${charactersRemovedCount} personajes.`);
     } else {
-        console.log('[CRON-Permadeath] Verificación completada. Ningún personaje fue eliminado.');
+      console.log('[CRON-Permadeath] Verificación completada. Ningún personaje fue eliminado.');
     }
 
   } catch (error) {

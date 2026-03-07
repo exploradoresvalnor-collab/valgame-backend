@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMessages = exports.sendPartyMessage = exports.sendPrivateMessage = exports.sendGlobalMessage = void 0;
 const zod_1 = require("zod");
-const ChatMessage_1 = __importDefault(require("../../models/ChatMessage"));
-const chat_validations_1 = require("../../validations/chat.validations");
+const ChatMessage_1 = __importDefault(require("../models/ChatMessage"));
+const chat_validations_1 = require("../validations/chat.validations");
 // Enviar mensaje global
 const sendGlobalMessage = async (req, res) => {
     try {

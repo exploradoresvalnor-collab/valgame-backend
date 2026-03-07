@@ -4,6 +4,7 @@ import { SurvivalSession } from '../models/SurvivalSession';
 import { SurvivalRun } from '../models/SurvivalRun';
 import { User } from '../models/User';
 import { Item } from '../models/Item';
+import UserCharacter from '../models/userCharacter';
 import { RealtimeService } from './realtime.service';
 
 export class SurvivalMilestonesService {
@@ -46,9 +47,16 @@ export class SurvivalMilestonesService {
 
         // Aplicar EXP al personaje activo
         if (user.personajeActivoId) {
-          const character = user.personajes.id(user.personajeActivoId);
+          let character: any;
+          try {
+            character = await UserCharacter.findOne({ userId, _id: user.personajeActivoId });
+          } catch (e) {
+            character = await UserCharacter.findOne({ userId, personajeId: user.personajeActivoId });
+          }
+
           if (character) {
             character.experiencia = (character.experiencia || 0) + (reward.exp || 0);
+            await character.save();
           }
         }
 

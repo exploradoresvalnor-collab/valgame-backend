@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const auth_1 = require("../../middlewares/auth");
-const teams_controller_1 = require("../../controllers/teams.controller");
+const auth_1 = require("../middlewares/auth");
+const teams_controller_1 = require("../controllers/teams.controller");
 const router = (0, express_1.Router)();
 // Todas las rutas requieren autenticación
 router.use(auth_1.auth);

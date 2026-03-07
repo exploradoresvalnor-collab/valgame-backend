@@ -4,10 +4,10 @@ import { equipItem, unequipItem, getCharacterStats } from '../controllers/equipm
 import { levelUpCharacter } from '../controllers/characters.controller';
 import { auth } from '../middlewares/auth';
 import { validateBody, validateParams } from '../middlewares/validate';
-import { 
-  AddExperienceSchema, 
-  UseConsumableSchema, 
-  CharacterIdParamSchema 
+import {
+  AddExperienceSchema,
+  UseConsumableSchema,
+  CharacterIdParamSchema
 } from '../validations/character.schemas';
 
 const router = Router();
@@ -34,8 +34,8 @@ if (process.env.NODE_ENV === 'test') {
 // Ruta para usar un item consumible en un personaje específico
 // Requiere autenticación y validación
 router.post(
-  '/:characterId/use-consumable', 
-  auth, 
+  '/:characterId/use-consumable',
+  auth,
   validateParams(CharacterIdParamSchema),
   validateBody(UseConsumableSchema),
   useConsumable
@@ -44,8 +44,8 @@ router.post(
 // Ruta para revivir a un personaje herido
 // Requiere autenticación y validación
 router.post(
-  '/:characterId/revive', 
-  auth, 
+  '/:characterId/revive',
+  auth,
   validateParams(CharacterIdParamSchema),
   reviveCharacter
 );
@@ -58,14 +58,16 @@ router.post(
   async (req: any, res) => {
     try {
       const user = await (await import('../models/User')).User.findById(req.userId);
-      const character = user?.personajes.find((p: any) => p.personajeId === req.params.characterId);
+      const UserCharacter = (await import('../models/userCharacter')).default;
+      const character = await UserCharacter.findOne({ userId: req.userId, personajeId: req.params.characterId });
       if (!character) return res.status(404).json({ error: 'Personaje no encontrado' });
-      
+
       const damage = req.body.damage || 10;
       character.saludActual = Math.max(0, character.saludActual - damage);
-      await user?.save();
-      
-      res.json({ 
+      await character.save();
+      if (user) await user.save();
+
+      res.json({
         message: `${character.personajeId} recibió ${damage} de daño`,
         saludActual: character.saludActual,
         saludMaxima: character.saludMaxima
@@ -79,8 +81,8 @@ router.post(
 // Ruta para curar a un personaje que ha perdido salud
 // Requiere autenticación y validación
 router.post(
-  '/:characterId/heal', 
-  auth, 
+  '/:characterId/heal',
+  auth,
   validateParams(CharacterIdParamSchema),
   healCharacter
 );
@@ -88,8 +90,8 @@ router.post(
 // Ruta para evolucionar un personaje a su siguiente etapa
 // Requiere autenticación y validación
 router.post(
-  '/:characterId/evolve', 
-  auth, 
+  '/:characterId/evolve',
+  auth,
   validateParams(CharacterIdParamSchema),
   evolveCharacter
 );
@@ -97,8 +99,8 @@ router.post(
 // Ruta para añadir experiencia a un personaje
 // Requiere autenticación y validación
 router.post(
-  '/:characterId/add-experience', 
-  auth, 
+  '/:characterId/add-experience',
+  auth,
   validateParams(CharacterIdParamSchema),
   validateBody(AddExperienceSchema),
   addExperience

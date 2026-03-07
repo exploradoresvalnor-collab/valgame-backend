@@ -73,6 +73,7 @@ const UserSchema = new mongoose_1.Schema({
     limiteInventarioConsumibles: { type: Number, default: 50 },
     limiteInventarioPersonajes: { type: Number, default: 50 },
     personajeActivoId: { type: String },
+    equipoActivoId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Team' }, // <-- NUEVO: ID del equipo activo
     // Flag para indicar si el usuario ya recibió el Paquete del Pionero
     receivedPioneerPackage: { type: Boolean, default: false },
     // Flag para indicar si el usuario completó el tutorial (FTUE)

@@ -3,8 +3,12 @@ import { IUser } from '../models/User';
 declare global {
   namespace Express {
     interface Request {
+      user?: {
+        userId: string;
+        email?: string;
+        username?: string;
+      };
       userId?: string;
-      user?: IUser;
     }
   }
 }

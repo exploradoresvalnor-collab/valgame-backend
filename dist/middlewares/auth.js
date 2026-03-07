@@ -53,12 +53,19 @@ async function auth(req, res, next) {
     if (!token)
         return res.status(401).json({ error: 'Falta token' });
     try {
+        const decoded = jsonwebtoken_1.default.verify(token, (0, security_1.getJWTSecret)());
+        // En modo desarrollo, no buscar usuario en BD ni verificar blacklist
+        if (process.env.NODE_ENV !== 'production') {
+            req.user = { _id: decoded.id, id: decoded.id };
+            req.userId = decoded.id;
+            next();
+            return;
+        }
         // Verificar si el token está en la blacklist
         const blacklisted = await TokenBlacklist_1.TokenBlacklist.findOne({ token });
         if (blacklisted) {
             return res.status(401).json({ error: 'Token inválido o sesión cerrada' });
         }
-        const decoded = jsonwebtoken_1.default.verify(token, (0, security_1.getJWTSecret)());
         const user = await User_1.User.findById(decoded.id);
         if (!user) {
             return res.status(401).json({ error: 'Usuario no encontrado' });

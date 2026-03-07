@@ -1,6 +1,7 @@
 import mongoose, { Types } from 'mongoose';
 import Listing from '../models/Listing';
 import { User, IUser } from '../models/User';
+import UserCharacter from '../models/userCharacter';
 import BaseCharacter from '../models/BaseCharacter';
 import { Item } from '../models/Item'; // Importar modelo Item para consultar detalles
 import MarketplaceTransaction from '../models/MarketplaceTransaction'; // Importar modelo de transacciones
@@ -42,9 +43,16 @@ export const listItem = async (
       let metadata: Record<string, any> = {};
 
       // Determinar el tipo de item y verificar propiedad
-      if (seller.personajes?.some(p => p.personajeId === itemId)) {
+      let userCharacter;
+      try {
+        userCharacter = await UserCharacter.findOne({ userId: seller._id, _id: itemId }).session(session);
+      } catch (e) {
+        userCharacter = await UserCharacter.findOne({ userId: seller._id, personajeId: itemId }).session(session);
+      }
+
+      if (userCharacter) {
         type = 'personaje';
-        const foundItem = seller.personajes.find(p => p.personajeId === itemId);
+        const foundItem = userCharacter;
         if (!foundItem) throw new NotFoundError('Personaje no encontrado');
         item = foundItem;
         if (item.personajeId === seller.personajeActivoId) {
@@ -78,7 +86,7 @@ export const listItem = async (
         };
       } else if (seller.inventarioEquipamiento?.some(id => id.toString() === itemId)) {
         type = 'equipamiento';
-        
+
         // Consultar detalles del item para obtener nombre, imagen y stats REALES
         const itemDetails = await Item.findById(itemId).session(session);
         if (!itemDetails) {
@@ -100,7 +108,7 @@ export const listItem = async (
       } else if (seller.inventarioConsumibles?.some(c => c.consumableId.toString() === itemId)) {
         type = 'consumible';
         item = seller.inventarioConsumibles.find(c => c.consumableId.toString() === itemId);
-        
+
         // Consultar detalles REALES del consumible
         const consumibleDetails = await Item.findById(itemId).session(session);
         if (!consumibleDetails) {
@@ -163,13 +171,10 @@ export const listItem = async (
       // Remover el item del inventario del usuario según su tipo
       switch (type) {
         case 'personaje': {
-          const sub = seller.personajes.find(p => p.personajeId === itemId) as any;
-          if (sub && typeof (sub as any).deleteOne === 'function') {
-            await (sub as any).deleteOne();
-          } else {
-            // fallback por si deleteOne no está disponible
-            // @ts-ignore for typed arrays replacement
-            seller.personajes = seller.personajes.filter(p => p.personajeId !== itemId) as any;
+          try {
+            await UserCharacter.findOneAndDelete({ userId: seller._id, _id: itemId }).session(session);
+          } catch (e) {
+            await UserCharacter.findOneAndDelete({ userId: seller._id, personajeId: itemId }).session(session);
           }
           break;
         }
@@ -285,7 +290,8 @@ export const cancelListing = async (seller: IUser, listingId: string) => {
         case 'personaje': {
           // Reconstruir un IPersonaje válido desde metadata
           const md = listing.metadata as any;
-          seller.personajes.push({
+          await UserCharacter.create([{
+            userId: seller._id,
             personajeId: listing.itemId,
             rango: md.rango,
             nivel: md.nivel ?? 1,
@@ -298,7 +304,7 @@ export const cancelListing = async (seller: IUser, listingId: string) => {
             fechaHerido: md.fechaHerido ?? null,
             equipamiento: Array.isArray(md.equipamiento) ? md.equipamiento : [],
             activeBuffs: Array.isArray(md.activeBuffs) ? md.activeBuffs : []
-          } as any);
+          }], { session });
           break;
         }
         case 'equipamiento': {
@@ -326,10 +332,10 @@ export const cancelListing = async (seller: IUser, listingId: string) => {
       listing.estado = 'cancelado';
 
       const sellerBalanceBefore = seller.val;
-      const devolucionDestacado = listing.destacado 
+      const devolucionDestacado = listing.destacado
         ? Math.floor(COSTO_DESTACAR * Math.max(0, Math.min(1, (listing.fechaExpiracion.getTime() - Date.now()) / DURACION_LISTING)))
         : 0;
-      
+
       if (devolucionDestacado > 0) {
         seller.val += devolucionDestacado;
       }
@@ -461,7 +467,8 @@ export const buyItem = async (buyer: IUser, listingId: string) => {
       switch (reserved.type) {
         case 'personaje': {
           const md = (reserved.metadata as any) || {};
-          buyerDoc.personajes.push({
+          await UserCharacter.create([{
+            userId: buyerDoc._id,
             personajeId: reserved.itemId,
             nivel: md.nivel ?? 1,
             etapa: md.etapa ?? 1,
@@ -474,7 +481,7 @@ export const buyItem = async (buyer: IUser, listingId: string) => {
             estado: 'saludable',
             fechaHerido: null,
             rango: md.rango
-          } as any);
+          }], { session });
           break;
         }
         case 'equipamiento': {
@@ -594,19 +601,19 @@ export const getListings = async (filters: {
   limit?: number,
   offset?: number,
   sortBy?: string,
-  sortOrder?: string
+  sortOrder?: string;
 }) => {
   try {
     // ✅ Query base: solo listings activos y no expirados
-    const query: any = { 
-      estado: 'activo', 
-      fechaExpiracion: { $gt: new Date() } 
+    const query: any = {
+      estado: 'activo',
+      fechaExpiracion: { $gt: new Date() }
     };
 
     // 🔍 NUEVO: Búsqueda por texto (nombre del item)
     if (filters.search) {
-      query['metadata.nombre'] = { 
-        $regex: filters.search, 
+      query['metadata.nombre'] = {
+        $regex: filters.search,
         $options: 'i' // Case insensitive
       };
     }
@@ -750,7 +757,7 @@ export const getListings = async (filters: {
     const sortField = filters.sortBy || 'fechaCreacion';
     const sortOrder = filters.sortOrder === 'asc' ? 1 : -1;
     const sort: any = { destacado: -1 }; // Siempre destacados primero
-    
+
     if (sortField === 'precio') {
       sort.precio = sortOrder;
     } else if (sortField === 'fechaCreacion') {
@@ -793,7 +800,7 @@ export const getListings = async (filters: {
 };
 
 // ✅ NUEVA: Obtener listings del usuario actual
-export const getUserListings = async (userId: string, filters: { limit?: number, offset?: number } = {}) => {
+export const getUserListings = async (userId: string, filters: { limit?: number, offset?: number; } = {}) => {
 
   try {
     // Query para obtener listings del usuario (incluyendo expirados y cancelados para historial)

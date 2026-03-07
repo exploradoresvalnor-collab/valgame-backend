@@ -1,4 +1,3 @@
-import { IPersonajeSubdocument } from '../models/User';
 import { ILevelRequirement } from '../models/LevelRequirement';
 import { IGameSetting } from '../models/GameSetting';
 
@@ -13,10 +12,10 @@ import { IGameSetting } from '../models/GameSetting';
  * @returns Un objeto que contiene si el personaje subió de nivel y un log de los eventos.
  */
 export const handleLevelUp = (
-  character: IPersonajeSubdocument,
+  character: any,
   levelRequirements: ILevelRequirement[],
   gameSettings: IGameSetting
-): { leveledUp: boolean; log: string[] } => {
+): { leveledUp: boolean; log: string[]; } => {
 
   let leveledUp = false;
   const levelUpLog: string[] = [];
@@ -122,7 +121,7 @@ function getMultiplier(map: any, rango: string, fallback = 1): number {
 export function calcularXpPorRango(
   nivel: number,
   rango: string,
-  levelReqObj: { experiencia_requerida: number },
+  levelReqObj: { experiencia_requerida: number; },
   expBase: number,
   settings: any
 ) {

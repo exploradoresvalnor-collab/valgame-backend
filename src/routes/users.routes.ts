@@ -9,6 +9,7 @@ import UserPackage from '../models/UserPackage'; // Importación correcta
 import PackageModel from '../models/Package'; // Importación correcta
 import EnergyService from '../services/energy.service';
 import { getUserProfile } from '../controllers/users.controller';
+import UserCharacter from '../models/userCharacter';
 
 const router = Router();
 
@@ -52,7 +53,7 @@ router.get('/me', auth, async (req: Request, res: Response) => {
     evoluciones: user.evoluciones ?? 0,
     boletosDiarios: user.boletosDiarios ?? 0,
     personajes: await Promise.all(
-      (user.personajes || []).map(async (p) => {
+      ((await UserCharacter.find({ userId: user._id }).lean()) || []).map(async (p: any) => {
         const base = await BaseCharacter.findOne({ id: p.personajeId });
         return {
           _id: p._id, // Agregar el ID del personaje
@@ -68,7 +69,7 @@ router.get('/me', auth, async (req: Request, res: Response) => {
           saludMaxima: p.saludMaxima,
           estado: p.estado,
           equipamiento: await Promise.all(
-            (p.equipamiento || []).map(async (eid) => {
+            (p.equipamiento || []).map(async (eid: string) => {
               const eq = await Item.findById(eid);
               return eq ? {
                 id: eq._id,
@@ -197,8 +198,9 @@ router.get('/dashboard', auth, async (req: Request, res: Response) => {
       isRead: false
     });
 
+    const userCharacters = await UserCharacter.find({ userId: req.userId }).lean();
     // Contar personajes heridos
-    const injuredCharacters = user.personajes.filter(p => p.estado === 'herido').length;
+    const injuredCharacters = userCharacters.filter((p: any) => p.estado === 'herido').length;
 
     return res.json({
       resources: {
@@ -214,7 +216,7 @@ router.get('/dashboard', auth, async (req: Request, res: Response) => {
         unreadCount: unreadNotifications
       },
       characters: {
-        total: user.personajes.length,
+        total: userCharacters.length,
         injured: injuredCharacters
       }
     });
@@ -274,27 +276,27 @@ router.post('/characters/add', auth, async (req: Request, res: Response) => {
     }
 
     // 4. Verificar que el usuario no tenga ya ese personaje para evitar duplicados
-    const yaLoTiene = user.personajes.some(p => p.personajeId === personajeId);
+    const yaLoTiene = await UserCharacter.findOne({ userId, personajeId });
     if (yaLoTiene) {
       return res.status(409).json({ error: `El usuario ya posee el personaje '${personajeId}'.` });
     }
 
     // 5. Crear el objeto del nuevo personaje con su estructura completa
-    const nuevoPersonaje = {
-        personajeId: baseCharacter.id,
-        rango,
-        nivel: 1,
-        etapa: 1,
-        progreso: 0,
-        stats: baseCharacter.stats, // Copiamos las stats base del catálogo
-        saludActual: baseCharacter.stats.vida, // El personaje empieza con la salud al máximo
-        saludMaxima: baseCharacter.stats.vida,
-        estado: 'saludable',
-        fechaHerido: null,
-    };
+    const nuevoPersonaje = new UserCharacter({
+      userId,
+      personajeId: baseCharacter.id,
+      rango,
+      nivel: 1,
+      etapa: 1,
+      progreso: 0,
+      stats: baseCharacter.stats, // Copiamos las stats base del catálogo
+      saludActual: baseCharacter.stats.vida, // El personaje empieza con la salud al máximo
+      saludMaxima: baseCharacter.stats.vida,
+      estado: 'saludable',
+      fechaHerido: null,
+    });
 
-    user.personajes.push(nuevoPersonaje as any); // Añadimos el nuevo personaje a la lista del usuario
-    await user.save(); // Guardamos los cambios en la base de datos
+    await nuevoPersonaje.save(); // Guardamos los cambios en la base de datos
 
     // 6. Enviar respuesta exitosa con los datos del usuario actualizados
     return res.status(200).json(user);
@@ -326,11 +328,10 @@ router.put('/set-active-character/:personajeId', auth, async (req: Request, res:
 
     // --- DEBUG LOGGING ---
     console.log('Buscando personajeId desde la URL:', personajeId);
-    console.log('Personajes que posee el usuario:', user.personajes.map(p => p.personajeId));
     // --- END DEBUG LOGGING ---
 
     // 2. Verificar que el personaje le pertenece al usuario
-    const personaje = user.personajes.find(p => p.personajeId === personajeId);
+    const personaje = await UserCharacter.findOne({ userId, personajeId });
     if (!personaje) {
       return res.status(403).json({ error: 'No tienes permiso para activar este personaje o no existe.' });
     }
@@ -380,9 +381,9 @@ router.delete('/characters/:personajeId', auth, async (req: Request, res: Respon
       return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
-    // 2. Verificar que el personaje le pertenece al usuario
-    const personajeIndex = user.personajes.findIndex(p => p.personajeId === personajeId);
-    if (personajeIndex === -1) {
+    // 2. Verificar que el personaje le pertenece y eliminarlo
+    const eliminado = await UserCharacter.findOneAndDelete({ userId, personajeId });
+    if (!eliminado) {
       return res.status(404).json({ error: 'Personaje no encontrado.' });
     }
 
@@ -391,14 +392,11 @@ router.delete('/characters/:personajeId', auth, async (req: Request, res: Respon
       return res.status(400).json({ error: 'No puedes eliminar el personaje activo.' });
     }
 
-    // 4. Eliminar el personaje
-    user.personajes.splice(personajeIndex, 1);
-    await user.save();
-
     // 5. Enviar respuesta exitosa
-    return res.status(200).json({ 
+    const currentList = await UserCharacter.find({ userId });
+    return res.status(200).json({
       message: 'Personaje eliminado exitosamente.',
-      personajes: user.personajes 
+      personajes: currentList
     });
 
   } catch (error) {

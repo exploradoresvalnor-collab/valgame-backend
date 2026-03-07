@@ -3,45 +3,15 @@ import { IUserSettings, UserSettingsSchema } from './UserSettings';
 
 // --- INTERFACES ---
 
-// Define la estructura de un personaje, incluyendo los nuevos campos
-export interface IPersonaje {
-  personajeId: string;
-  rango: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS';
-  nivel: number;
-  etapa: 1 | 2 | 3;
-  progreso: number;
-  experiencia: number;
-  stats: { atk: number; vida: number; defensa: number };
-  // --- Nuevos campos para Salud y Muerte ---
-  saludActual: number;
-  saludMaxima: number;
-  estado: 'saludable' | 'herido';
-  fechaHerido: Date | null;
-  equipamiento: Types.ObjectId[]; // Array de IDs de Items (con tipoItem: 'Equipment')
-  activeBuffs: IActiveBuff[]; // Array de buffs activos
-}
-
-// Interfaz del subdocumento de Mongoose
-export interface IPersonajeSubdocument extends IPersonaje, Types.Subdocument {}
-
-// --- NUEVO: Interfaz para Buffs Activos ---
-export interface IActiveBuff {
-  consumableId: Types.ObjectId;
-  effects: {
-    mejora_atk?: number;
-    mejora_defensa?: number;
-    mejora_vida?: number;
-    mejora_xp_porcentaje?: number; // <-- AÑADIDO
-  };
-  expiresAt: Date;
-}
+// --- NUEVO: Interfaz para Buffs Activos movida a UserCharacter ---
+// (Solo dejamos lo referente a consumibles aquí o items generales)
 
 // Interfaz para el subdocumento de inventario de consumibles
 export interface IConsumableItem {
   consumableId: Types.ObjectId; // Referencia a un item en la colección 'items'
   usos_restantes: number;
 }
-export interface IConsumableItemSubdocument extends IConsumableItem, Types.Subdocument {}
+export interface IConsumableItemSubdocument extends IConsumableItem, Types.Subdocument { }
 
 // Interfaz principal del Usuario, incluyendo el inventario
 export interface IUser extends Document {
@@ -64,24 +34,25 @@ export interface IUser extends Document {
   evoluciones: number;
   boletosDiarios: number;
   ultimoReinicio?: Date;
-  personajes: Types.DocumentArray<IPersonajeSubdocument>;
+  personajesId: Types.ObjectId[];
   inventarioEquipamiento: Types.ObjectId[];
   inventarioConsumibles: Types.DocumentArray<IConsumableItemSubdocument>;
   limiteInventarioEquipamiento: number;
   limiteInventarioConsumibles: number;
   limiteInventarioPersonajes: number;
   personajeActivoId?: string;
+  equipoActivoId?: Types.ObjectId; // <-- NUEVO: ID del equipo activo
   fechaRegistro: Date;
   ultimaActualizacion: Date;
   // Flag para indicar si el usuario ya recibió el Paquete del Pionero
   receivedPioneerPackage?: boolean;
-  
+
   // Flag para indicar si el usuario completó el tutorial (FTUE)
   tutorialCompleted?: boolean;
-  
+
   // Configuración del usuario (volumen, idioma, notificaciones)
   settings: IUserSettings;
-  
+
   // Progreso de mazmorras por usuario
   dungeon_progress?: Map<string, {
     victorias: number;
@@ -119,40 +90,7 @@ export interface IUser extends Document {
 
 // --- SCHEMAS ---
 
-// --- NUEVO: Schema para Buffs Activos ---
-const ActiveBuffSchema = new Schema({
-  consumableId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
-  effects: {
-    mejora_atk: { type: Number },
-    mejora_defensa: { type: Number },
-    mejora_vida: { type: Number },
-    mejora_xp_porcentaje: { type: Number } // <-- AÑADIDO
-  },
-  expiresAt: { type: Date, required: true }
-}, { _id: false });
-
-const PersonajeSchema = new Schema<IPersonaje>({
-    personajeId: { type: String, required: true, index: true },
-    rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
-    nivel: { type: Number, min: 1, max: 100, default: 1 },
-    etapa: { type: Number, enum: [1, 2, 3], default: 1 },
-    progreso: { type: Number, min: 0, default: 0 },
-    experiencia: { type: Number, min: 0, default: 0 },
-    stats: {
-      atk: { type: Number, min: 0, default: 0 },
-      vida: { type: Number, min: 0, default: 0 },
-      defensa: { type: Number, min: 0, default: 0 }
-    },
-    saludActual: { type: Number, default: 100 },
-    saludMaxima: { type: Number, default: 100 },
-    estado: { type: String, enum: ['saludable', 'herido'], default: 'saludable' },
-    fechaHerido: { type: Date, default: null },
-    // La referencia ahora apunta a 'Item', ya que 'Equipment' es un tipo de 'Item'
-    equipamiento: [{ type: Schema.Types.ObjectId, ref: 'Item' }],
-    activeBuffs: { type: [ActiveBuffSchema], default: [] }
-  }, { 
-    _id: true 
-  });
+// (Buff schema y PersonajeSchema movidos a UserCharacter.ts)
 
 // Schema para el inventario de consumibles
 const ConsumableItemSchema = new Schema<IConsumableItem>({
@@ -165,88 +103,88 @@ const ConsumableItemSchema = new Schema<IConsumableItem>({
 }, { _id: true }); // _id: true para que cada instancia sea única
 
 const UserSchema = new Schema<IUser>({
-    email: { type: String, unique: true, index: true, required: true },
-    username: { type: String, unique: true, index: true, required: true },
-    passwordHash: { type: String, required: true },
-    isVerified: { type: Boolean, default: false },
-    verificationToken: { type: String },
-    verificationTokenExpires: { type: Date },
-    resetPasswordToken: { type: String },
-    resetPasswordTokenExpires: { type: Date },
-    walletAddress: { type: String, unique: true, sparse: true },
-    val: { type: Number, default: 0, min: 0 },
-    boletos: { type: Number, default: 0, min: 0 },
-    energia: { type: Number, default: 100, min: 0 },
-    energiaMaxima: { type: Number, default: 100, min: 1 },
-    ultimoReinicioEnergia: { type: Date },
-    evo: { type: Number, default: 0, min: 0 },
-    invocaciones: { type: Number, default: 0, min: 0 },
-    evoluciones: { type: Number, default: 0, min: 0 },
-    boletosDiarios: { type: Number, default: 0, min: 0, max: 10 },
-    ultimoReinicio: { type: Date },
-    personajes: { type: [PersonajeSchema], default: [] },
-    inventarioEquipamiento: [{ type: Schema.Types.ObjectId, ref: 'Item' }],
-    inventarioConsumibles: { type: [ConsumableItemSchema], default: [] },
-    limiteInventarioEquipamiento: { type: Number, default: 20 },
-    limiteInventarioConsumibles: { type: Number, default: 50 },
-    limiteInventarioPersonajes: { type: Number, default: 50 },
-    personajeActivoId: { type: String }
-    ,
-    // Flag para indicar si el usuario ya recibió el Paquete del Pionero
-    receivedPioneerPackage: { type: Boolean, default: false },
-    
-    // Flag para indicar si el usuario completó el tutorial (FTUE)
-    tutorialCompleted: { type: Boolean, default: false },
-    
-    // Configuración del usuario (subdocumento embebido)
-    settings: { type: UserSettingsSchema, default: () => ({}) },
-    
-    // Progreso de mazmorras por usuario (Map<dungeonId, progressData>)
-    dungeon_progress: { 
-      type: Map, 
-      of: new Schema({
-        victorias: { type: Number, default: 0, min: 0 },
-        derrotas: { type: Number, default: 0, min: 0 },
-        nivel_actual: { type: Number, default: 1, min: 1 },
-        puntos_acumulados: { type: Number, default: 0, min: 0 },
-        puntos_requeridos_siguiente_nivel: { type: Number, default: 100, min: 1 },
-        mejor_tiempo: { type: Number, default: 0, min: 0 }, // en segundos
-        ultima_victoria: { type: Date }
-      }, { _id: false }),
-      default: () => new Map()
-    },
-    dungeon_streak: { type: Number, default: 0, min: 0 },
-    max_dungeon_streak: { type: Number, default: 0, min: 0 },
-    dungeon_stats: {
-      type: new Schema({
-        total_victorias: { type: Number, default: 0, min: 0 },
-        total_derrotas: { type: Number, default: 0, min: 0 },
-        mejor_racha: { type: Number, default: 0, min: 0 }
-      }, { _id: false }),
-      default: () => ({ total_victorias: 0, total_derrotas: 0, mejor_racha: 0 })
-    },
-    survivalPoints: { type: Number, default: 0, min: 0 },
-    currentSurvivalSession: { type: Schema.Types.ObjectId, ref: 'SurvivalSession', default: null },
-    survivalStats: {
-      type: new Schema({
-        totalRuns: { type: Number, default: 0, min: 0 },
-        maxWave: { type: Number, default: 0, min: 0 },
-        totalPoints: { type: Number, default: 0, min: 0 },
-        averageWave: { type: Number, default: 0, min: 0 }
-      }, { _id: false }),
-      default: () => ({ totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 })
-    },
-    // Logros desbloqueados del usuario
-    logros_desbloqueados: [
-      {
-        achievementId: { type: Schema.Types.ObjectId, ref: 'Achievement', required: true },
-        fechaDesbloqueo: { type: Date, default: Date.now }
-      }
-    ]
-  }, {
-    timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },
-    versionKey: false
-  });
+  email: { type: String, unique: true, index: true, required: true },
+  username: { type: String, unique: true, index: true, required: true },
+  passwordHash: { type: String, required: true },
+  isVerified: { type: Boolean, default: false },
+  verificationToken: { type: String },
+  verificationTokenExpires: { type: Date },
+  resetPasswordToken: { type: String },
+  resetPasswordTokenExpires: { type: Date },
+  walletAddress: { type: String, unique: true, sparse: true },
+  val: { type: Number, default: 0, min: 0 },
+  boletos: { type: Number, default: 0, min: 0 },
+  energia: { type: Number, default: 100, min: 0 },
+  energiaMaxima: { type: Number, default: 100, min: 1 },
+  ultimoReinicioEnergia: { type: Date },
+  evo: { type: Number, default: 0, min: 0 },
+  invocaciones: { type: Number, default: 0, min: 0 },
+  evoluciones: { type: Number, default: 0, min: 0 },
+  boletosDiarios: { type: Number, default: 0, min: 0, max: 10 },
+  ultimoReinicio: { type: Date },
+  personajesId: [{ type: Schema.Types.ObjectId, ref: 'UserCharacter' }],
+  inventarioEquipamiento: [{ type: Schema.Types.ObjectId, ref: 'Item' }],
+  inventarioConsumibles: { type: [ConsumableItemSchema], default: [] },
+  limiteInventarioEquipamiento: { type: Number, default: 20 },
+  limiteInventarioConsumibles: { type: Number, default: 50 },
+  limiteInventarioPersonajes: { type: Number, default: 50 },
+  personajeActivoId: { type: String },
+  equipoActivoId: { type: Schema.Types.ObjectId, ref: 'Team' }, // <-- NUEVO: ID del equipo activo
+  // Flag para indicar si el usuario ya recibió el Paquete del Pionero
+  receivedPioneerPackage: { type: Boolean, default: false },
+
+  // Flag para indicar si el usuario completó el tutorial (FTUE)
+  tutorialCompleted: { type: Boolean, default: false },
+
+  // Configuración del usuario (subdocumento embebido)
+  settings: { type: UserSettingsSchema, default: () => ({}) },
+
+  // Progreso de mazmorras por usuario (Map<dungeonId, progressData>)
+  dungeon_progress: {
+    type: Map,
+    of: new Schema({
+      victorias: { type: Number, default: 0, min: 0 },
+      derrotas: { type: Number, default: 0, min: 0 },
+      nivel_actual: { type: Number, default: 1, min: 1 },
+      puntos_acumulados: { type: Number, default: 0, min: 0 },
+      puntos_requeridos_siguiente_nivel: { type: Number, default: 100, min: 1 },
+      mejor_tiempo: { type: Number, default: 0, min: 0 }, // en segundos
+      ultima_victoria: { type: Date }
+    }, { _id: false }),
+    default: () => new Map()
+  },
+  dungeon_streak: { type: Number, default: 0, min: 0 },
+  max_dungeon_streak: { type: Number, default: 0, min: 0 },
+  dungeon_stats: {
+    type: new Schema({
+      total_victorias: { type: Number, default: 0, min: 0 },
+      total_derrotas: { type: Number, default: 0, min: 0 },
+      mejor_racha: { type: Number, default: 0, min: 0 }
+    }, { _id: false }),
+    default: () => ({ total_victorias: 0, total_derrotas: 0, mejor_racha: 0 })
+  },
+  survivalPoints: { type: Number, default: 0, min: 0 },
+  currentSurvivalSession: { type: Schema.Types.ObjectId, ref: 'SurvivalSession', default: null },
+  survivalStats: {
+    type: new Schema({
+      totalRuns: { type: Number, default: 0, min: 0 },
+      maxWave: { type: Number, default: 0, min: 0 },
+      totalPoints: { type: Number, default: 0, min: 0 },
+      averageWave: { type: Number, default: 0, min: 0 }
+    }, { _id: false }),
+    default: () => ({ totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 })
+  },
+  // Logros desbloqueados del usuario
+  logros_desbloqueados: [
+    {
+      achievementId: { type: Schema.Types.ObjectId, ref: 'Achievement', required: true },
+      fechaDesbloqueo: { type: Date, default: Date.now }
+    }
+  ]
+}, {
+  timestamps: { createdAt: 'fechaRegistro', updatedAt: 'ultimaActualizacion' },
+  versionKey: false
+});
 
 // La función toJSON para seguridad se mantiene igual
 UserSchema.set('toJSON', {

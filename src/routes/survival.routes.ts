@@ -6,6 +6,7 @@ import { User } from '../models/User';
 import { SurvivalSession } from '../models/SurvivalSession';
 import { SurvivalRun } from '../models/SurvivalRun';
 import { SurvivalLeaderboard } from '../models/SurvivalLeaderboard';
+import UserCharacter from '../models/userCharacter';
 
 const router = Router();
 const survivalService = new SurvivalService();
@@ -17,9 +18,9 @@ const validationMiddleware = (schema: z.ZodSchema) => (req: Request, res: Respon
     req.body = validated;
     next();
   } catch (error: any) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: 'Validation Error',
-      details: error.errors 
+      details: error.errors
     });
   }
 };
@@ -90,9 +91,9 @@ router.post(
       }
 
       // Verificar que el personaje existe y pertenece al usuario
-      let character: any = user.personajes.id(characterId);
+      let character: any = await UserCharacter.findOne({ userId, _id: characterId });
       if (!character) {
-         character = user.personajes.find((p: any) => p.personajeId === characterId);
+        character = await UserCharacter.findOne({ userId, personajeId: characterId });
       }
       if (!character) {
         return res.status(400).json({ error: 'Character not found' });
@@ -286,7 +287,7 @@ router.post(
       if (user) {
         user.survivalPoints = (user.survivalPoints || 0) + totalPoints;
         user.currentSurvivalSession = undefined;
-        
+
         // Actualizar stats
         if (!user.survivalStats) {
           user.survivalStats = { totalRuns: 0, maxWave: 0, totalPoints: 0, averageWave: 0 };
@@ -295,7 +296,7 @@ router.post(
         user.survivalStats.maxWave = Math.max(user.survivalStats.maxWave || 0, finalWave);
         user.survivalStats.totalPoints = (user.survivalStats.totalPoints || 0) + totalPoints;
         user.survivalStats.averageWave = user.survivalStats.totalPoints / user.survivalStats.totalRuns;
-        
+
         await user.save();
       }
 

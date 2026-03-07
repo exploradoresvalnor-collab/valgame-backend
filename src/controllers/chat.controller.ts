@@ -11,7 +11,7 @@ import {
 // Enviar mensaje global
 export const sendGlobalMessage = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const userName = req.user?.username;
 
     if (!userId || !userName) {
@@ -41,10 +41,10 @@ export const sendGlobalMessage = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-        return res.status(400).json({
-            success: false,
-            error: (error as any).errors
-        });
+      return res.status(400).json({
+        success: false,
+        error: (error as any).errors
+      });
     }
     console.error('[SEND-GLOBAL-MESSAGE] Error:', error);
     return res.status(500).json({
@@ -57,7 +57,7 @@ export const sendGlobalMessage = async (req: Request, res: Response) => {
 // Enviar mensaje privado
 export const sendPrivateMessage = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const userName = req.user?.username;
 
     if (!userId || !userName) {
@@ -98,7 +98,7 @@ export const sendPrivateMessage = async (req: Request, res: Response) => {
 // Enviar mensaje de party
 export const sendPartyMessage = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const userName = req.user?.username;
 
     if (!userId || !userName) {
@@ -142,7 +142,7 @@ export const sendPartyMessage = async (req: Request, res: Response) => {
 // Obtener mensajes
 export const getMessages = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
 
     if (!userId) {
       return res.status(401).json({

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User } from '../models/User';
 import { Equipment } from '../models/Equipment';
 import { RealtimeService } from '../services/realtime.service';
+import UserCharacter from '../models/userCharacter';
 
 // Interfaz para extender Request y que incluya el userId del middleware de auth
 interface AuthRequest extends Request {
@@ -34,7 +35,7 @@ export const equipItem = async (req: AuthRequest, res: Response) => {
     }
 
     // Verificar que el personaje existe
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
@@ -95,6 +96,7 @@ export const equipItem = async (req: AuthRequest, res: Response) => {
     }
 
     // Guardar cambios
+    await character.save();
     await user.save();
 
     // Emitir evento WebSocket
@@ -157,7 +159,7 @@ export const unequipItem = async (req: AuthRequest, res: Response) => {
     }
 
     // Verificar que el personaje existe
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }
@@ -210,6 +212,7 @@ export const unequipItem = async (req: AuthRequest, res: Response) => {
     }
 
     // Guardar cambios
+    await character.save();
     await user.save();
 
     // Emitir evento WebSocket
@@ -266,7 +269,7 @@ export const getCharacterStats = async (req: AuthRequest, res: Response) => {
     }
 
     // Verificar que el personaje existe
-    const character = user.personajes.find(p => p.personajeId === characterId);
+    const character = await UserCharacter.findOne({ userId, personajeId: characterId });
     if (!character) {
       return res.status(404).json({ error: `Personaje con ID ${characterId} no encontrado.` });
     }

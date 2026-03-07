@@ -46,13 +46,25 @@ export class CombatService {
     return CombatService.instance;
   }
 
+  public calcularAtaqueFisico(ataqueBase: number, probCritico: number = 0.25): { danoFinal: number, critico: boolean; } {
+    const critico = Math.random() < probCritico;
+    const multiplicador = critico ? 1.5 : 1.0;
+    const danoFinal = Math.floor(ataqueBase * multiplicador);
+
+    return { danoFinal, critico };
+  }
+
+  public calcularDefensa(defensaBase: number): number {
+    return Math.floor(defensaBase * 0.5); // 50% de efectividad de escudo
+  }
+
   // Iniciar una nueva batalla
   public async startCombat(players: string[]): Promise<CombatState> {
     const matchId = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Orden aleatorio de turnos
     const turnOrder = [...players].sort(() => Math.random() - 0.5);
-    
+
     const match: CombatState = {
       id: matchId,
       turnOrder,
@@ -149,10 +161,10 @@ export class CombatService {
   private async processAttack(match: CombatState, playerId: string, action: CombatAction) {
     // Implementar lógica de ataque
     const damage = this.calculateDamage(action);
-    
+
     // Obtener estado actual del objetivo (simulado por ahora)
     const targetHealth = 100 - damage; // TODO: Obtener health real del personaje
-    
+
     match.damageLog.push({
       from: playerId,
       to: action.target!,

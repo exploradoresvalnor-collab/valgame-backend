@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
+import UserCharacter from '../models/userCharacter';
 import { isValidObjectId } from 'mongoose';
 
 /**
@@ -28,18 +29,21 @@ export const getUserProfile = async (req: Request, res: Response) => {
       });
     }
 
+    // Obtener personajes de la colección relacional
+    const userCharacters = await UserCharacter.find({ userId: user._id }).lean();
+
     // Calcular estadísticas generales
-    const totalPersonajes = user.personajes ? user.personajes.length : 0;
-    const personajesPrincipales = user.personajes ? user.personajes.filter((p: any) => p.nivel >= 10).length : 0;
+    const totalPersonajes = userCharacters.length;
+    const personajesPrincipales = userCharacters.filter((p: any) => p.nivel >= 10).length;
 
     // Obtener nivel máximo entre todos los personajes
-    const maxNivel = user.personajes && user.personajes.length > 0
-      ? Math.max(...user.personajes.map((p: any) => p.nivel || 1))
+    const maxNivel = userCharacters.length > 0
+      ? Math.max(...userCharacters.map((p: any) => p.nivel || 1))
       : 1;
 
     // Obtener experiencia total (suma de todos los personajes)
-    const totalExperiencia = user.personajes && user.personajes.length > 0
-      ? user.personajes.reduce((sum: number, p: any) => sum + (p.experiencia || 0), 0)
+    const totalExperiencia = userCharacters.length > 0
+      ? userCharacters.reduce((sum: number, p: any) => sum + (p.experiencia || 0), 0)
       : 0;
 
     // Mascara email para privacidad
@@ -79,16 +83,16 @@ export const getUserProfile = async (req: Request, res: Response) => {
       },
 
       // Información de personajes resumida (primeros 5)
-      personajes: user.personajes && user.personajes.length > 0
-        ? user.personajes.slice(0, 5).map((p: any) => ({
-            personajeId: p.personajeId,
-            rango: p.rango || 'D',
-            nivel: p.nivel || 1,
-            experiencia: p.experiencia || 0,
-            saludActual: p.saludActual || 0,
-            saludMaxima: p.saludMaxima || 100,
-            estado: p.estado || 'saludable'
-          }))
+      personajes: userCharacters.length > 0
+        ? userCharacters.slice(0, 5).map((p: any) => ({
+          personajeId: p.personajeId,
+          rango: p.rango || 'D',
+          nivel: p.nivel || 1,
+          experiencia: p.experiencia || 0,
+          saludActual: p.saludActual || 0,
+          saludMaxima: p.saludMaxima || 100,
+          estado: p.estado || 'saludable'
+        }))
         : [],
 
       // Información de logros desbloqueados

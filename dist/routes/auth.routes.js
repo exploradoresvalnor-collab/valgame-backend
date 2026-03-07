@@ -334,6 +334,87 @@ router.post('/login', async (req, res) => {
         return res.status(400).json({ error: e?.message || 'Bad Request' });
     }
 });
+// --- RUTA: POST /auth/dev-login (SOLO PARA DESARROLLO) ---
+router.post('/dev-login', async (req, res) => {
+    try {
+        // Solo permitir en desarrollo
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(403).json({ error: 'Endpoint no disponible en producción' });
+        }
+        const { email, password } = req.body;
+        // En desarrollo, aceptar cualquier email/password y crear un usuario ficticio
+        console.log('[DEV-LOGIN] Login de desarrollo para:', email);
+        // Crear token JWT con datos ficticios
+        const token = jsonwebtoken_1.default.sign({ id: '507f1f77bcf86cd799439011' }, // Solo el campo 'id' como espera el middleware
+        (0, security_1.getJWTSecret)(), { expiresIn: '24h' });
+        // Usuario ficticio con personajes de prueba
+        const userData = {
+            id: '507f1f77bcf86cd799439011',
+            email: email,
+            username: email.split('@')[0],
+            isVerified: true,
+            tutorialCompleted: true,
+            personajes: [
+                {
+                    _id: '507f1f77bcf86cd799439012',
+                    personajeId: 'dev_char_001',
+                    nombre: 'Héroe de Desarrollo',
+                    rango: 'D',
+                    nivel: 5,
+                    etapa: 1,
+                    experiencia: 100,
+                    stats: {
+                        salud: 100,
+                        ataque: 20,
+                        defensa: 15
+                    },
+                    saludActual: 100
+                },
+                {
+                    _id: '507f1f77bcf86cd799439013',
+                    personajeId: 'dev_char_002',
+                    nombre: 'Guerrero de Desarrollo',
+                    rango: 'C',
+                    nivel: 10,
+                    etapa: 1,
+                    experiencia: 500,
+                    stats: {
+                        salud: 150,
+                        ataque: 30,
+                        defensa: 25
+                    },
+                    saludActual: 150
+                },
+                {
+                    _id: '507f1f77bcf86cd799439014',
+                    personajeId: 'dev_char_003',
+                    nombre: 'Mago de Desarrollo',
+                    rango: 'B',
+                    nivel: 15,
+                    etapa: 1,
+                    experiencia: 1200,
+                    stats: {
+                        salud: 120,
+                        ataque: 40,
+                        defensa: 20
+                    },
+                    saludActual: 120
+                }
+            ],
+            inventarioEquipamiento: [],
+            inventarioConsumibles: []
+        };
+        return res.json({
+            message: 'Login de desarrollo exitoso',
+            token: token,
+            user: userData
+        });
+    }
+    catch (e) {
+        console.error('[DEV-LOGIN] Error:', e);
+        return res.status(500).json({ error: e?.message || 'Error interno del servidor' });
+    }
+});
 // --- RUTA: POST /auth/logout ---
 router.post('/logout', auth_1.auth, async (req, res) => {
     try {

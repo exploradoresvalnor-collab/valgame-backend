@@ -1,101 +1,68 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 
-// Interfaz para el documento de UserCharacter
-export interface IUserCharacter extends Document {
-  userId: mongoose.Types.ObjectId;
-  baseCharacterId: mongoose.Types.ObjectId;
-  name: string;
-  level: number;
-  experience: number;
-  stats: {
-    health: number;
-    attack: number;
-    defense: number;
-    speed: number;
+export interface IActiveBuff {
+  consumableId: Types.ObjectId;
+  effects: {
+    mejora_atk?: number;
+    mejora_defensa?: number;
+    mejora_vida?: number;
+    mejora_xp_porcentaje?: number;
   };
-  equipment: {
-    weapon?: mongoose.Types.ObjectId;
-    armor?: mongoose.Types.ObjectId;
-    accessory?: mongoose.Types.ObjectId;
-  };
-  inventory: mongoose.Types.ObjectId[];
-  isAlive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  expiresAt: Date;
 }
 
-// Esquema de UserCharacter
-const userCharacterSchema = new Schema<IUserCharacter>({
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
+export interface IUserCharacter extends Document {
+  userId: Types.ObjectId;
+  personajeId: string;
+  rango: 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS';
+  nivel: number;
+  etapa: 1 | 2 | 3;
+  progreso: number;
+  experiencia: number;
+  stats: { atk: number; vida: number; defensa: number; };
+  saludActual: number;
+  saludMaxima: number;
+  estado: 'saludable' | 'herido';
+  fechaHerido: Date | null;
+  equipamiento: Types.ObjectId[];
+  activeBuffs: IActiveBuff[];
+}
+
+const ActiveBuffSchema = new Schema({
+  consumableId: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
+  effects: {
+    mejora_atk: { type: Number },
+    mejora_defensa: { type: Number },
+    mejora_vida: { type: Number },
+    mejora_xp_porcentaje: { type: Number }
   },
-  baseCharacterId: {
-    type: Schema.Types.ObjectId,
-    ref: 'BaseCharacter',
-    required: true
-  },
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 50
-  },
-  level: {
-    type: Number,
-    default: 1,
-    min: 1,
-    max: 100
-  },
-  experience: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
+  expiresAt: { type: Date, required: true }
+}, { _id: false });
+
+const UserCharacterSchema = new Schema<IUserCharacter>({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  personajeId: { type: String, required: true, index: true },
+  rango: { type: String, enum: ['D', 'C', 'B', 'A', 'S', 'SS', 'SSS'], required: true },
+  nivel: { type: Number, min: 1, max: 100, default: 1 },
+  etapa: { type: Number, enum: [1, 2, 3], default: 1 },
+  progreso: { type: Number, min: 0, default: 0 },
+  experiencia: { type: Number, min: 0, default: 0 },
   stats: {
-    health: { type: Number, required: true, min: 1 },
-    attack: { type: Number, required: true, min: 0 },
-    defense: { type: Number, required: true, min: 0 },
-    speed: { type: Number, required: true, min: 0 }
+    atk: { type: Number, min: 0, default: 0 },
+    vida: { type: Number, min: 0, default: 0 },
+    defensa: { type: Number, min: 0, default: 0 }
   },
-  equipment: {
-    weapon: { type: Schema.Types.ObjectId, ref: 'Item' },
-    armor: { type: Schema.Types.ObjectId, ref: 'Item' },
-    accessory: { type: Schema.Types.ObjectId, ref: 'Item' }
-  },
-  inventory: [{
-    type: Schema.Types.ObjectId,
-    ref: 'UserItem'
-  }],
-  isAlive: {
-    type: Boolean,
-    default: true
-  }
+  saludActual: { type: Number, default: 100 },
+  saludMaxima: { type: Number, default: 100 },
+  estado: { type: String, enum: ['saludable', 'herido'], default: 'saludable' },
+  fechaHerido: { type: Date, default: null },
+  equipamiento: [{ type: Schema.Types.ObjectId, ref: 'Item' }],
+  activeBuffs: { type: [ActiveBuffSchema], default: [] }
 }, {
   timestamps: true
 });
 
-// Índices para optimización
-userCharacterSchema.index({ userId: 1, isAlive: 1 });
-userCharacterSchema.index({ level: -1 });
+// Index for frequently querying alive status or characters by user
+UserCharacterSchema.index({ userId: 1, estado: 1 });
 
-// Validación personalizada para asegurar que no haya más de 9 personajes vivos por usuario
-userCharacterSchema.pre('save', async function(next) {
-  if (this.isNew && this.isAlive) {
-    const UserCharacter = mongoose.model('UserCharacter');
-    const aliveCharactersCount = await UserCharacter.countDocuments({
-      userId: this.userId,
-      isAlive: true
-    });
-
-    if (aliveCharactersCount >= 9) {
-      const error = new Error('No puedes tener más de 9 personajes vivos');
-      return next(error);
-    }
-  }
-  next();
-});
-
-export default mongoose.model<IUserCharacter>('UserCharacter', userCharacterSchema);
+export default model<IUserCharacter>('UserCharacter', UserCharacterSchema);

@@ -54,13 +54,22 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
   if (!token) return res.status(401).json({ error: 'Falta token' });
 
   try {
+    const decoded = jwt.verify(token, getJWTSecret()) as JwtPayload;
+
+    // En modo desarrollo, no buscar usuario en BD ni verificar blacklist
+    if (process.env.NODE_ENV !== 'production') {
+      (req as any).user = { _id: decoded.id, id: decoded.id };
+      (req as any).userId = decoded.id;
+      next();
+      return;
+    }
+
     // Verificar si el token está en la blacklist
     const blacklisted = await TokenBlacklist.findOne({ token });
     if (blacklisted) {
       return res.status(401).json({ error: 'Token inválido o sesión cerrada' });
     }
 
-    const decoded = jwt.verify(token, getJWTSecret()) as JwtPayload;
     const user = await User.findById(decoded.id);
 
     if (!user) {

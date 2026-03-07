@@ -51,6 +51,58 @@ const teams_routes_1 = __importDefault(require("./routes/teams.routes"));
 const express_2 = require("express");
 const auth_1 = require("./middlewares/auth");
 const userCharacter_1 = __importDefault(require("./models/userCharacter"));
+function isDevelopmentMode() {
+    return process.env.NODE_ENV !== 'production';
+}
+function getDevUserCharacters(userId) {
+    return [
+        {
+            _id: '507f1f77bcf86cd799439012',
+            personajeId: 'dev_char_001',
+            nombre: 'Héroe de Desarrollo',
+            rango: 'D',
+            nivel: 5,
+            etapa: 1,
+            experiencia: 100,
+            stats: {
+                salud: 100,
+                ataque: 20,
+                defensa: 15
+            },
+            saludActual: 100
+        },
+        {
+            _id: '507f1f77bcf86cd799439013',
+            personajeId: 'dev_char_002',
+            nombre: 'Guerrero de Desarrollo',
+            rango: 'C',
+            nivel: 10,
+            etapa: 1,
+            experiencia: 500,
+            stats: {
+                salud: 150,
+                ataque: 30,
+                defensa: 25
+            },
+            saludActual: 150
+        },
+        {
+            _id: '507f1f77bcf86cd799439014',
+            personajeId: 'dev_char_003',
+            nombre: 'Mago de Desarrollo',
+            rango: 'B',
+            nivel: 15,
+            etapa: 1,
+            experiencia: 1200,
+            stats: {
+                salud: 120,
+                ataque: 40,
+                defensa: 20
+            },
+            saludActual: 120
+        }
+    ];
+}
 const userCharactersRouter = (0, express_2.Router)();
 userCharactersRouter.use(auth_1.auth);
 userCharactersRouter.get('/', async (req, res) => {
@@ -58,6 +110,11 @@ userCharactersRouter.get('/', async (req, res) => {
         const userId = req.userId;
         if (!userId) {
             return res.status(401).json({ success: false, error: 'Usuario no autenticado' });
+        }
+        if (isDevelopmentMode()) {
+            // Modo desarrollo: devolver personajes ficticios
+            const characters = getDevUserCharacters(userId);
+            return res.json({ success: true, characters: characters });
         }
         const characters = await userCharacter_1.default.find({ userId }).sort({ createdAt: -1 });
         return res.json({ success: true, data: characters });

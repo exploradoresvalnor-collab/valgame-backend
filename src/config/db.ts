@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import dns from 'dns';
 
 // Forzar DNS de Google para resolver registros SRV de MongoDB Atlas
+// (Necesario porque el DNS local del ISP no soporta registros SRV)
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 export async function connectDB(uri: string = process.env.MONGODB_URI || '') {

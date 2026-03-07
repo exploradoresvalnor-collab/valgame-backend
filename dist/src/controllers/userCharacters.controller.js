@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUserCharacterById = exports.getUserCharacters = void 0;
-const userCharacter_1 = __importDefault(require("../../models/userCharacter"));
+const userCharacter_1 = __importDefault(require("../models/userCharacter"));
 // GET /api/user-characters - Obtener todos los personajes del usuario
 const getUserCharacters = async (req, res) => {
     try {

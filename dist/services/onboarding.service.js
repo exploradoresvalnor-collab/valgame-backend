@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deliverPioneerPackage = deliverPioneerPackage;
 const BaseCharacter_1 = __importDefault(require("../models/BaseCharacter"));
 const Consumable_1 = require("../models/Consumable");
+const Team_1 = require("../models/Team");
 async function deliverPioneerPackage(user) {
     // Si ya lo recibió, no hacemos nada (idempotencia)
     if (user.receivedPioneerPackage) {
@@ -69,6 +70,26 @@ async function deliverPioneerPackage(user) {
     };
     user.personajes.push(pioneerCharacter);
     console.log(`[ONBOARDING] ✅ Personaje agregado: ${baseChar.nombre} (Rango D, Nivel 1)`);
+    // Guardar el usuario para que el personaje obtenga un _id
+    await user.save();
+    // === CREAR EQUIPO AUTOMÁTICO ===
+    try {
+        const characterId = user.personajes[user.personajes.length - 1]._id; // ID del personaje recién agregado
+        const defaultTeam = await Team_1.Team.create({
+            userId: user._id,
+            name: 'Equipo Principal',
+            characters: [characterId],
+            isActive: true
+        });
+        // Actualizar el equipo activo en el usuario
+        user.equipoActivoId = defaultTeam._id;
+        await user.save(); // Guardar nuevamente con el equipo activo
+        console.log(`[ONBOARDING] ⚔️ Equipo creado: ${defaultTeam.name} (Personaje: ${baseChar.nombre})`);
+        console.log(`[ONBOARDING] 🎯 Equipo marcado como activo automáticamente`);
+    }
+    catch (error) {
+        console.warn('[ONBOARDING] ⚠️ No fue posible crear equipo automático:', error);
+    }
     // === RECURSOS INICIALES ===
     // 1. VAL (moneda principal)
     const valInicial = 100;
@@ -124,14 +145,15 @@ async function deliverPioneerPackage(user) {
     catch (err) {
         console.warn('[ONBOARDING] ⚠️ No fue posible asignar equipamiento inicial');
     }
-    // Marcar como recibido y guardar
+    // Marcar como recibido (ya guardado anteriormente)
     user.receivedPioneerPackage = true;
-    await user.save();
+    // No necesitamos guardar nuevamente, ya se hizo después de crear el equipo
     console.log('[ONBOARDING] 🎉 Paquete del Pionero entregado exitosamente');
     return {
         delivered: true,
         rewards: {
             personaje: baseChar.nombre,
+            equipo: 'Equipo Principal',
             val: valInicial,
             boletos: boletosIniciales,
             evo: evoInicial,

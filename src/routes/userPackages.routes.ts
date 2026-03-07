@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose, { Types } from 'mongoose';
 import UserPackage from '../models/UserPackage';
+import UserCharacter from '../models/userCharacter';
 import { User } from '../models/User';
 import PackageModel from '../models/Package';
 import { Item } from '../models/Item';
@@ -109,7 +110,7 @@ router.post('/open', async (req, res) => {
 
     const MAX_CHARACTERS = user.limiteInventarioPersonajes || 50;
     const MAX_EQUIPMENT = user.limiteInventarioEquipamiento || 200;
-    const currentCharacters = user.personajes?.length || 0;
+    const currentCharacters = await UserCharacter.countDocuments({ userId }).session(session);
     const currentEquipment = user.inventarioEquipamiento?.length || 0;
     const itemsToAdd = equipmentToAdd; // Solo contabilizar equipo para el límite de equipamiento
 
@@ -123,6 +124,7 @@ router.post('/open', async (req, res) => {
     }
 
     const guaranteed = (pkg as any).categorias_garantizadas || [];
+    const newCharactersData: any[] = [];
     const categoriesList = await Category.find().session(session);
 
     async function chooseRandomBaseForCategory(_catName: string) {
@@ -144,7 +146,7 @@ router.post('/open', async (req, res) => {
       try {
         const base = await chooseRandomBaseForCategory(cat);
         if (base) {
-          user.personajes.push({
+          newCharactersData.push({ userId,
             personajeId: base.id,
             rango: cat,
             nivel: 1,
@@ -161,7 +163,7 @@ router.post('/open', async (req, res) => {
           assigned.push(base.id);
         } else {
           // Fallback: si no se encuentra base, insertar con id genérico y rango garantizado
-          user.personajes.push({
+          newCharactersData.push({ userId,
             personajeId: 'base_d_001',
             rango: (cat as any) || 'D',
             nivel: 1,
@@ -192,7 +194,7 @@ router.post('/open', async (req, res) => {
         }
         const base = await chooseRandomBaseForCategory(chosenCat);
         if (base) {
-          user.personajes.push({
+          newCharactersData.push({ userId,
             personajeId: base.id,
             rango: (chosenCat as any) || 'D',
             nivel: 1,
@@ -209,7 +211,7 @@ router.post('/open', async (req, res) => {
           assigned.push(base.id);
         } else {
           // Fallback seguro
-          user.personajes.push({
+          newCharactersData.push({ userId,
             personajeId: 'base_d_001',
             rango: (chosenCat as any) || 'D',
             nivel: 1,
@@ -229,6 +231,7 @@ router.post('/open', async (req, res) => {
       } catch (_e) { break; }
     }
 
+    if (newCharactersData.length > 0) await UserCharacter.insertMany(newCharactersData, { session });
     await user.save({ session });
 
     await UserPackage.findByIdAndDelete(userPackageToOpen._id, { session });
@@ -242,7 +245,7 @@ router.post('/open', async (req, res) => {
       valReceived: (pkg as any).val_reward || 0,
       timestamp: new Date(),
       metadata: {
-        currentCharacters: user.personajes.length,
+        currentCharacters: currentCharacters + assigned.length,
         currentItems: user.inventarioEquipamiento.length,
         currentVal: user.val,
         packageName: (pkg as any).nombre || 'Unknown'
@@ -254,7 +257,7 @@ router.post('/open', async (req, res) => {
     try {
       const realtime = RealtimeService.getInstance();
       realtime.notifyInventoryUpdate(userId, {
-        personajes: user.personajes.length,
+        personajes: currentCharacters + assigned.length,
         equipamiento: user.inventarioEquipamiento.length,
         val: user.val,
         newCharacters: assigned,
@@ -270,7 +273,7 @@ router.post('/open', async (req, res) => {
         charactersReceived: assigned.length,
         itemsReceived: itemsToAdd + consumablesToAdd,
         valReceived: (pkg as any).val_reward || 0,
-        totalCharacters: user.personajes.length,
+        totalCharacters: currentCharacters + assigned.length,
         totalItems: user.inventarioEquipamiento.length,
         totalConsumables: user.inventarioConsumibles.length,
         valBalance: user.val
@@ -529,7 +532,7 @@ router.post('/:id/open', async (req, res) => {
 
     const MAX_CHARACTERS = user.limiteInventarioPersonajes || 50;
     const MAX_EQUIPMENT = user.limiteInventarioEquipamiento || 200;
-    const currentCharacters = user.personajes?.length || 0;
+    const currentCharacters = await UserCharacter.countDocuments({ userId }).session(session);
     const currentEquipment = user.inventarioEquipamiento?.length || 0;
     const itemsToAdd = ((pkg as any).items_reward || []).length;
 
@@ -544,6 +547,7 @@ router.post('/:id/open', async (req, res) => {
     }
 
     const guaranteed = (pkg as any).categorias_garantizadas || [];
+    const newCharactersData: any[] = [];
     const categoriesList = await Category.find().session(session);
 
     async function chooseRandomBaseForCategory(_catName: string) {
@@ -555,7 +559,7 @@ router.post('/:id/open', async (req, res) => {
       try {
         const base = await chooseRandomBaseForCategory(cat);
         if (base) {
-          user.personajes.push({
+          newCharactersData.push({ userId,
             personajeId: base.id,
             rango: cat,
             nivel: 1,
@@ -588,7 +592,7 @@ router.post('/:id/open', async (req, res) => {
         }
         const base = await chooseRandomBaseForCategory(chosenCat);
         if (base) {
-          user.personajes.push({
+          newCharactersData.push({ userId,
             personajeId: base.id,
             rango: chosenCat,
             nivel: 1,
@@ -612,6 +616,7 @@ router.post('/:id/open', async (req, res) => {
       }
     }
 
+    if (newCharactersData.length > 0) await UserCharacter.insertMany(newCharactersData, { session });
     await user.save({ session });
 
     await UserPackage.findByIdAndDelete(userPackageToOpen._id, { session });
@@ -625,7 +630,7 @@ router.post('/:id/open', async (req, res) => {
       valReceived: (pkg as any).val_reward || 0,
       timestamp: new Date(),
       metadata: {
-        currentCharacters: user.personajes.length,
+        currentCharacters: currentCharacters + assigned.length,
         currentItems: user.inventarioEquipamiento.length,
         currentVal: user.val,
         packageName: (pkg as any).nombre || 'Unknown'
@@ -638,7 +643,7 @@ router.post('/:id/open', async (req, res) => {
     try {
       const realtime = RealtimeService.getInstance();
       realtime.notifyInventoryUpdate(userId, {
-        personajes: user.personajes.length,
+        personajes: currentCharacters + assigned.length,
         equipamiento: user.inventarioEquipamiento.length,
         val: user.val,
         newCharacters: assigned,
@@ -649,7 +654,7 @@ router.post('/:id/open', async (req, res) => {
       console.warn('[USER-PACKAGE-OPEN] Notification failed:', (notifyErr as any)?.message || notifyErr);
     }
 
-    res.json({ ok: true, assigned, summary: { charactersReceived: assigned.length, itemsReceived: itemsToAdd, valReceived: (pkg as any).val_reward || 0, totalCharacters: user.personajes.length, totalItems: user.inventarioEquipamiento.length, valBalance: user.val } });
+    res.json({ ok: true, assigned, summary: { charactersReceived: assigned.length, itemsReceived: itemsToAdd, valReceived: (pkg as any).val_reward || 0, totalCharacters: currentCharacters + assigned.length, totalItems: user.inventarioEquipamiento.length, valBalance: user.val } });
   } catch (err) {
     // Intentar abortar la transacción, pero silenciar cualquier
     // error (p. ej. "Cannot call abortTransaction after calling commitTransaction").
